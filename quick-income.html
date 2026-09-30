@@ -459,7 +459,15 @@ async function exportPDF(){
   S.jobs.push(newJob());
   render();
 })();
+window.__mtgcalcBridge = {
+  getIncomePatch(){
+    const total = S.jobs.reduce((n,j)=>n+calcJob(j).total,0) + S.others.reduce((n,o)=>n+calcOther(o),0);
+    const name = ($('bname') && $('bname').value.trim()) || 'Borrower 1';
+    return { borrowerName:name, borrowers:[{name, grossMonthlyIncome:Math.max(0,total), otherMonthlyIncome:0, monthlyDebts:0}] };
+  }
+};
 </script>
+<script src="sync-bridge.js"></script>
 <style id="suiteNavCss">
 #suiteNav{position:fixed;right:14px;bottom:78px;z-index:99999;display:flex;gap:2px;align-items:center;
   background:rgba(20,30,50,.92);border:1px solid rgba(255,255,255,.15);border-radius:99px;padding:5px 8px;

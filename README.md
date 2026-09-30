@@ -11,7 +11,7 @@ A separate, simpler companion site for the advanced Mortgage Suite. It keeps the
 | `all-in-one.html` | All-in-One Income + Renovation Workbench |
 | `loan-suite.html` | Advanced mortgage workspace — pricing, costs, documents, OCR, scenarios and Loan Estimate |
 
-The uploaded Income Calculator remains byte-for-byte unchanged. All-in-One continues to perform the quick-income-to-renovation handoff, while the detailed workspace retains the advanced loan, documents and scenario tools.
+The uploaded Income Calculator retains its original calculation workflow. A small shared-browser sync bridge now keeps reviewable income handoffs connected with Quick, Renovation, All-in-One, and the advanced workspace. All-in-One continues to perform the quick-income-to-renovation handoff, while the detailed workspace retains the advanced loan, documents and scenario tools.
 
 ## Verification
 

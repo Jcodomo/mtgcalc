@@ -1280,6 +1280,16 @@ table.grid{width:100%;border-collapse:separate;border-spacing:0;font-size:12px}
   transition:background .13s,border-color .13s;white-space:nowrap;}
 #shellbar .hand button:hover{background:rgba(37,99,235,.30);border-color:rgba(120,170,255,.5);color:#fff;}
 #shellbar .hand button svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2;}
+#shellSettings{display:none;position:absolute;right:16px;top:41px;z-index:450;width:335px;padding:12px;
+  background:#13243c;border:1px solid rgba(143,180,230,.28);border-radius:10px;box-shadow:0 15px 32px rgba(0,0,0,.30);}
+#shellSettings.on{display:block}#shellSettings h3{margin:0 0 7px;color:#eef5ff;font:700 12px/1.2 Inter,system-ui,sans-serif}
+#shellSettings p{margin:0 0 10px;color:#9fb4d0;font:500 11px/1.4 Inter,system-ui,sans-serif}
+#shellSettings .shell-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+#shellSettings button{width:100%;text-align:left;appearance:none;cursor:pointer;padding:9px 10px;border-radius:7px;
+  border:1px solid rgba(143,180,230,.20);background:rgba(255,255,255,.04);color:#dbe8fa;font:600 11px/1.2 Inter,system-ui,sans-serif}
+#shellSettings button:hover{background:rgba(37,99,235,.28);border-color:rgba(120,170,255,.55);color:#fff}
+#shellSettings .shell-sub{grid-column:1/-1;margin:4px 0 0;color:#8fa8c8;font:700 10px/1 Inter,system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase}
+#shellSettings .shell-status{grid-column:1/-1;margin-top:3px;color:#85d7be;font:600 10.5px/1.2 Inter,system-ui,sans-serif}
 #shellbar .lnk{color:#8fa8c8;font:500 11px/1 Inter,system-ui,sans-serif;
   display:flex;align-items:center;gap:5px;white-space:nowrap;}
 #shellbar .dot{width:6px;height:6px;border-radius:50%;background:#3f7a52;}
@@ -1322,7 +1332,24 @@ table.grid{width:100%;border-collapse:separate;border-spacing:0;font-size:12px}
       <svg viewBox="0 0 24 24"><line x1="20" y1="12" x2="5" y2="12"/><polyline points="11 6 5 12 11 18"/></svg>
       <span>Suite &rarr; Income</span>
     </button>
+    <button onclick="shellToggleSettings(event)" type="button" title="Sync and document options"><span>More settings</span></button>
   </div>
+  <section id="shellSettings" aria-label="More settings">
+    <h3>Sync &amp; documents</h3>
+    <p>Keep the Quick, Income, Renovation, and All-in-One workflow linked in this browser.</p>
+    <div class="shell-grid">
+      <button onclick="MtgcalcSync.syncNow()">Sync all workspaces</button>
+      <button onclick="MtgcalcSync.pullToCalculator();SHELL.go('calc')">Load shared income</button>
+      <span class="shell-sub">Generate in Full Suite</span>
+      <button onclick="MtgcalcSync.openDocuments('profit-loss')">Profit &amp; Loss</button>
+      <button onclick="MtgcalcSync.openDocuments('pay-statement')">Pay statement</button>
+      <button onclick="MtgcalcSync.openDocuments('draft-le')">Draft Loan Estimate</button>
+      <button onclick="MtgcalcSync.openDocuments('schedule-c')">Schedule C worksheet</button>
+      <button onclick="MtgcalcSync.openDocuments('lease')">Lease &amp; addendum</button>
+      <button onclick="MtgcalcSync.openDocuments('ocr')">Documents &amp; OCR</button>
+      <span class="shell-status" data-mtgcalc-sync-status>Ready to sync</span>
+    </div>
+  </section>
 </div>
 
 <div id="calc-root" class="mode-pane on">
@@ -16872,6 +16899,28 @@ function initThemeSync(){
 
 document.body.dataset.shellMode = 'calc';
 </script>
+<script>
+window.__mtgcalcBridge = {
+  getIncomePatch: () => renoPatch(),
+  importSharedIncome(patch){
+    const amount = Number(patch && patch.borrowers && patch.borrowers[0] && patch.borrowers[0].grossMonthlyIncome) || 0;
+    if (!(amount > 0)) return false;
+    let row = S.w2.find((x)=>x.__mtgcalcSharedQuick);
+    if (!row) { row = newW2(); row.__mtgcalcSharedQuick = true; S.w2.push(row); }
+    row.employer = 'Synced Quick Income — review source'; row.mode = 'manual'; row.m.base = 'custom'; row.c.base = amount; row.use = true;
+    renderAll(); SHELL.say('Shared income loaded', false); return true;
+  }
+};
+function shellToggleSettings(event){
+  event.stopPropagation();
+  document.getElementById('shellSettings').classList.toggle('on');
+}
+document.addEventListener('click', function(event){
+  const panel = document.getElementById('shellSettings');
+  if (panel && !panel.contains(event.target)) panel.classList.remove('on');
+});
+</script>
+<script src="sync-bridge.js"></script>
 
 <style id="suiteNavCss">
 #suiteNav{position:fixed;right:14px;bottom:14px;z-index:99999;display:flex;gap:2px;align-items:center;

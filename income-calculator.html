@@ -7629,7 +7629,19 @@ if (!restored) seed();
 normalise();
 renderAll();
 if (restored) toast('Autosaved file restored from this browser');
+window.__mtgcalcBridge = {
+  getIncomePatch: () => renoPatch(),
+  importSharedIncome(patch){
+    const amount = Number(patch && patch.borrowers && patch.borrowers[0] && patch.borrowers[0].grossMonthlyIncome) || 0;
+    if (!(amount > 0)) return false;
+    let row = S.w2.find((x)=>x.__mtgcalcSharedQuick);
+    if (!row) { row = newW2(); row.__mtgcalcSharedQuick = true; S.w2.push(row); }
+    row.employer = 'Synced Quick Income — review source'; row.mode = 'manual'; row.m.base = 'custom'; row.c.base = amount; row.use = true;
+    renderAll(); toast('Shared Quick income loaded as a reviewable custom income line'); return true;
+  }
+};
 </script>
+<script src="sync-bridge.js"></script>
 
 <style id="suiteNavCss">
 #suiteNav{position:fixed;right:14px;bottom:14px;z-index:99999;display:flex;gap:2px;align-items:center;
