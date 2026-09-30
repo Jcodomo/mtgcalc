@@ -1,0 +1,9 @@
+{
+  "name": "mtgcalc",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Simple mortgage calculator and renovation workflow, published as a static GitHub Pages site.",
+  "scripts": {
+    "test": "node test-static.mjs"
+  }
+}
