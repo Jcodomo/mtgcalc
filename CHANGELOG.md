@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-10-02 - Release 55.1 performance pass
+
+- Added a shared rendering pass to all eight entry points to prevent horizontal reflow, reserve scrollbar space, and reduce animation-driven scroll judder.
+- Kept calculation and navigation code unchanged; reduced transition duration only when motion is enabled and respected reduced-motion preferences.
+- Retained all Release 55 features, direct routes, and compatibility aliases.
+
 ## 2026-10-02 · 10.02 / Release 55 reapplied
 
 - Replaced the published primary pages with the supplied Release 55 build.
