@@ -1,11 +1,10 @@
 # Changelog
 
-## 1.0.0
+## 2026-10-02 · 10.02 / Release 55 reapplied
 
-- Created a separate, streamlined `mtgcalc` site from the uploaded workflow.
-- Preserved the uploaded Income Calculator unchanged.
-- Retained Quick, Income, Renovation, and All-in-One workflow pages.
-- Added a Full Suite route for advanced pricing, closing-cost, document/OCR,
-  scenario, loan-estimate, and underwriting workspaces.
-- Added direct Full Suite access from the landing, renovation, and All-in-One pages.
-- Added repeatable static validation and GitHub Pages deployment checks.
+- Replaced the published primary pages with the supplied Release 55 build.
+- Restored the tested Quick, All-in-One, Full Suite, and Loan Suite workflows.
+- Preserved legacy direct entry points so existing bookmarks continue to open.
+- Re-ran the static page/script/navigation check.
+- Re-ran the supplied Release 55 Node tests: 18 passing, 0 failing.
+- Kept browser-saved shared values, editable quote popups, locks, ZIP lookup, loan comparison, amortization, renovation, income, OCR, and document workflows from the supplied build.
