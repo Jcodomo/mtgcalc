@@ -774,16 +774,25 @@ table.matrix tr.meta-row td{font-size:10.5px;}
 }
 </style>
 <style id="mtgcalc-performance-pass">
-/* Release 55.1 performance pass: prevent horizontal reflow and animation-driven scroll judder. */
+/* Release 55.2 UI pass: opaque headers, compact rhythm, stable wide-screen layout. */
 html{scroll-behavior:auto;scrollbar-gutter:stable}
 body{overflow-x:clip;overscroll-behavior-x:none}
 @supports not (overflow:clip){body{overflow-x:hidden}}
-@media (prefers-reduced-motion:no-preference){
-  .card,.los55-nav a,.los55-btn,.lc-btn{transition-duration:.12s}
-}
-@media (prefers-reduced-motion:reduce){
-  *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}
-}
+body,#calc-root,#suite-root{min-width:0}
+#calc-root .appbar,#calc-root .topbar,#calc-root nav.tabbar{background:var(--bar-bg,#1b3a5f)!important;background-image:none!important;opacity:1!important;backdrop-filter:none!important}
+#suite-root .v25-topbar,#suite-root .topbar{background:var(--v24-header,#1b3a5f)!important;background-image:none!important;opacity:1!important;backdrop-filter:none!important}
+#suite-root .v25-topbar{border-bottom-color:var(--v24-border,#334a68)!important;box-shadow:0 4px 14px rgba(2,6,23,.16)!important;contain:layout paint}
+#calc-root .appbar{contain:layout paint}
+#calc-root .appbar .topbar{min-height:56px!important;padding-block:6px!important}
+#suite-root .v25-topbar{min-height:84px!important;padding-block:6px!important}
+#calc-root main .wrap{max-width:1480px!important;padding-inline:14px!important}
+#suite-root .app{max-width:1480px!important;padding:8px 12px 42px!important}
+#suite-root .cols-main,#suite-root .colgroup{gap:12px!important}
+#suite-root .card,#calc-root .card{margin-bottom:10px}
+#suite-root .card-body,#calc-root .card-body{padding:12px 14px}
+@media (min-width:1800px){#calc-root main .wrap,#suite-root .app{max-width:1540px!important}}
+@media (prefers-reduced-motion:no-preference){.card,.los55-nav a,.los55-btn,.lc-btn{transition-duration:.12s}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}}
 </style></head>
 <body>
 

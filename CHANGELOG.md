@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-10-02 - Release 55.2 layout pass
+
+- Made the application and suite headers opaque and stable so content does not show through while scrolling.
+- Tightened card padding, vertical rhythm, top-bar height, and wide-screen max widths while preserving responsive scaling.
+- Kept all inputs, menus, navigation, calculations, and live-summary behavior unchanged.
+
 ## 2026-10-02 - Release 55.1 performance pass
 
 - Added a shared rendering pass to all eight entry points to prevent horizontal reflow, reserve scrollbar space, and reduce animation-driven scroll judder.
