@@ -1,6 +1,6 @@
 # Mortgage Suite · Release 55.3
 
-This repository contains the 10.02 Release 55 mortgage workflow: Quick, All-in-One, Full Suite, ZIP lookup, editable quote values, loan comparison, amortization, renovation, income, documents, OCR, and browser-saved shared values.
+This repository contains the Release 55.5 mortgage workflow: Quick, All-in-One, Full Suite, ZIP lookup, editable quote values, loan comparison, amortization, renovation, income, documents, OCR, and browser-saved shared values. Release 55.5 also includes the two-year Schedule E rental worksheet, fair-rental-day proration, the compact Quick W-2 bridge, and resilient PDF/OCR reading.
 
 | Page | URL |
 |---|---|

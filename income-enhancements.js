@@ -291,6 +291,31 @@
     window.__mtgcalcEnhancedApply = true;
   }
 
+  /* OCR engines often confuse a small set of characters in form labels
+     ("Rece1ved", "Insuranc e", "M0rtgage", etc.). Normalize labels before
+     the existing conservative extractor sees them. Amounts are untouched, so
+     this cannot silently change a figure. */
+  if (typeof extractFields === 'function' && !window.__mtgcalcOcrLabels) {
+    const legacyExtractFields = extractFields;
+    const normalizeOcrLabels = raw => String(raw == null ? '' : raw)
+      .replace(/rents?\s+(?:recei(?:ved|ved|vcd)|rece1ved|receivcd)/gi, 'Rents Received')
+      .replace(/insuranc[e3]\s*/gi, 'Insurance ')
+      .replace(/m[o0]rtgag[e3]\s+interest/gi, 'Mortgage Interest')
+      .replace(/pers[o0]nal[\-\s]+use\s+days/gi, 'Personal Use Days')
+      .replace(/fair\s+rental\s+days?/gi, 'Fair Rental Days')
+      .replace(/t[o0]tal\s+expens[e3]s?/gi, 'Total Expenses')
+      .replace(/depreciati[o0]n\s+(?:expense\s+or\s+depletion|and\s+depletion)/gi, 'Depreciation Expense or Depletion')
+      .replace(/(?:schedul[e3]|schedu1e)\s*e\b/gi, 'Schedule E')
+      .replace(/(?:schedul[e3]|schedu1e)\s*c\b/gi, 'Schedule C')
+      .replace(/\bpay\s*st[uv]b\b/gi, 'Pay Stub')
+      .replace(/\bw[\-\s]?2\b/gi, 'W-2');
+    const wrappedExtractFields = (type, raw) => legacyExtractFields(type, normalizeOcrLabels(raw));
+    wrappedExtractFields.__mtgcalcOcrLabels = true;
+    try { extractFields = wrappedExtractFields; } catch (_) {}
+    try { window.extractFields = wrappedExtractFields; } catch (_) {}
+    window.__mtgcalcOcrLabels = true;
+  }
+
   const css = document.createElement('style'); css.id = 'incomeEnhancementsCss'; css.textContent = `
     #scheduleEEnhanced{margin-top:12px}.se-worksheet{margin-bottom:16px}.se-title{background:var(--surface-2)}
     .se-address{flex:1;min-width:260px}.se-meta{margin-bottom:12px}.se-table-wrap{border-radius:8px}

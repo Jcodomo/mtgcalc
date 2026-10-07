@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-10-07 - Release 55.5 OCR and Schedule E quality pass
+
+- Schedule E now presents the prior/current tax-year rental worksheet in the same line-item layout as the supplied NMB reference, including fair-rental days, personal-use days, PITIA, gross cash flow, and the two-year average used for planning.
+- Restored the compact Quick W-2 bridge while retaining the complete W-2 worksheet and live mortgage handoff.
+- Improved income-document PDF reading by ordering text items by visual row/column before field extraction; added a secondary Tesseract CDN fallback for scanned PDFs and images.
+- Added OCR label normalization for common scan errors across W-2, paystub, Schedule C, and Schedule E labels without changing extracted amounts.
+- Retained JSON extraction aliases and manual review/apply controls so OCR results remain editable and verifiable.
+
 ## 2026-10-07 - Release 55.4 income workflow pass
 
 - Added a compact Quick W-2 bridge to the Income Calculator. It supports hourly, weekly, bi-weekly, semi-monthly, monthly, and annual pay, YTD/prior-year averaging, variable pay, and a push-to-worksheet action without removing the full W-2 worksheet.

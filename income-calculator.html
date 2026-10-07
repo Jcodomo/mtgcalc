@@ -3978,13 +3978,26 @@ async function pdfText(file, onProg){
   for (let i=1;i<=pdf.numPages;i++){
     const pg = await pdf.getPage(i);
     const tc = await pg.getTextContent();
-    let last = null, line = '';
-    tc.items.forEach(it=>{
-      const y = it.transform[5];
-      if (last !== null && Math.abs(y-last) > 2){ out += line.trim()+'\n'; line=''; }
-      line += it.str + ' '; last = y;
+    /* PDF text items are not guaranteed to arrive in visual order. Forms
+       commonly store the right-hand dollar column before the left-hand label,
+       which used to join unrelated values and hurt field assignment. Group by
+       baseline first, then read each row left-to-right. */
+    const items = (tc.items || []).map(it=>({
+      text: String(it.str || ''),
+      x: Number(it.transform && it.transform[4]) || 0,
+      y: Number(it.transform && it.transform[5]) || 0
+    })).filter(it=>it.text.trim());
+    items.sort((a,b)=>b.y-a.y || a.x-b.x);
+    const rows = [];
+    items.forEach(it=>{
+      let row = rows[rows.length-1];
+      if (!row || Math.abs(row.y-it.y) > 2){ row = { y:it.y, items:[] }; rows.push(row); }
+      row.items.push(it);
     });
-    out += line.trim()+'\n';
+    rows.forEach(row=>{
+      row.items.sort((a,b)=>a.x-b.x);
+      out += row.items.map(it=>it.text).join(' ').replace(/\s+/g,' ').trim()+'\n';
+    });
     if (onProg) onProg(i/pdf.numPages*0.9);
   }
   return {text:out, pdf};
@@ -4005,13 +4018,24 @@ let tessLoading = null;
 function loadTesseract(){
   if (window.Tesseract) return Promise.resolve(true);
   if (tessLoading) return tessLoading;
-  tessLoading = new Promise(res=>{
-    const sc = document.createElement('script');
-    sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.1.0/tesseract.min.js';
-    sc.onload = ()=>res(!!window.Tesseract);
-    sc.onerror = ()=>res(false);
-    document.head.appendChild(sc);
-    setTimeout(()=>res(!!window.Tesseract), 15000);
+  tessLoading = new Promise(resolve=>{
+    const sources = [
+      'https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.1.0/tesseract.min.js',
+      'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.0/dist/tesseract.min.js'
+    ];
+    let index = 0, settled = false;
+    const finish = ok => { if (!settled){ settled = true; resolve(ok); } };
+    const loadNext = () => {
+      if (window.Tesseract){ finish(true); return; }
+      if (index >= sources.length){ finish(false); return; }
+      const sc = document.createElement('script');
+      sc.async = true; sc.src = sources[index++];
+      sc.onload = ()=>window.Tesseract ? finish(true) : loadNext();
+      sc.onerror = loadNext;
+      document.head.appendChild(sc);
+    };
+    loadNext();
+    setTimeout(()=>finish(!!window.Tesseract), 20000);
   });
   return tessLoading;
 }
