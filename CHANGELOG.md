@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-10-07 - Release 55.8 PDF/OCR resilience pass
+
+- Added lazy PDF.js loading with CDN fallbacks so PDF imports do not fail immediately when the preferred reader is unavailable.
+- Added a conservative browser-native PDF text-layer fallback for ordinary text PDFs; scanned/image-only PDFs still surface a clear OCR guidance message.
+- Preserved the shared OCR workspace, explicit assignment fields, review/apply flow, and all existing calculations and controls.
+
 ## 2026-10-07 - Release 55.7 OCR-to-income handoff
 
 - Added explicit Loan Suite OCR assignment controls for borrower, W-2/paystub, Schedule C, and Schedule E destinations.

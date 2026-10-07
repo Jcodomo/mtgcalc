@@ -1,4 +1,4 @@
-/* Release 55.6 — compact loan metrics and shared OCR handoff.
+/* Release 55.8 — compact loan metrics, shared OCR handoff, and resilient PDF import.
    Additive UI behavior only: the existing mortgage engine remains authoritative. */
 (function () {
   'use strict';
@@ -68,6 +68,105 @@
     if (document.getElementById('mtgcalc-loan-ux-style')) return;
     const style = document.createElement('style');
     style.id = 'mtgcalc-loan-ux-style'; style.textContent = css; document.head.appendChild(style);
+  }
+  function decodePdfBytes(bytes) {
+    try { return new TextDecoder('latin1').decode(bytes); }
+    catch (_) { return String.fromCharCode.apply(null, Array.from(bytes)); }
+  }
+  function unescapePdfText(value) {
+    return String(value || '')
+      .replace(/\\([nrtbf\\()])/g, function (_, c) { return ({ n: '\n', r: '\r', t: '\t', b: '\b', f: '\f' })[c] || c; })
+      .replace(/\\(\d{1,3})/g, function (_, c) { return String.fromCharCode(parseInt(c, 8)); });
+  }
+  async function nativePdfTextBytes(bytes) {
+    const raw = decodePdfBytes(bytes), chunks = [];
+    let cursor = 0;
+    while (true) {
+      const start = raw.indexOf('stream', cursor); if (start < 0) break;
+      const bodyStart = raw[start + 6] === '\r' && raw[start + 7] === '\n' ? start + 8 : start + 7;
+      const end = raw.indexOf('endstream', bodyStart); if (end < 0) break;
+      const slice = bytes.slice(bodyStart, end);
+      let stream = decodePdfBytes(slice);
+      try {
+        if (window.DecompressionStream) {
+          const ds = new DecompressionStream('deflate');
+          const inflated = await new Response(new Blob([slice]).stream().pipeThrough(ds)).arrayBuffer();
+          stream = decodePdfBytes(new Uint8Array(inflated));
+        }
+      } catch (_) {}
+      const found = [];
+      stream.replace(/\(([^()]*(?:\\.[^()]*)*)\)\s*Tj/g, function (_, value) { found.push(unescapePdfText(value)); return _; });
+      stream.replace(/\[((?:[^\]]|\\\])*)\]\s*TJ/g, function (_, value) {
+        const parts = [];
+        value.replace(/\(([^()]*(?:\\.[^()]*)*)\)|<([0-9A-Fa-f]+)>/g, function (m, plain, hex) {
+          parts.push(plain != null ? unescapePdfText(plain) : String.fromCharCode.apply(null, (hex.match(/../g) || []).map(function (x) { return parseInt(x, 16); })));
+          return m;
+        });
+        found.push(parts.join(' ')); return _;
+      });
+      if (found.length) chunks.push(found.join(' '));
+      cursor = end + 9;
+    }
+    return chunks.join('\n');
+  }
+  async function makeNativePdfJs(files) {
+    const list = Array.from(files || []).filter(function (file) { return /\.pdf$/i.test(file.name || ''); });
+    if (!list.length) return false;
+    const first = list[0], bytes = new Uint8Array(await first.arrayBuffer()), text = await nativePdfTextBytes(bytes);
+    if (!text || text.replace(/\s/g, '').length < 20) return false;
+    const previous = window.pdfjsLib;
+    window.pdfjsLib = {
+      GlobalWorkerOptions: {},
+      getDocument: function () {
+        return { promise: Promise.resolve({
+          numPages: 1,
+          getPage: async function () {
+            return {
+              getTextContent: async function () { return { items: text.split(/\r?\n/).filter(Boolean).map(function (str) { return { str: str, transform: [1, 0, 0, 1, 0, 0] }; }) }; },
+              getViewport: function () { return { width: 1, height: 1 }; },
+              render: async function () { throw new Error('This PDF is text-readable but does not expose a renderable scan layer.'); }
+            };
+          }
+        }) };
+      }
+    };
+    window.pdfjsLib.__mtgcalcNative = true;
+    return previous || true;
+  }
+  function loadLoanPdfJs() {
+    if (window.pdfjsLib) return Promise.resolve(true);
+    if (loadLoanPdfJs.promise) return loadLoanPdfJs.promise;
+    loadLoanPdfJs.promise = new Promise(function (resolve) {
+      const urls = [
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
+        'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js',
+        'https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js'
+      ];
+      let index = 0, done = false;
+      const finish = function (ok) { if (!done) { done = true; resolve(ok); } };
+      const next = function () {
+        if (window.pdfjsLib) { finish(true); return; }
+        if (index >= urls.length) { finish(false); return; }
+        const script = document.createElement('script'); script.async = true; script.src = urls[index++];
+        script.onload = function () { window.pdfjsLib ? finish(true) : next(); };
+        script.onerror = next; (document.head || document.documentElement).appendChild(script);
+      };
+      next(); setTimeout(function () { finish(!!window.pdfjsLib); }, 12000);
+    });
+    return loadLoanPdfJs.promise;
+  }
+  function installLoanPdfBridge() {
+    const legacy = window.handleFiles;
+    if (typeof legacy !== 'function' || legacy.__mtgcalcPdfBridge) return;
+    const wrapped = async function (files) {
+      const list = Array.from(files || []), hasPdf = list.some(function (file) { return /\.pdf$/i.test(file.name || ''); });
+      if (hasPdf && !window.pdfjsLib) {
+        const loaded = await loadLoanPdfJs();
+        if (!loaded) await makeNativePdfJs(list);
+      }
+      return legacy.call(this, files);
+    };
+    wrapped.__mtgcalcPdfBridge = true; window.handleFiles = wrapped;
   }
   function text(el) { return String(el && (el.innerText || el.textContent) || '').replace(/\s+/g, ' ').trim(); }
   function openIncomeDocs() {
@@ -208,7 +307,7 @@
     if (tab) tab.click();
   }
   function wire() {
-    installCss(); markCards(); addOcrLink(); installV9IncomeBridge(); decorateV9Docs();
+    installCss(); installLoanPdfBridge(); markCards(); addOcrLink(); installV9IncomeBridge(); decorateV9Docs();
     const root = document.getElementById('suite-root');
     if (root && !root.dataset.mtgcalcUx) {
       root.dataset.mtgcalcUx = '1';
