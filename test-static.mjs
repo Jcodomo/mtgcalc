@@ -7,8 +7,9 @@ const root = process.cwd();
 const primary = ['index.html', 'quick.html', 'all-in-one.html', 'full-suite.html', 'loan-suite.html'];
 const compatibility = ['quick-income.html', 'income-calculator.html', 'renovation-suite.html'];
 const pages = [...primary, ...compatibility];
+assert.ok(existsSync(path.join(root, 'income-enhancements.js')), 'income enhancements script exists');
 const sourceAllowlist = new RegExp(
-  '^(sync-bridge\\.js|https://cdnjs\\.cloudflare\\.com/ajax/libs/(html2canvas|jspdf|pdf\\.js)/)'
+  '^(sync-bridge\\.js|income-enhancements\\.js|https://cdnjs\\.cloudflare\\.com/ajax/libs/(html2canvas|jspdf|pdf\\.js)/)'
 );
 
 for (const file of pages) {
@@ -33,6 +34,9 @@ for (const target of ['quick.html', 'all-in-one.html', 'full-suite.html']) {
 }
 for (const file of ['all-in-one.html', 'full-suite.html', 'loan-suite.html']) {
   assert.match(readFileSync(path.join(root, file), 'utf8'), /LOS55|los55/i, `${file} contains the Release 55 app`);
+}
+for (const file of ['all-in-one.html', 'full-suite.html', 'income-calculator.html']) {
+  assert.match(readFileSync(path.join(root, file), 'utf8'), /income-enhancements\.js/, `${file} loads the income enhancements`);
 }
 for (const file of compatibility) {
   assert.ok(existsSync(path.join(root, file)), `${file} compatibility alias remains available`);

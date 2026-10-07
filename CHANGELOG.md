@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-10-07 - Release 55.4 income workflow pass
+
+- Added a compact Quick W-2 bridge to the Income Calculator. It supports hourly, weekly, bi-weekly, semi-monthly, monthly, and annual pay, YTD/prior-year averaging, variable pay, and a push-to-worksheet action without removing the full W-2 worksheet.
+- Reworked Schedule E into a rental worksheet with prior/current tax-year columns, fair-rental-day and personal-use-day proration, PITIA inputs, gross rental cash flow, net cash flow after PITIA, and a transparent two-year average basis.
+- Preserved legacy rental records during migration and kept lease-method records on the existing calculation path.
+- Expanded document JSON compatibility for Schedule E aliases (`scheduleE`, `rentals`, `priorYear`, `currentYear`, `y1`, `y2`) and retained the existing local PDF/OCR pipeline and review/apply workflow.
+- Added static coverage for the additive enhancement script; all existing page links, aliases, and calculations remain in place.
+
 ## 2026-10-02 - Release 55.3 fix-up pass
 
 - Header behaves as before: All-in-One, Full Suite and Loan Suite open at the top with the full Loan Suite header on screen. Startup no longer jumps 1,300 px down to the Quote card or focuses a field; explicit ?tab= links still jump to their section.
