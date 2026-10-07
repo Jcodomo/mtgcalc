@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-10-07 - Release 55.7 OCR-to-income handoff
+
+- Added explicit Loan Suite OCR assignment controls for borrower, W-2/paystub, Schedule C, and Schedule E destinations.
+- Added reviewable handoff actions that send assigned OCR values to the Income Calculator Documents tab without silently applying values.
+- Added shared handoff metadata, source text, assignment context, and copyable income JSON for audit/review.
+- Preserved the existing Loan Suite OCR parser, AI JSON path, document assignment controls, and all calculation behavior.
+
 ## 2026-10-07 - Release 55.5 OCR and Schedule E quality pass
 
 - Schedule E now presents the prior/current tax-year rental worksheet in the same line-item layout as the supplied NMB reference, including fair-rental days, personal-use days, PITIA, gross cash flow, and the two-year average used for planning.

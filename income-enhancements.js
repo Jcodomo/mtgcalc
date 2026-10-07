@@ -324,8 +324,43 @@
     .se-table td{vertical-align:middle}.se-table .cell-input{background:var(--input-bg)}.se-expenses{margin-top:12px}.se-calc{min-height:34px}
     .se-help{margin-top:12px;margin-bottom:0}.quick-w2-card{border-color:var(--accent);border-left:3px solid var(--accent)}
     .quick-w2-result{font-size:15px;color:var(--accent)}.quick-w2-breakdown{margin-top:10px;color:var(--text-muted);font-size:11px}
+    #loanOcrHandoff{margin:0 0 14px;border:1px solid var(--accent);border-radius:10px;background:var(--surface-2);padding:12px 14px}
+    #loanOcrHandoff h3{margin:0 0 3px;font-size:13px;color:var(--text-strong)}#loanOcrHandoff p{margin:0 0 9px;font-size:11px;color:var(--text-muted)}
+    #loanOcrHandoff .handoff-actions{display:flex;gap:7px;flex-wrap:wrap}
     @media(max-width:800px){.se-address{min-width:180px}.se-table{min-width:600px}}
   `; document.head.appendChild(css);
+
+  function loanOcrRecord() {
+    try { return window.MtgcalcOcrBridge && typeof window.MtgcalcOcrBridge.latest === 'function' ? window.MtgcalcOcrBridge.latest() : null; } catch (_) { return null; }
+  }
+  function clearLoanOcr() {
+    try { localStorage.removeItem('mtgcalc-ocr-handoff-v1'); } catch (_) {}
+    const box = byId('loanOcrHandoff'); if (box) box.remove();
+  }
+  function applyLoanOcr() {
+    const record = loanOcrRecord(), payload = record && record.payload && (record.payload.parsed || record.payload);
+    if (!payload || typeof payload !== 'object' || typeof importExtract !== 'function') {
+      if (typeof toast === 'function') toast('No reviewable OCR JSON was found');
+      return;
+    }
+    const out = importExtract(JSON.stringify(payload));
+    if (out && out.error) { if (typeof toast === 'function') toast(out.error); return; }
+    try { renderAll(); } catch (_) { if (typeof RECALC === 'function') RECALC(); }
+    if (typeof toast === 'function') toast('Loan Suite OCR values imported — verify each field before qualifying');
+    clearLoanOcr();
+  }
+  function ensureLoanOcrPanel() {
+    const record = loanOcrRecord();
+    if (!record || !record.payload) return;
+    const panel = byId('panel-docs'); if (!panel || byId('loanOcrHandoff')) return;
+    const box = document.createElement('div'); box.id = 'loanOcrHandoff';
+    const p = record.payload, name = p.documentName || 'Loan Suite document';
+    box.innerHTML = `<h3>Shared OCR from Loan Suite</h3><p><b>${escLocal(name)}</b> has reviewed values assigned for the Income Calculator. Choose import to add them as reviewable worksheet records; nothing is silently applied.</p><div class="handoff-actions"><button type="button" class="btn btn-primary" id="loanOcrImportBtn">Import assigned values</button><button type="button" class="btn btn-light" id="loanOcrClearBtn">Clear handoff</button></div>`;
+    const anchor = panel.querySelector('.subtabs') || panel.firstElementChild;
+    panel.insertBefore(box, anchor || null);
+    byId('loanOcrImportBtn').addEventListener('click', applyLoanOcr);
+    byId('loanOcrClearBtn').addEventListener('click', clearLoanOcr);
+  }
 
   function bootEnhancements() {
     try {
@@ -338,6 +373,7 @@
         const params = new URLSearchParams(location.search);
         if (params.get('tab') === 'docs' && typeof switchTab === 'function') switchTab('docs');
       } catch (_) {}
+      ensureLoanOcrPanel();
     } catch (err) { console.error('Income enhancements could not initialize', err); }
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => setTimeout(bootEnhancements, 0), { once: true });

@@ -48,7 +48,7 @@
   function schedule() { clearTimeout(saveTimer); saveTimer = setTimeout(syncNow, 350); }
   function readOcr() { try { return JSON.parse(localStorage.getItem(OCR_KEY) || 'null'); } catch (_) { return null; } }
   function writeOcr(payload) { try { localStorage.setItem(OCR_KEY, JSON.stringify({ version: 1, updatedAt: new Date().toISOString(), source: page, payload })); } catch (_) {} }
-  function openIncomeDocuments() { location.href = 'income-calculator.html?tab=docs&source=loan'; }
+  function openIncomeDocuments() { location.href = 'income-calculator.html?tab=docs&source=loan&ocr=1'; }
   window.MtgcalcOcrBridge = window.MtgcalcOcrBridge || { key: OCR_KEY, latest: readOcr, publish: writeOcr, openIncome: openIncomeDocuments };
   window.MtgcalcSync = { key: KEY, syncNow, pullToCalculator, latest: read,
     openDocuments(kind) { const q = new URLSearchParams({ app: 'suite', tab: 'documents' }); if (kind) q.set('generator', kind); location.href = 'loan-suite.html?' + q.toString(); } };
