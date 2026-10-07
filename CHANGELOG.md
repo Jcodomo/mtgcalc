@@ -47,3 +47,8 @@
 - Re-ran the static page/script/navigation check.
 - Re-ran the supplied Release 55 Node tests: 18 passing, 0 failing.
 - Kept browser-saved shared values, editable quote popups, locks, ZIP lookup, loan comparison, amortization, renovation, income, OCR, and document workflows from the supplied build.
+## Release 55.6 — shared OCR + compact editable loan metrics
+
+- Added a shared browser OCR handoff so reviewed JSON imported from the income calculator can be copied/opened from the loan-suite document workspace and routed back to the Income Calculator Documents tab.
+- Loan-suite metric cards are now tighter at desktop and responsive widths while remaining keyboard-accessible, clickable, and routed to their existing detail/edit workspaces.
+- Preserved all existing calculation and document-generation behavior; the bridge is additive and stores only the user-reviewed OCR payload locally.

@@ -9,7 +9,7 @@ const compatibility = ['quick-income.html', 'income-calculator.html', 'renovatio
 const pages = [...primary, ...compatibility];
 assert.ok(existsSync(path.join(root, 'income-enhancements.js')), 'income enhancements script exists');
 const sourceAllowlist = new RegExp(
-  '^(sync-bridge\\.js|income-enhancements\\.js|https://cdnjs\\.cloudflare\\.com/ajax/libs/(html2canvas|jspdf|pdf\\.js)/)'
+  '^(sync-bridge\\.js|income-enhancements\\.js|loan-ux\\.js|https://cdnjs\\.cloudflare\\.com/ajax/libs/(html2canvas|jspdf|pdf\\.js)/)'
 );
 
 for (const file of pages) {

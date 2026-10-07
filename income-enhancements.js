@@ -254,6 +254,7 @@
       const before = (S.sche || []).length;
       const out = legacyImport(raw);
       if (!out || out.error) return out;
+      try { window.MtgcalcOcrBridge && window.MtgcalcOcrBridge.publish({ kind: 'income-json', parsed: parsed || raw }); } catch (_) {}
       const added = (S.sche || []).slice(before), src = parsed && Array.isArray(parsed.sche) ? parsed.sche : [];
       src.forEach((x, i) => {
         const p = added[i]; if (!p) return; ensureRental(p);
@@ -333,6 +334,10 @@
       renderEnhancedSchE();
       paintEnhancedSchE();
       if (typeof RECALC === 'function') RECALC();
+      try {
+        const params = new URLSearchParams(location.search);
+        if (params.get('tab') === 'docs' && typeof switchTab === 'function') switchTab('docs');
+      } catch (_) {}
     } catch (err) { console.error('Income enhancements could not initialize', err); }
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => setTimeout(bootEnhancements, 0), { once: true });
