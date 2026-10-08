@@ -1,6 +1,6 @@
 {
   "name": "mtgcalc",
-  "version": "55.3.0",
+  "version": "55.10.0",
   "private": true,
   "description": "Release 55 mortgage workflow, published as a static GitHub Pages site.",
   "scripts": {
