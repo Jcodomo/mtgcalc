@@ -78,6 +78,23 @@
       .replace(/\\([nrtbf\\()])/g, function (_, c) { return ({ n: '\n', r: '\r', t: '\t', b: '\b', f: '\f' })[c] || c; })
       .replace(/\\(\d{1,3})/g, function (_, c) { return String.fromCharCode(parseInt(c, 8)); });
   }
+  function ascii85Decode(bytes) {
+    const raw = decodePdfBytes(bytes).replace(/[\r\n\t ]+/g, '');
+    if (!raw || !/^[\x21-\x75z~>]+$/.test(raw) || (!raw.includes('~>') && raw.length < 8)) return bytes;
+    const body = raw.replace(/~>.*$/, ''), out = [], pushWord = function (word, count) {
+      let value = 0;
+      for (let i = 0; i < 5; i++) value = value * 85 + (word.charCodeAt(i) - 33);
+      out.push((value >>> 24) & 255, (value >>> 16) & 255, (value >>> 8) & 255, value & 255);
+      if (count < 4) out.splice(out.length - (4 - count));
+    };
+    for (let i = 0; i < body.length;) {
+      if (body[i] === 'z') { out.push(0, 0, 0, 0); i++; continue; }
+      const part = body.slice(i, i + 5); i += 5;
+      if (part.length < 2) break;
+      pushWord(part.padEnd(5, 'u'), part.length - 1);
+    }
+    return new Uint8Array(out);
+  }
   async function nativePdfTextBytes(bytes) {
     const raw = decodePdfBytes(bytes), chunks = [];
     let cursor = 0;
@@ -85,7 +102,7 @@
       const start = raw.indexOf('stream', cursor); if (start < 0) break;
       const bodyStart = raw[start + 6] === '\r' && raw[start + 7] === '\n' ? start + 8 : start + 7;
       const end = raw.indexOf('endstream', bodyStart); if (end < 0) break;
-      const slice = bytes.slice(bodyStart, end);
+      const slice = ascii85Decode(bytes.slice(bodyStart, end));
       let stream = decodePdfBytes(slice);
       try {
         if (window.DecompressionStream) {
@@ -133,6 +150,32 @@
     window.pdfjsLib.__mtgcalcNative = true;
     return previous || true;
   }
+  function nativePdfStub(files) {
+    const list = Array.from(files || []).filter(function (file) { return /\.pdf$/i.test(file.name || ''); });
+    if (!list.length) return false;
+    const first = list[0];
+    window.pdfjsLib = {
+      GlobalWorkerOptions: {},
+      getDocument: function () {
+        return { promise: (async function () {
+          const bytes = new Uint8Array(await first.arrayBuffer()), text = await nativePdfTextBytes(bytes);
+          if (!text || text.replace(/\s/g, '').length < 20) throw new Error('This PDF has no readable text layer. Upload a page image for OCR.');
+          return {
+            numPages: 1,
+            getPage: async function () {
+              return {
+                getTextContent: async function () { return { items: text.split(/\r?\n/).filter(Boolean).map(function (str) { return { str: str, transform: [1, 0, 0, 1, 0, 0] }; }) }; },
+                getViewport: function () { return { width: 1, height: 1 }; },
+                render: async function () { throw new Error('This PDF is text-readable but does not expose a renderable scan layer.'); }
+              };
+            }
+          };
+        })() };
+      }
+    };
+    window.pdfjsLib.__mtgcalcNative = true;
+    return true;
+  }
   function loadLoanPdfJs() {
     if (window.pdfjsLib) return Promise.resolve(true);
     if (loadLoanPdfJs.promise) return loadLoanPdfJs.promise;
@@ -156,13 +199,20 @@
     return loadLoanPdfJs.promise;
   }
   function installLoanPdfBridge() {
+    if (!document.__mtgcalcLoanPdfBridge) {
+      document.__mtgcalcLoanPdfBridge = true;
+      document.addEventListener('change', function (event) {
+        const input = event.target;
+        if (input && input.id === 'v50SharedDocFile' && input.files && input.files.length && !window.pdfjsLib) nativePdfStub(input.files);
+      }, true);
+    }
     const legacy = window.handleFiles;
     if (typeof legacy !== 'function' || legacy.__mtgcalcPdfBridge) return;
     const wrapped = async function (files) {
       const list = Array.from(files || []), hasPdf = list.some(function (file) { return /\.pdf$/i.test(file.name || ''); });
       if (hasPdf && !window.pdfjsLib) {
         const loaded = await loadLoanPdfJs();
-        if (!loaded) await makeNativePdfJs(list);
+        if (!loaded) nativePdfStub(list);
       }
       return legacy.call(this, files);
     };
@@ -263,10 +313,12 @@
   function decorateV9Docs() {
     const body = document.getElementById('v9DocBody'), files = window.V9 && V9.DOCS && V9.DOCS.files;
     if (!body || !Array.isArray(files)) return;
+    const visibleCards = Array.from(document.querySelectorAll('#docList .doc-card'));
+    if (!visibleCards.length) visibleCards.push.apply(visibleCards, Array.from(document.querySelectorAll('#v50LoanDocMirror .doc-card')));
     files.forEach(function (file, index) {
-      const card = body.children[index]; if (!card || file.status !== 'done') return;
-      const figs = extractIncomeFigures(file); let box = card.querySelector('.mtgcalc-income-assign');
-      if (!box) { box = document.createElement('div'); box.className = 'mtgcalc-income-assign'; (card.querySelector('.card-body') || card).appendChild(box); }
+      const card = body.children[index], visibleCard = visibleCards[index]; if ((!card && !visibleCard) || file.status !== 'done') return;
+      const figs = extractIncomeFigures(file), host = visibleCard || card; let box = host.querySelector('.mtgcalc-income-assign');
+      if (!box) { box = document.createElement('div'); box.className = 'mtgcalc-income-assign'; (host.querySelector('.card-body') || host).appendChild(box); }
       box.innerHTML = '<h4>Assign OCR values to Income Calculator</h4><p>Choose a destination for each detected income value, then send it to the Income Calculator Documents tab for review. Nothing is silently applied.</p>' + (figs.length ? '<table><thead><tr><th>Detected field</th><th>Value</th><th>Income destination</th></tr></thead><tbody>' + figs.map(function (fig, i) { return '<tr><td>' + String(fig.label).replace(/[&<>]/g, '') + '</td><td>' + String(fig.value).replace(/[&<>]/g, '') + '</td><td><select class="mtgcalc-income-map" data-income-fig="' + i + '">' + optionsHtml(fig.incomeTarget || '') + '</select></td></tr>'; }).join('') + '</tbody></table>' : '<div class="muted small">No standard income fields were detected in this text. Use the built-in AI prompt or paste JSON, then assign the returned fields here.</div>') + '<div class="mtgcalc-income-actions"><button type="button" class="btn btn-primary" data-send-income>Send assigned values to Income Calculator</button><button type="button" class="btn btn-light" data-open-income>Open Income OCR</button><button type="button" class="btn btn-light" data-copy-income>Copy income JSON</button></div>';
       box.querySelectorAll('[data-income-fig]').forEach(function (select) { select.addEventListener('change', function () { figs[Number(select.dataset.incomeFig)].incomeTarget = select.value; }); });
       const send = box.querySelector('[data-send-income]'); if (send) send.addEventListener('click', function () { sendIncome(file); });

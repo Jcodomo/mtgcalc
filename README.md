@@ -10,7 +10,7 @@ This repository contains the Release 55.8 mortgage workflow: Quick, All-in-One, 
 | Full Suite | `full-suite.html` |
 | Loan Suite alias | `loan-suite.html` |
 
-The older `quick-income.html`, `income-calculator.html`, and `renovation-suite.html` entry points remain available for compatibility. The primary Release 55 workflow uses the tested combined engine in All-in-One and Full Suite.
+The older `quick-income.html`, `income-calculator.html`, and `renovation-suite.html` entry points remain available for compatibility. The primary Release 55 workflow uses the tested combined engine in All-in-One and Full Suite. In the Loan Suite Documents workspace, extracted values are assigned on the visible document card, then sent to the Income Calculator as reviewable records; generated PDFs with ASCII85/Flate streams are supported by the resilient reader path.
 
 ## Verification
 
