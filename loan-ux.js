@@ -20,7 +20,18 @@
     ['sche.rents.y1', 'Schedule E rents received'],
     ['sche.totalExp.y1', 'Schedule E total expenses'],
     ['sche.fairDays.y1', 'Schedule E fair rental days'],
-    ['sche.personalDays.y1', 'Schedule E personal-use days']
+    ['sche.personalDays.y1', 'Schedule E personal-use days'],
+    ['other.ssa.amt', 'Other income · Social Security / retirement'],
+    ['other.ssdi.amt', 'Other income · SSDI / SSI'],
+    ['other.pension.amt', 'Other income · pension / retirement'],
+    ['other.va.amt', 'Other income · VA benefit'],
+    ['other.support.amt', 'Other income · child support / alimony'],
+    ['other.intdiv.amt', 'Other income · interest / dividends'],
+    ['other.royalty.amt', 'Other income · royalty'],
+    ['other.1099.amt', 'Other income · 1099 / contract'],
+    ['other.other.amt', 'Other income · other recurring source'],
+    ['other.continuance', 'Other income · continuance months'],
+    ['assets.bal', 'Asset statement · ending balance']
   ];
   const css = `
     #suite-root .v44-metric-strip.v46-strip {
@@ -106,8 +117,14 @@
       let stream = decodePdfBytes(slice);
       try {
         if (window.DecompressionStream) {
-          const ds = new DecompressionStream('deflate');
-          const inflated = await new Response(new Blob([slice]).stream().pipeThrough(ds)).arrayBuffer();
+          let inflated;
+          try {
+            const ds = new DecompressionStream('deflate');
+            inflated = await new Response(new Blob([slice]).stream().pipeThrough(ds)).arrayBuffer();
+          } catch (_) {
+            const ds = new DecompressionStream('deflate-raw');
+            inflated = await new Response(new Blob([slice]).stream().pipeThrough(ds)).arrayBuffer();
+          }
           stream = decodePdfBytes(new Uint8Array(inflated));
         }
       } catch (_) {}
@@ -203,7 +220,21 @@
       document.__mtgcalcLoanPdfBridge = true;
       document.addEventListener('change', function (event) {
         const input = event.target;
-        if (input && input.id === 'v50SharedDocFile' && input.files && input.files.length && !window.pdfjsLib) nativePdfStub(input.files);
+        /*
+           The suite has two document readers: the shared v50 dropzone and
+           the legacy income/OCR reader embedded in the page.  Both can fire
+           before the deferred CDN loader finishes.  Install the native
+           reader during capture for either file input (and any future PDF
+           input), so the target's inline onchange handler never sees a
+           missing pdfjsLib and never emits the misleading "internet
+           connection is required" error.
+        */
+        if (input && input.files && input.files.length &&
+            (/\.pdf$/i.test(Array.from(input.files).map(function (file) { return file.name || ''; }).join(' ') || '') ||
+             input.id === 'v50SharedDocFile' || input.id === 'docFile' ||
+             /\.pdf/i.test(input.accept || ''))) {
+          nativePdfStub(input.files);
+        }
       }, true);
     }
     const legacy = window.handleFiles;
@@ -211,8 +242,13 @@
     const wrapped = async function (files) {
       const list = Array.from(files || []), hasPdf = list.some(function (file) { return /\.pdf$/i.test(file.name || ''); });
       if (hasPdf && !window.pdfjsLib) {
-        const loaded = await loadLoanPdfJs();
-        if (!loaded) nativePdfStub(list);
+        /* Prefer the browser-native parser immediately.  The CDN reader is
+           still attempted in the background for scanned PDFs, but a normal
+           text PDF should never wait on a network timeout before opening. */
+        nativePdfStub(list);
+        loadLoanPdfJs().then(function (loaded) {
+          if (!loaded && !window.pdfjsLib) nativePdfStub(list);
+        });
       }
       return legacy.call(this, files);
     };
@@ -246,7 +282,16 @@
       ['Schedule E rents received', /(?:rents?\s+(?:received|received\s+or\s+accrued))\D{0,24}\$?([\d,]+(?:\.\d{1,2})?)/i, 'number'],
       ['Schedule E total expenses', /total\s+expenses?\D{0,24}\$?([\d,]+(?:\.\d{1,2})?)/i, 'number'],
       ['Fair rental days', /fair\s+rental\s+days?\D{0,16}([\d,]+)/i, 'number'],
-      ['Personal-use days', /personal[-\s]+use\s+days?\D{0,16}([\d,]+)/i, 'number']
+      ['Personal-use days', /personal[-\s]+use\s+days?\D{0,16}([\d,]+)/i, 'number'],
+      ['Social Security income', /(?:social\s+security|retirement\s+benefit|ssa)\D{0,28}\$?([\d,]+(?:\.\d{1,2})?)/i, 'number'],
+      ['SSDI / SSI income', /(?:ssdi|ssi|disability\s+benefit)\D{0,28}\$?([\d,]+(?:\.\d{1,2})?)/i, 'number'],
+      ['Pension income', /(?:pension|retirement\s+(?:distribution|income)|annuity)\D{0,28}\$?([\d,]+(?:\.\d{1,2})?)/i, 'number'],
+      ['VA benefit income', /(?:va\s+(?:benefit|compensation)|veterans?\s+(?:benefit|compensation))\D{0,28}\$?([\d,]+(?:\.\d{1,2})?)/i, 'number'],
+      ['Child support / alimony', /(?:child\s+support|alimony|separate\s+maintenance)\D{0,28}\$?([\d,]+(?:\.\d{1,2})?)/i, 'number'],
+      ['Interest / dividend income', /(?:interest\s+and\s+dividend|interest\s+income|dividend\s+income|dividends?\s+received)\D{0,28}\$?([\d,]+(?:\.\d{1,2})?)/i, 'number'],
+      ['Royalty income', /royalt(?:y|ies)\D{0,28}\$?([\d,]+(?:\.\d{1,2})?)/i, 'number'],
+      ['1099 / contract income', /(?:1099|contract(?:or)?\s+income)\D{0,28}\$?([\d,]+(?:\.\d{1,2})?)/i, 'number'],
+      ['Asset ending balance', /(?:ending|current|available)\s+(?:account\s+)?balance\D{0,28}\$?([\d,]+(?:\.\d{1,2})?)/i, 'number']
     ];
   }
   function inferIncomeTarget(label) {
@@ -264,6 +309,15 @@
     if (l.includes('total expenses')) return 'sche.totalExp.y1';
     if (l.includes('fair rental')) return 'sche.fairDays.y1';
     if (l.includes('personal')) return 'sche.personalDays.y1';
+    if (l.includes('social security')) return 'other.ssa.amt';
+    if (l.includes('ssdi') || l.includes('ssi')) return 'other.ssdi.amt';
+    if (l.includes('pension')) return 'other.pension.amt';
+    if (l.includes('va benefit')) return 'other.va.amt';
+    if (l.includes('support') || l.includes('alimony')) return 'other.support.amt';
+    if (l.includes('interest') || l.includes('dividend')) return 'other.intdiv.amt';
+    if (l.includes('royalty')) return 'other.royalty.amt';
+    if (l.includes('1099') || l.includes('contract')) return 'other.1099.amt';
+    if (l.includes('asset')) return 'assets.bal';
     return '';
   }
   function extractIncomeFigures(file) {
@@ -285,7 +339,7 @@
   }
   function buildIncomePayload(file) {
     const parsed = { version: 'nmb-income-extract/1', borrowers: {}, w2: [], schc: [], corp: [], sche: [], other: [], assets: [], flags: [] };
-    const currentYear = new Date().getFullYear(), w2 = { b: 1, incomeType: 'consistent', freq: 'Hourly', y1: { yr: currentYear }, y2: { yr: currentYear - 1 } }, schc = { b: 1, y1: { yr: currentYear }, y2: { yr: currentYear - 1 } }, sche = { b: 1 };
+    const currentYear = new Date().getFullYear(), w2 = { b: 1, incomeType: 'consistent', freq: 'Hourly', y1: { yr: currentYear }, y2: { yr: currentYear - 1 } }, schc = { b: 1, y1: { yr: currentYear }, y2: { yr: currentYear - 1 } }, sche = { b: 1 }, other = [], assets = [];
     let hasW2 = false, hasSchc = false, hasSche = false;
     (file.__mtgcalcIncomeFigures || []).forEach(function (fig) {
       const target = fig.incomeTarget || ''; if (!target) return;
@@ -297,10 +351,20 @@
       else if (/^w2\.(base|ot|comm|bonus)\.y[12]$/.test(target)) { const bits = target.split('.'); w2[bits[2]][bits[1]] = numberValue(fig.value); hasW2 = true; }
       else if (/^schc\.net31\.y[12]$/.test(target)) { const bits = target.split('.'); schc[bits[2]].net31 = numberValue(fig.value); hasSchc = true; }
       else if (/^sche\.(rents|totalExp|fairDays|personalDays)\.y1$/.test(target)) { const bits = target.split('.'); sche[bits[1]] = numberValue(fig.value); hasSche = true; }
+      else if (/^other\.[a-z0-9]+\.(amt|continuance)$/.test(target)) {
+        const bits = target.split('.'), type = bits[1], key = bits[2];
+        let rec = other.find(function (item) { return item.type === type; });
+        if (!rec) { rec = { b: 1, type: type, desc: fig.label, nonTax: ['ssa', 'ssdi', 'va', 'support'].indexOf(type) >= 0, src: {} }; other.push(rec); }
+        rec[key] = numberValue(fig.value); rec.src[key] = fig.raw || fig.label;
+      } else if (target === 'assets.bal') {
+        assets.push({ b: 1, name: fig.label, type: 'other', bal: numberValue(fig.value), src: fig.raw || fig.label });
+      }
     });
     if (hasW2) { w2.src = { document: file.name, note: 'Loan Suite OCR assignment — verify before qualifying' }; parsed.w2.push(w2); }
     if (hasSchc) { schc.src = { document: file.name, note: 'Loan Suite OCR assignment — verify before qualifying' }; parsed.schc.push(schc); }
     if (hasSche) { sche.src = { document: file.name, note: 'Loan Suite OCR assignment — verify before qualifying' }; parsed.sche.push(sche); }
+    other.forEach(function (item) { item.src.document = file.name; parsed.other.push(item); });
+    assets.forEach(function (item) { parsed.assets.push(item); });
     parsed.flags.push('Imported from Loan Suite OCR: ' + file.name + '. Verify every value against the source document.');
     return parsed;
   }

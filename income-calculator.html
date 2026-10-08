@@ -3645,7 +3645,8 @@ function loadPdfJs(){
       (document.head || document.documentElement).appendChild(script);
     };
     next();
-    setTimeout(() => finish(configurePdfJs()), 15000);
+    /* Do not hold a local text-PDF import hostage to a blocked CDN. */
+    setTimeout(() => finish(configurePdfJs()), 2500);
   });
   return pdfLoading;
 }
@@ -3660,6 +3661,24 @@ async function nativePdfText(file){
     catch (_) { out = String.fromCharCode.apply(null, Array.from(data)); }
     return out;
   };
+  const ascii85 = data => {
+    const raw = decode(data).replace(/[\r\n\t ]+/g,'');
+    if (!raw || !/^[\x21-\x75z~>]+$/.test(raw) || (!raw.includes('~>') && raw.length < 8)) return data;
+    const body = raw.replace(/~>.*$/,''), out = [];
+    const word = (part, count) => {
+      let value = 0;
+      for(let i=0;i<5;i++) value = value * 85 + (part.charCodeAt(i)-33);
+      out.push((value>>>24)&255,(value>>>16)&255,(value>>>8)&255,value&255);
+      if(count<4) out.splice(out.length-(4-count));
+    };
+    for(let i=0;i<body.length;){
+      if(body[i]==='z'){ out.push(0,0,0,0); i++; continue; }
+      const part=body.slice(i,i+5); i+=5;
+      if(part.length<2) break;
+      word(part.padEnd(5,'u'),part.length-1);
+    }
+    return new Uint8Array(out);
+  };
   const unescapePdf = s => s.replace(/\\([nrtbf\\()])/g, (_, c) => ({n:'\n',r:'\r',t:'\t',b:'\b',f:'\f'}[c] || c))
     .replace(/\\(\d{1,3})/g, (_, c) => String.fromCharCode(parseInt(c, 8)));
   const chunks = [], raw = decode(bytes);
@@ -3668,12 +3687,18 @@ async function nativePdfText(file){
     const start = raw.indexOf('stream', cursor); if (start < 0) break;
     const bodyStart = raw[start + 6] === '\r' && raw[start + 7] === '\n' ? start + 8 : start + 7;
     const end = raw.indexOf('endstream', bodyStart); if (end < 0) break;
-    const slice = bytes.slice(bodyStart, end);
+    const slice = ascii85(bytes.slice(bodyStart, end));
     let text = decode(slice);
     try {
       if (window.DecompressionStream){
-        const ds = new DecompressionStream('deflate');
-        const buf = await new Response(new Blob([slice]).stream().pipeThrough(ds)).arrayBuffer();
+        let buf;
+        try {
+          const ds = new DecompressionStream('deflate');
+          buf = await new Response(new Blob([slice]).stream().pipeThrough(ds)).arrayBuffer();
+        } catch (_) {
+          const ds = new DecompressionStream('deflate-raw');
+          buf = await new Response(new Blob([slice]).stream().pipeThrough(ds)).arrayBuffer();
+        }
         text = decode(new Uint8Array(buf));
       }
     } catch (_) {}
@@ -4043,7 +4068,7 @@ function extractFields(type, text){
 /* ---------- reading the file ---------- */
 async function pdfText(file, onProg){
   const buf = await file.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({data:buf}).promise;
+    const pdf = await pdfjsLib.getDocument({data:buf, disableWorker:true}).promise;
   let out = '';
   for (let i=1;i<=pdf.numPages;i++){
     const pg = await pdf.getPage(i);
@@ -4134,6 +4159,11 @@ async function handleFiles(files){
         /* Prefer PDF.js for ordering and scanned-page rendering. If a CDN is
            blocked, keep text PDFs usable with the built-in literal text
            reader instead of failing the entire import. */
+        let nativeFirst = '';
+        try { nativeFirst = await nativePdfText(f); } catch (_) {}
+        if (nativeFirst.replace(/\s/g,'').length >= 40){
+          text = nativeFirst;
+        } else {
         const hasPdf = await loadPdfJs();
         if (hasPdf){
           const r = await pdfText(f, p=>{ d.prog=p; d.note='Reading PDF text…'; renderDocs(); });
@@ -4148,6 +4178,7 @@ async function handleFiles(files){
           const imgs = await pdfPageImages(pdf, 4);
           text = await ocrImages(imgs, p=>{ d.prog=p; renderDocs(); });
           viaOCR = true;
+        }
         }
       } else {
         d.note = 'Running OCR on the image…'; renderDocs();
