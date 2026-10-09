@@ -3467,7 +3467,7 @@ function buildReportPages(){
   const rentals = S.sche.filter(p=>rptOn('sche:'+p.id));
   if (rentals.length){
     if (RPT.worksheets) pages.push(rptRentalPage(rentals));
-    if (RPT.detail) rentals.forEach((p,i)=> pages.push(detailPage(detailSchE(p,i))) );
+    // Schedule E is printed as the compact worksheet above, without a second analysis page.
   }
   const others = S.other.filter(o=>rptOn('other:'+o.id));
   const wantAssets = rptOn('assets') && S.assets.rows.length;
@@ -7806,5 +7806,6 @@ window.__mtgcalcBridge = {
 <div id="suiteNav" class="no-print"><a href="index.html">Home</a><a href="quick-income.html">1 · Quick</a><span class="sn-cur">2 · Income</span><a href="renovation-suite.html">3 · Reno</a><a href="all-in-one.html">4 · All-in-One</a></div>
 <script src="income-enhancements.js"></script>
 <script src="sync-bridge.js"></script>
+<script src="workflow-ui.js"></script>
 </body>
 </html>

@@ -40,19 +40,21 @@
     p.rents = n(p.y2.rents); p.ins = n(p.y2.ins); p.mortInt = n(p.y2.mortInt);
     p.taxes = n(p.y2.taxes); p.depr = n(p.y2.depr); p.otherAdd = n(p.y2.otherAdd);
     p.totalExp = n(p.y2.totalExp); p.fairDays = n(p.y2.fairDays) || 365;
-    p.personalDays = n(p.y2.personalDays); p.pitia = n(p.y2.pitia || p.pitia);
+    p.personalDays = n(p.y2.personalDays); p.pitia = n(p.y2.pitia);
     return p;
   }
 
   function rentalNet(y) {
     const fair = Math.max(0, n(y.fairDays));
     const personal = Math.max(0, n(y.personalDays));
-    const days = Math.max(0, Math.min(366, fair - personal));
-    const rentAdjusted = n(y.rents) * (days / 365);
+    const days = Math.max(0, Math.min(366, fair));
+    const rentAdjusted = n(y.rents);
+    const months = days > 0 ? Math.min(12, days / 365 * 12) : 12;
+    const annual = rentAdjusted + n(y.ins) + n(y.mortInt) + n(y.taxes) + n(y.depr) + n(y.otherAdd) - n(y.totalExp);
     return {
       days,
       rentAdjusted,
-      annual: rentAdjusted + n(y.ins) + n(y.mortInt) + n(y.taxes) + n(y.depr) + n(y.otherAdd) - n(y.totalExp),
+      annual, months, monthly: annual / months,
     };
   }
 
@@ -60,25 +62,26 @@
     ensureRental(p);
     if (p.method === 'lease' && typeof window.__mtgcalcLegacyCalcSchE === 'function') return window.__mtgcalcLegacyCalcSchE(p);
     const prior = rentalNet(p.y1), current = rentalNet(p.y2);
-    const priorEntered = rentalKeys.some(k => n(p.y1[k]) && k !== 'fairDays');
-    const currentEntered = rentalKeys.some(k => n(p.y2[k]) && k !== 'fairDays');
-    const years = [priorEntered ? prior.annual : null, currentEntered ? current.annual : null].filter(v => v !== null);
-    const grossYears = [priorEntered ? prior.rentAdjusted : null, currentEntered ? current.rentAdjusted : null].filter(v => v !== null);
-    const netAnnual = years.length ? years.reduce((a, b) => a + b, 0) / years.length : 0;
-    const grossAnnual = grossYears.length ? grossYears.reduce((a, b) => a + b, 0) / grossYears.length : 0;
-    const months = Math.max(0.25, Math.min(12, (n(p.y1.fairDays) + n(p.y2.fairDays)) / (years.length ? years.length : 1) / 365 * 12));
-    const pitia = n(p.pitia || p.y2.pitia);
-    const monthly = netAnnual / 12 - pitia;
+    const hasAmounts = y => rentalKeys.filter(k => !['fairDays', 'personalDays', 'pitia'].includes(k)).some(k => n(y[k]) !== 0);
+    const priorEntered = hasAmounts(p.y1);
+    const currentEntered = hasAmounts(p.y2);
+    const entered = [priorEntered ? prior : null, currentEntered ? current : null].filter(Boolean);
+    const declined = priorEntered && currentEntered && current.monthly < prior.monthly;
+    const selected = declined ? [current] : entered;
+    const worksheetMonthly = selected.length ? selected.reduce((a, y) => a + y.monthly, 0) / selected.length : 0;
+    const pitia = n(p.pitia);
+    const monthly = worksheetMonthly - pitia;
     return {
-      net: netAnnual,
-      gross: grossAnnual / 12,
+      net: worksheetMonthly * 12,
+      gross: worksheetMonthly,
+      worksheetMonthly,
       monthly,
       pitia,
-      mos: months,
+      mos: selected.length ? selected.reduce((a,y) => a + y.months, 0) / selected.length : 12,
       prior,
       current,
-      yearsUsed: years.length,
-      basis: `${years.length === 2 ? '2-year average' : years.length === 1 ? '1-year average' : 'No rental year entered'} · gross rent prorated by fair rental days · PITIA ${moneyLocal(pitia)}`,
+      yearsUsed: selected.length,
+      basis: `${declined ? 'Most recent year - declining rent' : selected.length === 2 ? '2-year average' : selected.length === 1 ? '1-year calculation' : 'No rental year entered'} - adjusted income divided by months rented`,
     };
   }
 
@@ -120,7 +123,7 @@
   ];
 
   function yearInput(p, y, key, label) {
-    return `<input class="cell-input se-year-input" aria-label="${escLocal(label)} ${y === 'y1' ? 'prior year' : 'current year'}" inputmode="decimal" type="number" step="0.01" value="${n(p[y][key])}" oninput="setRental('${p.id}','${y}','${key}',this.value,true)">`;
+    return `<input class="cell-input se-year-input" aria-label="${escLocal(label)} ${y === 'y1' ? 'prior year' : 'current year'}" inputmode="decimal" type="text" value="${n(p[y][key])}" oninput="setRental('${p.id}','${y}','${key}',this.value,true)">`;
   }
 
   function renderEnhancedSchE() {
@@ -138,7 +141,7 @@
         </div>
         <div class="card-body">
           <div class="se-meta grid g4">
-            <div class="field"><label>Tax years required by AUS</label><input class="cell-input" type="number" min="1" max="3" step="1" value="2" aria-label="Tax years required by AUS"></div>
+            <div class="field"><label>Tax years used</label><div class="calc-cell" id="se-${p.id}-years">${r.yearsUsed}</div></div>
             <div class="field"><label>Prior tax year</label><input class="cell-input" type="text" inputmode="numeric" value="${escLocal(y1.yr)}" oninput="setRental('${p.id}','y1','yr',this.value,true)"></div>
             <div class="field"><label>Current tax year</label><input class="cell-input" type="text" inputmode="numeric" value="${escLocal(y2.yr)}" oninput="setRental('${p.id}','y2','yr',this.value,true)"></div>
             <div class="field"><label>Method</label><select class="cell-input" onchange="setRental('${p.id}','flat','method',this.value,false)"><option value="sche" ${p.method === 'sche' ? 'selected' : ''}>Schedule E tax return</option><option value="lease" ${p.method === 'lease' ? 'selected' : ''}>Lease / 75% rule</option></select></div>
@@ -146,17 +149,17 @@
           <div class="tbl-scroll se-table-wrap"><table class="matrix se-table"><thead><tr><th>Schedule E line</th><th class="num">${escLocal(y1.yr)} prior year</th><th class="num">${escLocal(y2.yr)} current year</th></tr></thead><tbody>
             ${rows.map(([key, label, hint]) => `<tr class="${key === 'totalExp' ? 'total-row' : ''}"><td class="rowlabel"><span>${label}</span><small>${hint}</small></td><td>${yearInput(p, 'y1', key, label)}</td><td>${yearInput(p, 'y2', key, label)}</td></tr>`).join('')}
             <tr class="meta-row"><td class="rowlabel"><span>Fair rental days</span><small>Schedule E line 2; controls rent proration</small></td><td>${yearInput(p, 'y1', 'fairDays', 'Fair rental days')}</td><td>${yearInput(p, 'y2', 'fairDays', 'Fair rental days')}</td></tr>
-            <tr class="meta-row"><td class="rowlabel"><span>Personal-use days</span><small>Subtract from fair rental days</small></td><td>${yearInput(p, 'y1', 'personalDays', 'Personal-use days')}</td><td>${yearInput(p, 'y2', 'personalDays', 'Personal-use days')}</td></tr>
+            <tr class="meta-row"><td class="rowlabel"><span>Personal-use days</span><small>Recorded separately from days rented</small></td><td>${yearInput(p, 'y1', 'personalDays', 'Personal-use days')}</td><td>${yearInput(p, 'y2', 'personalDays', 'Personal-use days')}</td></tr>
           </tbody></table></div>
           <div class="se-expenses grid g5">
-            <div class="field"><label>Prior-year PITIA ($/mo)</label><input class="cell-input" type="number" step="0.01" value="${n(y1.pitia)}" oninput="setRental('${p.id}','y1','pitia',this.value,true)"></div>
-            <div class="field"><label>Current PITIA ($/mo)</label><input class="cell-input" type="number" step="0.01" value="${n(y2.pitia || p.pitia)}" oninput="setRental('${p.id}','y2','pitia',this.value,true)"></div>
+            <div class="field"><label>Prior-year PITIA ($/mo)</label><input class="cell-input" type="text" inputmode="decimal" value="${n(y1.pitia)}" oninput="setRental('${p.id}','y1','pitia',this.value,true)"></div>
+            <div class="field"><label>Current PITIA ($/mo)</label><input class="cell-input" type="text" inputmode="decimal" value="${n(y2.pitia)}" oninput="setRental('${p.id}','y2','pitia',this.value,true)"></div>
             <div class="field"><label>Subject property?</label><select class="cell-input" onchange="setRental('${p.id}','flat','subject',this.value === '1',false)"><option value="0" ${!p.subject ? 'selected' : ''}>No — existing rental</option><option value="1" ${p.subject ? 'selected' : ''}>Yes — subject property</option></select></div>
-            <div class="field"><label>Average gross rent / mo</label><div class="calc-cell se-calc" id="se-${p.id}-gross">${moneyLocal(r.gross)}</div></div>
+            <div class="field"><label>Net rental income / mo</label><div class="calc-cell se-calc" id="se-${p.id}-gross">${moneyLocal(r.gross)}</div></div>
             <div class="field"><label>Months represented</label><div class="calc-cell se-calc" id="se-${p.id}-months">${r.mos.toFixed(2)}</div></div>
           </div>
-          <div class="result-bar ${r.monthly >= 0 ? 'green' : 'amber'}" id="se-${p.id}-bar"><div><div class="big" id="se-${p.id}-grossline">Gross rental cash flow: ${moneyLocal(r.gross)} / month</div><div class="sub" id="se-${p.id}-netline">Net rental cash flow after PITIA: ${moneyLocal(r.monthly)} / month</div></div><div class="right" id="se-${p.id}-basis">${escLocal(r.basis)}</div></div>
-          <div class="notice info se-help"><svg class="icon"><use href="#i-alert"/></svg><span>Average = the mean of the prior and current tax-year figures when both are entered. Gross rent is prorated by <b>fair rental days minus personal-use days</b>; PITIA is then deducted for qualifying cash flow.</span></div>
+          <div class="result-bar ${r.monthly >= 0 ? 'green' : 'amber'}" id="se-${p.id}-bar"><div><div class="big" id="se-${p.id}-grossline">Net rental income: ${moneyLocal(r.gross)} / month</div><div class="sub" id="se-${p.id}-netline">After optional PITIA: ${moneyLocal(r.monthly)} / month</div></div><div class="right" id="se-${p.id}-basis">${escLocal(r.basis)}</div></div>
+          <div class="notice info se-help"><span>Adjusted income = rent + insurance + mortgage interest + taxes + depreciation + documented repairs/HOA - subtotal expenses. Divide by months rented (fair rental days / 365 x 12). Average both entered years; use the recent year if declining. Personal-use days are recorded separately.</span></div>
         </div></article>`;
     }).join('') || `<div class="addblock" onclick="addSchE()"><div class="t"><svg class="icon icon-lg" style="color:var(--emerald)"><use href="#i-plus"/></svg>Add Rental Property</div><div class="s">Enter prior/current Schedule E figures and fair rental days to calculate a two-year rental average.</div></div>`;
     if (typeof setT === 'function') setT('cnt-sche', (S.sche || []).length);
@@ -168,8 +171,9 @@
       const gross = byId(`se-${p.id}-gross`), months = byId(`se-${p.id}-months`), gl = byId(`se-${p.id}-grossline`), nl = byId(`se-${p.id}-netline`), basis = byId(`se-${p.id}-basis`), bar = byId(`se-${p.id}-bar`);
       if (gross && document.activeElement !== gross) gross.textContent = moneyLocal(r.gross);
       if (months) months.textContent = r.mos.toFixed(2);
-      if (gl) gl.textContent = `Gross rental cash flow: ${moneyLocal(r.gross)} / month`;
-      if (nl) nl.textContent = `Net rental cash flow after PITIA: ${moneyLocal(r.monthly)} / month`;
+      if (gl) gl.textContent = `Net rental income: ${moneyLocal(r.gross)} / month`;
+      if (nl) nl.textContent = `After optional PITIA: ${moneyLocal(r.monthly)} / month`;
+      const used = byId(`se-${p.id}-years`); if (used) used.textContent = r.yearsUsed;
       if (basis) basis.textContent = r.basis;
       if (bar) bar.className = `result-bar ${r.monthly >= 0 ? 'green' : 'amber'}`;
     });
@@ -178,6 +182,42 @@
   renderSchE = renderEnhancedSchE;
   window.paintSchE = paintEnhancedSchE;
   paintSchE = paintEnhancedSchE;
+
+  /* The report uses the same calculation but keeps PITIA and gross-rent analysis off the printed worksheet. */
+  if (typeof rptRentalPage === 'function') {
+    const oldRentalReport = rptRentalPage;
+    rptRentalPage = window.rptRentalPage = function(list) {
+      return (list || S.sche).map((raw, i) => {
+        const p = ensureRental(raw), r = calcTwoYearRental(p);
+        if (p.method === 'lease') return oldRentalReport([p]);
+        return `${rptHead('Schedule E Rental Income', '')}${rptIdBar()}<div class="rpt-frame"><div class="rpt-band">Property ${i + 1}</div><div class="rpt-pad"><p>Property address: ${escLocal(p.addr || '')}</p><table><thead><tr><th>Schedule E</th><th class="n">${escLocal(p.y1.yr)}</th><th class="n">${escLocal(p.y2.yr)}</th></tr></thead><tbody>${rows.map(([key,label],j) => `<tr class="${j % 2 ? '' : 'alt'}"><td>${j+1}. ${label}</td><td class="n">${moneyLocal(n(p.y1[key]))}</td><td class="n">${moneyLocal(n(p.y2[key]))}</td></tr>`).join('')}<tr><td>Fair rental days</td><td class="n">${n(p.y1.fairDays)}</td><td class="n">${n(p.y2.fairDays)}</td></tr></tbody></table><div style="text-align:right;margin-top:18px"><b>Net Rental Income</b><div class="hl-tan" style="display:inline-block;padding:6px 20px;margin-left:16px">${moneyLocal(r.monthly)}</div></div></div></div>`;
+      }).join('');
+    };
+  }
+
+  if (typeof buildReportPages === 'function') {
+    const build = buildReportPages;
+    buildReportPages = window.buildReportPages = function() {
+      return build().filter(page => !page.includes('Rental Income &mdash; Line-by-Line Calculation'));
+    };
+  }
+  if (typeof calcW2 === 'function') {
+    const calculate = calcW2;
+    calcW2 = window.calcW2 = function(j) {
+      const r = calculate(j);
+      ['ot','comm','bonus','other'].forEach(k => {
+        if (j.mode === 'auto' && (!n(j.y1[k]) || !n(j.y2[k]) || !n(j.y3[k]))) {
+          r.comp[k].rec = 'none'; r.comp[k].why = 'Two prior years and YTD are needed for the NMB variable-income method'; r.parts[k] = 0;
+        }
+      });
+      if (j.mode === 'auto') {
+        const recent = n(j.y2.unre) || n(j.y3.unre), prior = n(j.y2.unre) ? n(j.y3.unre) : 0;
+        r.parts.unre = prior >= recent ? (prior + recent) / 24 : recent / 12;
+      }
+      r.total = r.parts.base + r.parts.ot + r.parts.comm + r.parts.bonus + r.parts.other - r.parts.unre;
+      return r;
+    };
+  }
 
   /* Compact quick W-2 bridge modeled on the supplied Wage Earner worksheet.
      It feeds the first active W-2 row but does not replace the full worksheet. */
@@ -249,18 +289,29 @@
         if (!parsed.w2 && parsed.employment) parsed.w2 = parsed.employment;
         if (!parsed.schc && parsed.scheduleC) parsed.schc = parsed.scheduleC;
         if (!parsed.other && parsed.otherIncome) parsed.other = parsed.otherIncome;
+        (parsed.sche || []).forEach(x => {
+          if (x.address && !x.addr) x.addr = x.address;
+          const y = x.y2 || x.currentYear || x.y1 || x.priorYear;
+          if (y) rentalKeys.forEach(k => { if (x[k] == null && y[k] != null) x[k] = y[k]; });
+        });
         raw = JSON.stringify(parsed);
       }
-      const before = (S.sche || []).length;
+      const before = new Set((S.sche || []).map(p => p.id));
       const out = legacyImport(raw);
       if (!out || out.error) return out;
       try { window.MtgcalcOcrBridge && window.MtgcalcOcrBridge.publish({ kind: 'income-json', parsed: parsed || raw }); } catch (_) {}
-      const added = (S.sche || []).slice(before), src = parsed && Array.isArray(parsed.sche) ? parsed.sche : [];
+      const added = (S.sche || []).filter(p => !before.has(p.id)), src = parsed && Array.isArray(parsed.sche) ? parsed.sche : [];
       src.forEach((x, i) => {
         const p = added[i]; if (!p) return; ensureRental(p);
+        if (x.y1 || x.y2 || x.priorYear || x.currentYear) {
+          p.y1 = blankYear(yearNow - 1); p.y2 = blankYear(yearNow);
+        }
         ['y1', 'y2'].forEach((y, yi) => {
           if (!x[y] || typeof x[y] !== 'object') return;
-          rentalKeys.forEach(k => { if (x[y][k] != null) p[y][k] = n(x[y][k]); });
+          const values = {...x[y]};
+          if (values.mortInt == null && values.interest != null) values.mortInt = values.interest;
+          if (values.depr == null && values.dep != null) values.depr = values.dep;
+          rentalKeys.forEach(k => { if (values[k] != null) p[y][k] = n(values[k]); });
           if (x[y].year != null || x[y].yr != null) p[y].yr = n(x[y].year != null ? x[y].year : x[y].yr);
         });
         if (x.priorYear && typeof x.priorYear === 'object') Object.assign(p.y1, Object.fromEntries(rentalKeys.map(k => [k, x.priorYear[k] == null ? p.y1[k] : n(x.priorYear[k])] )));

@@ -961,6 +961,7 @@
 
 <script src="loan-ux.js"></script>
 <script src="sync-bridge.js"></script>
+<script src="workflow-ui.js"></script>
 <script>
 /* mtgcalc handoff: keep the organizer's local OCR reviewable by the income,
    quick, all-in-one, and full-suite pages without silently applying values. */
@@ -977,7 +978,14 @@
     const w2 = { employer, base: { y1: n(first(raw, /(?:gross\s+(?:pay|earnings)|regular\s+(?:pay|earnings)|base\s+pay)\D{0,35}([\d,]+(?:\.\d{1,2})?)/i)) }, ot: { y1: n(first(raw, /overtime\D{0,35}([\d,]+(?:\.\d{1,2})?)/i)) }, comm: { y1: n(first(raw, /commission\D{0,35}([\d,]+(?:\.\d{1,2})?)/i)) }, bonus: { y1: n(first(raw, /bonus\D{0,35}([\d,]+(?:\.\d{1,2})?)/i)) } };
     const rental = { address: first(raw, /(?:property address|subject property|property)\s*[:\-]\s*([^\n]+)/i), y1: { rents: n(first(raw, /rents?\s+(?:received|collected)\D{0,35}([\d,]+(?:\.\d{1,2})?)/i)), ins: n(first(raw, /insurance\D{0,35}([\d,]+(?:\.\d{1,2})?)/i)), interest: n(first(raw, /mortgage\s+interest\D{0,35}([\d,]+(?:\.\d{1,2})?)/i)), taxes: n(first(raw, /taxes?\D{0,35}([\d,]+(?:\.\d{1,2})?)/i)), dep: n(first(raw, /depreciation\D{0,35}([\d,]+(?:\.\d{1,2})?)/i)), fairDays: n(first(raw, /fair\s+rental\s+days?\D{0,20}(\d{1,4})/i)), personalDays: n(first(raw, /personal[\s-]*use\s+days?\D{0,20}(\d{1,4})/i)) } };
     const balance = n(first(raw, /(?:ending|current|available)\s+balance\D{0,35}\$?([\d,]+(?:\.\d{1,2})?)/i));
-    const out = { borrowerName: borrower, w2: [w2], sche: rental.rents || rental.ins || rental.interest || rental.taxes ? [rental] : [], assets: balance ? [{ endingBalance: balance, account: item && item.bank || '' }] : [], flags: ['Imported from Mortgage Doc Organizer local OCR. Review each assigned value before qualifying.'] };
+    rental.y1.mortInt = rental.y1.interest;
+    rental.y1.depr = rental.y1.dep;
+    rental.y1.totalExp = n(first(raw, /(?:total|subtotal|sub-total)\s+expenses\D{0,35}([\d,]+(?:\.\d{1,2})?)/i));
+    rental.y1.otherAdd = n(first(raw, /(?:documented repairs|hoa dues)\D{0,35}([\d,]+(?:\.\d{1,2})?)/i));
+    rental.y2 = rental.y1; delete rental.y1;
+    const hasRent = ['rents','ins','mortInt','taxes','depr','totalExp'].some(k => rental.y2[k]);
+    const hasWage = employer || Object.values(w2.base).some(Boolean) || Object.values(w2.ot).some(Boolean);
+    const out = { version: 'nmb-income-extract/1', borrowers: {b1: borrower}, w2: hasWage ? [w2] : [], sche: hasRent ? [rental] : [], assets: balance ? [{ bal: balance, name: item && item.bank || '' }] : [], flags: ['Imported from Mortgage Doc Organizer local OCR. Review each assigned value before qualifying.'] };
     return out;
   }
   function publish(item, text) {

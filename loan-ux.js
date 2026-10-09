@@ -17,7 +17,20 @@
     ['w2.ytdThru', 'W-2 paystub end date'],
     ['schc.net31.y1', 'Schedule C net profit · current'],
     ['schc.net31.y2', 'Schedule C net profit · prior year'],
-    ['sche.rents.y1', 'Schedule E rents received'],
+    ['sche.rents.y1', 'Schedule E rents received - prior year'],
+    ['sche.rents.y2', 'Schedule E rents received - recent year'],
+    ['sche.ins.y1', 'Schedule E insurance - prior year'],
+    ['sche.ins.y2', 'Schedule E insurance - recent year'],
+    ['sche.mortInt.y1', 'Schedule E mortgage interest - prior year'],
+    ['sche.mortInt.y2', 'Schedule E mortgage interest - recent year'],
+    ['sche.taxes.y1', 'Schedule E taxes - prior year'],
+    ['sche.taxes.y2', 'Schedule E taxes - recent year'],
+    ['sche.depr.y1', 'Schedule E depreciation - prior year'],
+    ['sche.depr.y2', 'Schedule E depreciation - recent year'],
+    ['sche.otherAdd.y1', 'Schedule E repairs/HOA - prior year'],
+    ['sche.otherAdd.y2', 'Schedule E repairs/HOA - recent year'],
+    ['sche.totalExp.y2', 'Schedule E subtotal expenses - recent year'],
+    ['sche.fairDays.y2', 'Schedule E fair rental days - recent year'],
     ['sche.totalExp.y1', 'Schedule E total expenses'],
     ['sche.fairDays.y1', 'Schedule E fair rental days'],
     ['sche.personalDays.y1', 'Schedule E personal-use days'],
@@ -350,7 +363,7 @@
       else if (target === 'w2.ytdThru') { w2.ytdThru = String(fig.value || ''); hasW2 = true; }
       else if (/^w2\.(base|ot|comm|bonus)\.y[12]$/.test(target)) { const bits = target.split('.'); w2[bits[2]][bits[1]] = numberValue(fig.value); hasW2 = true; }
       else if (/^schc\.net31\.y[12]$/.test(target)) { const bits = target.split('.'); schc[bits[2]].net31 = numberValue(fig.value); hasSchc = true; }
-      else if (/^sche\.(rents|totalExp|fairDays|personalDays)\.y1$/.test(target)) { const bits = target.split('.'); sche[bits[1]] = numberValue(fig.value); hasSche = true; }
+      else if (/^sche\.(rents|ins|mortInt|taxes|depr|otherAdd|totalExp|fairDays|personalDays)\.y[12]$/.test(target)) { const bits = target.split('.'); sche[bits[2]] = sche[bits[2]] || {}; sche[bits[2]][bits[1]] = numberValue(fig.value); hasSche = true; }
       else if (/^other\.[a-z0-9]+\.(amt|continuance)$/.test(target)) {
         const bits = target.split('.'), type = bits[1], key = bits[2];
         let rec = other.find(function (item) { return item.type === type; });

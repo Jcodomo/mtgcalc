@@ -9,7 +9,7 @@ const compatibility = ['quick-income.html', 'income-calculator.html', 'renovatio
 const pages = [...primary, ...compatibility];
 assert.ok(existsSync(path.join(root, 'income-enhancements.js')), 'income enhancements script exists');
 const sourceAllowlist = new RegExp(
-  '^(sync-bridge\\.js|income-enhancements\\.js|loan-ux\\.js|quick-worksheet\\.js|https://cdnjs\\.cloudflare\\.com/ajax/libs/(html2canvas|jspdf|pdf\\.js)/|https://cdn\\.jsdelivr\\.net/)'
+  '^(workflow-ui\\.js|sync-bridge\\.js|income-enhancements\\.js|loan-ux\\.js|quick-worksheet\\.js|https://cdnjs\\.cloudflare\\.com/ajax/libs/(html2canvas|jspdf|pdf\\.js)/|https://cdn\\.jsdelivr\\.net/)'
 );
 
 for (const file of pages) {
@@ -29,7 +29,7 @@ for (const file of pages) {
 }
 
 const landing = readFileSync(path.join(root, 'index.html'), 'utf8');
-for (const target of ['quick.html', 'doc-organizer.html', 'all-in-one.html', 'full-suite.html']) {
+for (const target of ['quick.html', 'doc-organizer.html', 'income-calculator.html', 'full-suite.html']) {
   assert.match(landing, new RegExp(`href=["']${target.replace('.', '\\.')}`), `landing links to ${target}`);
 }
 for (const file of ['all-in-one.html', 'full-suite.html', 'loan-suite.html']) {
