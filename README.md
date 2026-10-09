@@ -1,6 +1,6 @@
-# Mortgage Suite · Release 55.11
+# Mortgage Suite · Release 55.12
 
-This repository contains the Release 55.11 mortgage workflow: Quick, Doc Organizer, Income Calculator and Full Suite, with ZIP lookup, editable quotes, amortization, renovation, shared documents and browser autosave. The navigation uses the same five links and icons on every page. Full Suite includes the All-in-One features, with its older URL retained for compatibility. Schedule E calculation and reporting follow the NMB rental worksheet structure and rental-day denominator, while OCR records retain both rental years.
+This repository contains the Release 55.12 mortgage workflow: Quick, Doc Organizer, Income Calculator and Full Suite, with ZIP lookup, editable quotes, amortization, renovation, shared documents and browser autosave. The navigation uses the same five links and icons on every page. Full Suite includes the All-in-One features, with its older URL retained for compatibility. Schedule E calculation and reporting follow the NMB rental worksheet structure and rental-day denominator, while OCR records retain both rental years.
 
 | Page | URL |
 |---|---|

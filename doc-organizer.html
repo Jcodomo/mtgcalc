@@ -93,8 +93,7 @@
 </div>
 
   <div class="head">
-    <h1>🗂️ Mortgage Doc Organizer</h1><div class="sub">Rename mortgage documents with local OCR. Low-confidence documents can use a <b>2nd pass check API</b>.</div>
-    <p>Rename mortgage documents consistently, review the detected fields, then download a clean ZIP.</p>
+    <h1>🗂️ Mortgage Doc Organizer</h1><div class="sub">Add documents, review the detected fields, then download a clean ZIP or send reviewed values to the Income Calculator. Files stay in this browser.</div>
   </div>
 
   <main>
@@ -125,10 +124,10 @@
     </div>
   </main>
 
-<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script>
   const DOC_TYPES = [
     "1003 / Loan Application", "Income Calculation", "W-2", "1099", "Pay Stub", "AccountChek Asset Report", "Bank Statement",
@@ -171,7 +170,7 @@
   // ── Local OCR + rule-based mortgage document detection (NO API TOKEN) ──
   // Files never leave this browser. PDF.js extracts embedded text first; Tesseract.js
   // OCR is used for scanned/image documents. Libraries are loaded from a CDN.
-  if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
+  document.addEventListener("DOMContentLoaded", () => { if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js"; }, { once: true });
 
   const TYPE_RULES = [
     ["Income Calculation", [/income calc(?:ulation)?/i, /income worksheet/i]],
@@ -960,8 +959,8 @@
 </script>
 
 <script src="loan-ux.js"></script>
-<script src="sync-bridge.js"></script>
-<script src="workflow-ui.js"></script>
+<script src="sync-bridge.js?v=55.12"></script>
+<script src="workflow-ui.js?v=55.12"></script>
 <script>
 /* mtgcalc handoff: keep the organizer's local OCR reviewable by the income,
    quick, all-in-one, and full-suite pages without silently applying values. */
@@ -1004,10 +1003,10 @@
     const style = document.createElement('style'); style.textContent = '#mtgcalcOrganizerNav{display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin-top:12px}#mtgcalcOrganizerNav a,#mtgcalcOrganizerNav button{border:1px solid var(--brand);background:var(--surface2);color:var(--ink);border-radius:8px;padding:7px 11px;font-weight:700;cursor:pointer;text-decoration:none;font:inherit}#mtgcalcOrganizerNav a.primary,#mtgcalcOrganizerNav button.primary{background:var(--brand);color:#0d1117}#mtgcalcOcrBridge{margin-top:0}.mtgcalc-bridge-note{margin:0 0 10px;color:var(--muted);font-size:12.5px}'; document.head.appendChild(style);
     const head = document.querySelector('.head'); if (!head) return;
     const nav = document.createElement('nav'); nav.id = 'mtgcalcOrganizerNav'; nav.setAttribute('aria-label', 'Mortgage Suite pages');
-    nav.innerHTML = '<a href="index.html">Home</a><a class="primary" href="quick.html">Quick</a><a href="all-in-one.html">All-in-One</a><a href="full-suite.html">Full Suite</a><a href="income-calculator.html?tab=docs&source=doc-organizer&ocr=1">Income Documents</a><a href="loan-suite.html?tab=documents&source=doc-organizer&ocr=1">Loan Documents</a><button type="button" id="mtgcalcOrganizerCopy">Copy reviewed JSON</button>';
+    nav.innerHTML = '<a href="income-calculator.html?tab=docs&source=doc-organizer&ocr=1">Income Documents</a><a href="loan-suite.html?tab=documents&source=doc-organizer&ocr=1">Loan Documents</a><button type="button" id="mtgcalcOrganizerCopy">Copy reviewed JSON</button>';
     head.appendChild(nav);
     const bridge = document.createElement('div'); bridge.className = 'card'; bridge.id = 'mtgcalcOcrBridge'; bridge.innerHTML = '<h2>OCR handoff</h2><p class="mtgcalc-bridge-note">Run Local OCR + detect all, review the assignments, then open the destination. Values are stored locally and are never silently applied.</p><div id="mtgcalcOrganizerStatus">No reviewed OCR payload yet.</div><div class="toolbar" style="display:flex;margin-top:10px"><a class="btn ghost sm" href="income-calculator.html?tab=docs&source=doc-organizer&ocr=1">Send to Income Calculator</a><a class="btn ghost sm" href="loan-suite.html?tab=documents&source=doc-organizer&ocr=1">Open Loan Suite Documents</a></div>';
-    document.querySelector('main')?.prepend(bridge);
+    document.querySelector('main')?.append(bridge);
     document.getElementById('mtgcalcOrganizerCopy').addEventListener('click', () => { const x = latest(); if (x && navigator.clipboard) navigator.clipboard.writeText(JSON.stringify(x, null, 2)); });
     refreshBridge();
   }
@@ -1019,24 +1018,5 @@
 
 
 
-</body><grammarly-desktop-integration data-grammarly-shadow-root="true" style="visibility: visible !important;"><template shadowrootmode="open"><style>
-      div.grammarly-desktop-integration {
-        position: absolute;
-        width: 1px;
-        height: 1px;
-        padding: 0;
-        margin: -1px;
-        overflow: hidden;
-        clip: rect(0, 0, 0, 0);
-        white-space: nowrap;
-        border: 0;
-        -moz-user-select: none;
-        -webkit-user-select: none;
-        -ms-user-select:none;
-        user-select:none;
-      }
-
-      div.grammarly-desktop-integration:before {
-        content: attr(data-content);
-      }
-    </style><div aria-label="grammarly-integration" role="group" tabindex="-1" class="grammarly-desktop-integration" data-content="{&quot;mode&quot;:&quot;full&quot;,&quot;isActive&quot;:true,&quot;isUserDisabled&quot;:false}"></div></template></grammarly-desktop-integration></html>
+</body>
+</html>
