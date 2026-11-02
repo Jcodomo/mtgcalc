@@ -1,0 +1,31 @@
+/* Loan Suite split pages: the page nav replaces the in-app group and tab rows. */
+html.lse body #suite-root #v23SuitePrimaryNav,html.lse body #suite-root .chrome #v23SuitePrimaryNav,html.lse body #suite-root #root .tabs,html.lse body #suite-root .tabs{display:none!important}
+html.lse #modeseg,html.lse #mode-calc,html.lse #mode-suite,html.lse #shellbar .mode-switch{display:none!important}
+#calc-root #lseNav{top:0;margin:0 0 10px}
+#lseNav{display:block;background:var(--v24-panel,#fff);border-bottom:1px solid rgba(15,42,74,.12);padding:8px 20px 6px;position:sticky;top:52px;z-index:300;font:600 13.5px/1.2 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+#lseNav .lse-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+#lseNav .lse-pages{margin-top:6px;padding-top:6px;border-top:1px solid rgba(15,42,74,.08)}
+#lseNav a{text-decoration:none;color:#3b4b5f;padding:7px 12px;border-radius:9px;white-space:nowrap}
+#lseNav a:hover{background:rgba(31,111,214,.08);color:#1f6fd6}
+#lseNav a.on{background:rgba(31,111,214,.12);color:#1f6fd6}
+#lseNav .lse-g.on{background:#fff;box-shadow:0 0 0 1px rgba(15,42,74,.14),0 1px 2px rgba(15,42,74,.08);color:#0f2a4a}
+#lseNav .lse-all{margin-left:auto;color:#5b6b7e}
+#lseNav a:focus-visible{outline:2px solid #1f6fd6;outline-offset:1px}
+@media (max-width:640px){#lseNav{padding:6px 10px}#lseNav a{padding:6px 9px}#lseNav .lse-all{margin-left:0}}
+html.lse-nonav #lseNav{display:none!important}
+html.lse-bare #shellbar,html.lse-bare #lseNav,html.lse-bare #mtgcalcPageNav,html.lse-bare body #suite-root #root .v25-topbar,html.lse-bare body #suite-root #root .topbar,html.lse-bare body #suite-root .v25-topbar,html.lse-bare body #suite-root #root .rail,html.lse-bare body #suite-root .cols-main .rail,html.lse-bare body #suite-root .rail{display:none!important}
+html.lse-bare body #suite-root .cols-main{grid-template-columns:minmax(0,1fr)!important;display:block!important}
+@media print{#lseNav{display:none!important}}
+
+/* Draft LE page: the Loan Estimate itself, inline */
+html.lse-draft-le #screen-body{display:none!important}
+#lseDraft{margin:0 0 16px;padding:14px 16px;border-radius:14px}
+#lseDraft .lse-dh{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+#lseDraft .lse-dh b{display:block;font-size:16px}
+#lseDraft .lse-dh span{display:block;font-size:12.5px;opacity:.75}
+#lseDraft .lse-print{all:unset;cursor:pointer;background:#1f6fd6;color:#fff;font-weight:700;font-size:13px;padding:9px 16px;border-radius:999px}
+#lseDraft .lse-print:focus-visible{outline:2px solid #1f6fd6;outline-offset:2px}
+#lseDraft iframe.lse-le{display:block;width:100%;min-height:900px;border:1px solid rgba(15,42,74,.15);border-radius:10px;background:#fff}
+/* Documents pages live in the income workspace: show only its Documents area */
+html.lse-calcdocs #calc-root .v23-primary-nav,html.lse-calcdocs #v23CalcPrimaryNav{display:none!important}
+html.lse-income #calc-root #lseNav{position:sticky;top:52px}

@@ -1369,9 +1369,9 @@ function calcW2(j){
     let rec = (m1<=m2 || !b) ? 'ytd' : (m2<=m3 ? 'ytd12' : 'ytd24');
     let why = '';
     if (k==='base'){
-      rec = (j.incomeType==='consistent') ? (ytd >= monthlyBase ? 'current' : rec) : rec;
+      rec = (j.incomeType==='consistent') ? ((monthlyBase > 0 && ytd >= monthlyBase) ? 'current' : rec) : rec;   /* 55.13: no hours/rate -> no current-pay figure; the YTD average governs */
       why = (j.incomeType!=='consistent') ? 'Irregular hours — the YTD average governs, not the base rate'
-          : (ytd >= monthlyBase) ? 'YTD tracks the base rate — use the current base'
+          : (monthlyBase > 0 && ytd >= monthlyBase) ? 'YTD tracks the base rate — use the current base'
           : 'YTD is running below the base rate — the lower figure governs unless explained in writing';
     } else {
       if (!a && !b && !c) { rec='none'; why = 'Nothing entered for this component'; }
@@ -1751,7 +1751,8 @@ const C1120 = [
   {k:'nol',     sign:-1, label:'Less: Net Operating Loss &amp; Special Deductions', cite:'1120 Ln 29c'},
   {k:'notes',   sign:-1, label:'Less: Mortgages / Notes Payable &lt; 1 Yr',        cite:'Sch L Ln 17 Col D'},
   {k:'travel',  sign:-1, label:'Less: Travel &amp; Entertainment Exclusion',        cite:'Sch M-1 Ln 5c'},
-  {k:'divid',   sign:0,  label:'Dividends Paid to Borrower (added after ownership %)', cite:'1040 Sch B Ln 6'}
+  {k:'divid',   sign:0,  label:'Dividends Paid to Borrower (added after ownership %)', cite:'1040 Sch B Ln 6'},
+  {k:'w2biz',   sign:0,  label:'W-2 Wages Received From This Business (added in full)', cite:'W-2 Box 1 / 1120 Ln 12'}   /* 55.13: owner wages from the C-corporation */
 ];
 function blankCorpYear(){ const o={}; [...K1_LINES,...BIZ_ADJ,...C1120].forEach(l=>o[l.k]=0); return o; }
 function newCorp(){
@@ -1767,7 +1768,7 @@ function calcCorp(e){
     const d=e[y];
     if (e.form==='1120'){
       let v=0; C1120.forEach(l=>{ if(l.sign) v += l.sign*N(d[l.k]); });
-      return v*own + N(d.divid);
+      return v*own + N(d.divid) + N(d.w2biz);
     }
     let ord = N(d.ordinary);
     /* Conventional: use LESSER of distributions or ordinary income unless business liquidity is documented */
@@ -1794,8 +1795,12 @@ function renderCorp(){
       <tr><td class="rowlabel">${L.label}<span class="muted mono" style="margin-left:8px">${L.cite}</span></td>
       ${['y1','y2'].map(y=>`<td><input class="cell-input" type="number" step="0.01" value="${N(e[y][L.k])}"
         oninput="setField('corp','${e.id}','${y}.${L.k}',this.value,1)"></td>`).join('')}</tr>`).join('');
+    /* 55.13: owner wages entered here must not also be on the W-2 tab */
+    const w2here = N(e.y1.w2biz) + N(e.y2.w2biz) > 0, nm = String(e.name || '').trim().toLowerCase();
+    const dupe = w2here && nm && (S.w2 || []).some(j => j.use !== false && String(j.employer || '').trim().toLowerCase() === nm);
+    const dupeNote = dupe ? `<div class="note warn" style="margin:8px 14px 0;color:#b45309">W-2 wages from ${esc(e.name)} are entered here and on the W-2 &amp; Salary tab. Count them in one place only.</div>` : '';
     return `<div class="card ${e.use===false?'excluded':''}">
-      <div class="card-top"><span class="tag violet">Entity #${i+1}</span>
+      ${dupeNote}<div class="card-top"><span class="tag violet">Entity #${i+1}</span>
         <input class="name-input" placeholder="Entity name" value="${esc(e.name)}" oninput="setField('corp','${e.id}','name',this.value)">
         <select class="cell-input" style="width:190px" onchange="setField('corp','${e.id}','form',this.value);renderCorp();RECALC()">
           <option value="1065"  ${e.form==='1065'?'selected':''}>Form 1065 Partnership</option>
@@ -3708,11 +3713,62 @@ async function nativePdfText(file){
         vals.push(p != null ? unescapePdf(p) : String.fromCharCode(...(h.match(/../g)||[]).map(x=>parseInt(x,16)))); return m;
       }); found.push(vals.join(' ')); return _;
     });
-    if (found.length) chunks.push(found.join(' '));
+    const rows = /\bBT\b/.test(text) ? pdfStreamLines(text, unescapePdf) : '';
+    if (rows) chunks.push(rows); else if (found.length) chunks.push(found.join(' '));
     cursor = end + 9;
   }
   return chunks.join('\n');
 }
+  /* 55.13: rebuild visual rows from a PDF content stream. The literal-string reader used to join every string on a page
+   into one line, so labels and amounts from different rows ran together (Net Pay YTD read as Regular YTD, the ZIP code
+   read as hours). Track the text position through BT/Tm/Td/TD/TL/T* and the ' " operators, then group by baseline and
+   read each row left to right, the way the PDF.js reader does. */
+function pdfStreamLines(stream, unescapeText) {
+  var items = [], ops = [], i = 0, n = stream.length, x = 0, y = 0, lx = 0, ly = 0, lead = 0, seen = false;
+  function readString(at) { var d = 1, j = at + 1, s = ''; while (j < n && d > 0) { var ch = stream[j]; if (ch === '\\') { s += ch + (stream[j + 1] || ''); j += 2; continue; } if (ch === '(') d++; else if (ch === ')') { d--; if (!d) break; } s += ch; j++; } return {v: unescapeText(s), end: j + 1}; }
+  function readHex(at) { var j = stream.indexOf('>', at); if (j < 0) j = n; var h = stream.slice(at + 1, j).replace(/\s+/g, ''); return {v: String.fromCharCode.apply(null, (h.match(/../g) || []).map(function (p) { return parseInt(p, 16); })), end: j + 1}; }
+  function emit(t) { if (t && t.replace(/\s/g, '')) items.push({x: x, y: y, t: t}); x += t.length * 4; }
+  function newline() { ly -= (lead || 12); x = lx = lx; y = ly; x = lx; }
+  while (i < n) {
+    var c = stream[i];
+    if (c === '(') { var s1 = readString(i); ops.push({s: s1.v}); i = s1.end; continue; }
+    if (c === '<' && stream[i + 1] !== '<') { var h1 = readHex(i); ops.push({s: h1.v}); i = h1.end; continue; }
+    if (c === '[') {
+      var parts = [], j = i + 1;
+      while (j < n && stream[j] !== ']') {
+        var cj = stream[j];
+        if (cj === '(') { var s2 = readString(j); parts.push(s2.v); j = s2.end; continue; }
+        if (cj === '<') { var h2 = readHex(j); parts.push(h2.v); j = h2.end; continue; }
+        var mm = /^-?\d*\.?\d+/.exec(stream.slice(j, j + 24));
+        if (mm) { if (parseFloat(mm[0]) < -180) parts.push(' '); j += mm[0].length; continue; }
+        j++;
+      }
+      ops.push({a: parts.join('')}); i = j + 1; continue;
+    }
+    var m = /^-?\d*\.?\d+/.exec(stream.slice(i, i + 32));
+    if (m && /[-.\d]/.test(c)) { ops.push({n: parseFloat(m[0])}); i += m[0].length; continue; }
+    var w = /^(T\*|[A-Za-z'"]+)/.exec(stream.slice(i, i + 8));
+    if (w) {
+      var op = w[1], nums = ops.filter(function (o) { return o.n != null; }).map(function (o) { return o.n; }), str = ops.filter(function (o) { return o.s != null || o.a != null; }).pop();
+      if (op === 'BT') { x = y = lx = ly = 0; seen = true; }
+      else if (op === 'Tm' && nums.length >= 6) { lx = x = nums[nums.length - 2]; ly = y = nums[nums.length - 1]; }
+      else if ((op === 'Td' || op === 'TD') && nums.length >= 2) { var tx = nums[nums.length - 2], ty = nums[nums.length - 1]; if (op === 'TD') lead = -ty; lx += tx; ly += ty; x = lx; y = ly; }
+      else if (op === 'TL' && nums.length) lead = nums[nums.length - 1];
+      else if (op === 'T*') newline();
+      else if (op === 'Tj' && str) emit(str.s != null ? str.s : str.a);
+      else if (op === 'TJ' && str) emit(str.a != null ? str.a : str.s);
+      else if ((op === "'" || op === '"') && str) { newline(); emit(str.s != null ? str.s : str.a); }
+      ops = []; i += op.length; continue;
+    }
+    i++;
+  }
+  if (!seen || !items.length) return '';
+  items.sort(function (a, b) { return b.y - a.y || a.x - b.x; });
+  var rows = [];
+  items.forEach(function (it) { var r = rows[rows.length - 1]; if (!r || Math.abs(r.y - it.y) > 2) { r = {y: it.y, items: []}; rows.push(r); } r.items.push(it); });
+  return rows.map(function (r) { r.items.sort(function (a, b) { return a.x - b.x; }); return r.items.map(function (it) { return it.t; }).join(' ').replace(/\s+/g, ' ').trim(); }).filter(Boolean).join('\n');
+}
+
 
 /* ---------- number / line helpers ---------- */
 const MONEY_RE = /\(?-?\$?\s?\d[\d,]*(?:\.\d{1,2})?\)?/g;
@@ -3745,6 +3801,36 @@ function afterPhrase(text, phrase, max){
 function lines(text){ return text.split(/\r?\n/).map(l=>l.replace(/\s+/g,' ').trim()).filter(Boolean); }
 
 /* find the first line matching `re`; returns {line, idx} */
+/* 55.13: tax forms print a line or box number beside each label ("14 Self-employment earnings", "3b Ordinary dividends"),
+   and two-column forms (the K-1) put the amount on the row below. Only money-shaped figures count as amounts here:
+   a comma, cents, the trailing period tax software prints ("10,748."), or three or more digits - never a bare one- or
+   two-digit box number, a tax year or a percentage. */
+function taxMoneyOn(line, from){
+  /* amounts on one line of a tax form, left to right, starting at `from` (just after the label) */
+  const s = String(line), out = [], re = /\(?-?\$?\s?(\d[\d,]*)(\.\d{1,2})?\)?(\.(?!\d))?/g; let m;
+  re.lastIndex = from || 0;
+  while ((m = re.exec(s))) {
+    const digits = m[1].replace(/,/g, ''), after = s.charAt(m.index + m[0].length), before = s.slice(Math.max(0, m.index - 10), m.index);
+    if (/(\bline|\blines|\bform|forms?\)?|\bschedule|\bsection|\bbox|\bcode|\bpart|w-|\bstep)\s*$/i.test(before)) continue;   /* "line 29", "Form 8829", "section 179" */
+    const strong = m[1].indexOf(',') >= 0 || !!m[2] || digits.length >= 3 || (!!m[3] && digits.length >= 2 && !/^\s*[A-Z]/.test(s.slice(m.index + m[0].length, m.index + m[0].length + 3)));
+    const year = /^(19|20)\d{2}$/.test(digits) && m[1].indexOf(',') < 0 && !m[2];
+    if (strong && !year && after !== '%') { const v = toNum(m[0].replace(/\.$/, '')); if (isFinite(v)) out.push(v); }
+  }
+  return out;
+}
+function amountForTax(L, re){
+  const hit = findLine(L, re); if (!hit) return null;
+  const m = hit.line.match(re), at = m ? m.index + m[0].length : 0;
+  let v = taxMoneyOn(hit.line, at);                        /* the first amount after the label: two-column rows hold another item's amount further right */
+  if (v.length) return {value: v[0], src: hit.line};
+  for (let k = 1; k <= 2; k++) {                           /* the amount can sit on the next row (K-1 boxes, wrapped labels) - but not on a new numbered line item */
+    const ln = L[hit.idx + k]; if (ln == null) break;
+    if (/^\s*\d{1,2}[a-z]?\s+[A-Z][a-z]/.test(ln)) break;
+    v = taxMoneyOn(ln, 0);
+    if (v.length) return {value: v[v.length - 1], src: hit.line + ' / ' + ln};
+  }
+  return null;
+}
 function findLine(L, re, from){ for(let i=from||0;i<L.length;i++) if(re.test(L[i])) return {line:L[i], idx:i}; return null; }
 /* last money value on a matching line, falling back to the next line */
 function amountFor(L, re){
@@ -3774,6 +3860,16 @@ function dateFor(L, re){
 /* ---------- document classification ---------- */
 function classify(text){
   const t = text.toLowerCase();
+  /* 55.13: a K-1 says whose share it is; Schedule E page 2 mentions "(Form 1065)" in its instructions and is not a K-1 */
+  const isK1 = /(partner|shareholder)\W{0,3}s?\s*share of (current year )?income/.test(t);
+  if (isK1 && /1120-?s|shareholder/.test(t))                 return 'k1_1120s';
+  if (isK1)                                                    return 'k1_1065';
+  if (/schedule\s*e\s*\(form\s*1040/.test(t) || /supplemental income and loss/.test(t)) return 'schede';
+  /* each form by its own title first - instructions on these forms mention other form numbers */
+  if (/profit or loss from business/.test(t))                 return 'schedc';
+  if (/return of partnership income/.test(t))                 return 'k1_1065';
+  if (/income tax return for an s\s*corporation/.test(t))    return 'k1_1120s';
+  if (/u\.?\s?s\.?\s*corporation income tax return/.test(t)) return 'f1120';
   if (/schedule\s*k-?1/.test(t) && /1065/.test(t))            return 'k1_1065';
   if (/schedule\s*k-?1/.test(t) && /1120-?s/.test(t))         return 'k1_1120s';
   if (/form\s*1120-?s/.test(t))                               return 'k1_1120s';
@@ -3945,9 +4041,13 @@ function extractFields(type, text){
       /* a paystub earnings row typically reads: rate, hours, current, YTD */
       F.push({slot, label:label+' (YTD)', value:v[v.length-1], src:hit.line, yearScoped:true, apply:true});
       if (slot==='base' && v.length>=4){
-        F.push({slot:'rate',  label:'Pay rate',      value:v[0], src:hit.line, yearScoped:false, apply:true});
+        /* 55.13: stubs print either "Rate Hours" or "Hours Rate"; follow the column header when there is one */
+        const hdr = L.find(l => /\bhours?\b/i.test(l) && /\brate\b/i.test(l));
+        const hoursFirst = !!hdr && hdr.search(/\bhours?\b/i) < hdr.search(/\brate\b/i);
+        const rate = hoursFirst ? v[1] : v[0], hrs = hoursFirst ? v[0] : v[1];
+        F.push({slot:'rate',  label:'Pay rate',      value:rate, src:hit.line, yearScoped:false, apply:true});
         F.push({slot:'hours', label:'Hours on this stub — convert to hours per week before using',
-                value:v[1], src:hit.line, yearScoped:false, apply:false});
+                value:hrs, src:hit.line, yearScoped:false, apply:false});
       }
     };
     earn(/\b(regular|reg\b|base|salary|hourly)\b/i, 'base',  'Regular / base earnings');
@@ -3982,45 +4082,47 @@ function extractFields(type, text){
                     yearScoped:false, apply:false, readonly:true});
   }
   else if (type==='schedc'){
-    push('net31', 'Line 31 — Net profit or (loss)',        amountFor(L,/\b31\b.*net profit|net profit or \(?loss\)?/i));
-    push('depl12','Line 12 — Depletion',                    amountFor(L,/\b12\b.*depletion|^depletion/i));
-    push('depr13','Line 13 — Depreciation',                 amountFor(L,/\b13\b.*depreciation|depreciation and section 179/i));
-    push('meals', 'Line 24b — Deductible meals',            amountFor(L,/24b|deductible meals/i));
-    push('home30','Line 30 — Business use of home',         amountFor(L,/\b30\b.*business use of (?:your )?home|expenses for business use/i));
+    push('net31', 'Line 31 — Net profit or (loss)',        amountForTax(L,/\b31\b.*net profit|net profit or \(?loss\)?/i));
+    push('depl12','Line 12 — Depletion',                    amountForTax(L,/\b12\b.*depletion|^depletion/i));
+    push('depr13','Line 13 — Depreciation',                 amountForTax(L,/\b13\b.*depreciation|depreciation and section 179/i));
+    push('meals', 'Line 24b — Deductible meals',            amountForTax(L,/24b|deductible meals/i));
+    push('home30','Line 30 — Business use of home',         amountForTax(L,/\b30\b.*business use of (?:your )?home|expenses for business use/i));
     const mi = afterPhrase(text,'business\\s*miles') || afterPhrase(text,'44a');
     if (mi && mi.value>50) F.push({slot:'miles', label:'Line 44a — Business miles', value:mi.value,
                                    src:mi.src, yearScoped:true, apply:true});
-    const gr = amountFor(L,/\b7\b.*gross income|gross income/i);
+    const gr = amountForTax(L,/\b7\b.*gross income|gross income/i);
     if (gr) F.push({slot:'_gross', label:'Line 7 — Gross income (reference)', value:gr.value, src:gr.src, yearScoped:false, apply:false, readonly:true});
   }
   else if (type==='schede'){
     push('fairDays','Line 2 — Fair rental days',     afterPhrase(text,'fair\\s*rental\\s*days', 366), false);
     push('personalDays','Line 2 — Personal use days', afterPhrase(text,'personal\\s*use\\s*days', 366), false);
-    push('rents',   'Line 3 — Rents received',       amountFor(L,/\b3\b.*rents received|rents received/i), false);
-    push('ins',     'Line 9 — Insurance',            amountFor(L,/\b9\b.*insurance|^insurance/i), false);
-    push('mortInt', 'Line 12 — Mortgage interest',   amountFor(L,/\b12\b.*mortgage interest|mortgage interest paid/i), false);
-    push('taxes',   'Line 16 — Taxes',               amountFor(L,/\b16\b.*taxes|^taxes\b/i), false);
-    push('depr',    'Line 18 — Depreciation',        amountFor(L,/\b18\b.*depreciation|depreciation expense or depletion/i), false);
-    push('otherAdd','Line 14/19 — Repairs / other',  amountFor(L,/\b14\b.*repairs|^repairs/i), false);
-    push('totalExp','Line 20 — Total expenses',      amountFor(L,/\b20\b.*total expenses|total expenses/i), false);
+    push('rents',   'Line 3 — Rents received',       amountForTax(L,/\b3\b.*rents received|rents received/i), false);
+    push('ins',     'Line 9 — Insurance',            amountForTax(L,/\b9\b.*insurance|^insurance/i), false);
+    push('mortInt', 'Line 12 — Mortgage interest',   amountForTax(L,/\b12\b.*mortgage interest|mortgage interest paid/i), false);
+    push('taxes',   'Line 16 — Taxes',               amountForTax(L,/\b16\b.*taxes|^taxes\b/i), false);
+    push('depr',    'Line 18 — Depreciation',        amountForTax(L,/\b18\b.*depreciation|depreciation expense or depletion/i), false);
+    push('otherAdd','Line 14/19 — Repairs / other',  amountForTax(L,/\b14\b.*repairs|^repairs/i), false);
+    push('totalExp','Line 20 — Total expenses',      amountForTax(L,/\b20\b.*total expenses|total expenses/i), false);
+    { const t32 = amountForTax(L,/\b32\b.*total partnership|total partnership and s corporation income/i);
+      if (t32) F.push({slot:'', label:'Line 32 — Total partnership & S-corp income (cross-check with the K-1s)', value:t32.value, src:t32.src, yearScoped:false, apply:false, readonly:true}); }
   }
   else if (type==='k1_1065' || type==='k1_1120s'){
-    push('ordinary', 'Part III Line 1 — Ordinary business income',      amountFor(L,/ordinary business income/i));
-    push('netRental','Part III Line 2 — Net rental real estate income', amountFor(L,/net rental real estate/i));
-    push('othRental','Part III Line 3 — Other net rental income',       amountFor(L,/other net rental/i));
-    if (type==='k1_1065') push('guar','Part III Line 4c — Guaranteed payments', amountFor(L,/guaranteed payment/i));
+    push('ordinary', 'Part III Line 1 — Ordinary business income',      amountForTax(L,/ordinary business income/i));
+    push('netRental','Part III Line 2 — Net rental real estate income', amountForTax(L,/net rental real estate/i));
+    push('othRental','Part III Line 3 — Other net rental income',       amountForTax(L,/other net rental/i));
+    if (type==='k1_1065') push('guar','Part III Line 4c — Guaranteed payments', amountForTax(L,/guaranteed payment/i));
     push('dist', type==='k1_1065' ? 'Line 19 — Distributions' : 'Line 16d — Distributions',
-         amountFor(L,/distribution/i));
+         amountForTax(L,/distribution/i));
     const om = text.match(/(?:profit|ownership|stock owned|shareholder)[^\n%]{0,40}?(\d{1,3}(?:\.\d+)?)\s*%/i);
     if (om) F.push({slot:'_own', label:'Ownership percentage', value:parseFloat(om[1]),
                     src:om[0].replace(/\s+/g,' ').trim(), yearScoped:false, apply:true});
-    push('depr','Depreciation (Sch K / attachment)', amountFor(L,/depreciation/i));
-    push('depl','Depletion',                          amountFor(L,/depletion/i));
+    push('depr','Depreciation (Sch K / attachment)', amountForTax(L,/depreciation/i));
+    push('depl','Depletion',                          amountForTax(L,/depletion/i));
   }
   else if (type==='f1040'){
-    const g=(lbl,re)=>{ const h=amountFor(L,re); if(h) F.push({slot:'', label:lbl, value:h.value, src:h.src,
+    const g=(lbl,re)=>{ const h=amountForTax(L,re); if(h) F.push({slot:'', label:lbl, value:h.value, src:h.src,
                         yearScoped:false, apply:false, readonly:true}); };
-    g('Line 1z — Wages, salaries, tips',            /\b1z\b|wages,?\s*salaries,?\s*tips/i);
+    g('Line 1z — Wages, salaries, tips',            /\b1z\b|add lines 1a through 1h|wages,?\s*salaries,?\s*tips|total amount from form\W{0,3}s?\W{0,3}\s*w-?2/i);   /* 2023+ forms word it "Total amount from Form(s) W-2, box 1" */
     g('Line 2b — Taxable interest',                 /\b2b\b|taxable interest/i);
     g('Line 3b — Ordinary dividends',               /\b3b\b|ordinary dividends/i);
     g('Line 4b — IRA distributions (taxable)',      /\b4b\b|ira distributions/i);
@@ -4393,6 +4495,8 @@ function applyDoc(id, quiet){
   if (kind==='none' || !d.target){ toast('Choose where this document should be applied first'); return; }
   let [k, rid] = d.target.split('|');
   if (rid==='NEW'){
+    /* 55.13: a document with only cross-check figures (1040, Schedule E page 2) must not create an empty worksheet */
+    if (!d.fields.some(f => f.apply && f.slot && !f.readonly)) { d.target = ''; return; }
     const mk = {w2:newW2, schc:newSchC, corp:newCorp, sche:newSchE}[k];
     const rec = mk(); S[k].push(rec); rid = rec.id;
     d.target = k+'|'+rid;
@@ -7788,8 +7892,8 @@ window.__mtgcalcBridge = {
   }
 };
 </script>
-<script src="income-enhancements.js"></script>
-<script src="sync-bridge.js?v=55.12"></script>
-<script src="workflow-ui.js?v=55.12"></script>
+<script src="assets/income-enhancements.js"></script>
+<script src="assets/sync-bridge.js?v=55.12"></script>
+<script src="assets/workflow-ui.js?v=55.12"></script>
 </body>
 </html>

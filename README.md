@@ -1,27 +1,66 @@
-# Mortgage Suite · Release 55.12
+# Mortgage Suite: one page per feature (Release 55.13)
 
-This repository contains the Release 55.12 mortgage workflow: Quick, Doc Organizer, Income Calculator and Full Suite, with ZIP lookup, editable quotes, amortization, renovation, shared documents and browser autosave. The navigation uses the same five links and icons on every page. Full Suite includes the All-in-One features, with its older URL retained for compatibility. Schedule E calculation and reporting follow the NMB rental worksheet structure and rental-day denominator, while OCR records retain both rental years.
+Every feature of the Loan Suite and the Income Calculator as its own HTML page, ready to upload to a website. Built from Release 55.12 (`jcodomo/mtgcalc`, main).
 
-| Page | URL |
+## Pages
+
+| File | What it is |
 |---|---|
-| Landing | `index.html` |
-| Quick | `quick.html` |
-| Doc Organizer | `doc-organizer.html` |
-| Income Calculator | `income-calculator.html` |
-| All-in-One compatibility entry | `all-in-one.html` |
-| Full Suite | `full-suite.html` |
-| Loan Suite alias | `loan-suite.html` |
+| `index.html` | Hub: links to every page |
+| `quick.html` | Quick income worksheet and fast mortgage calculator |
+| `income-calculator.html` | Income Calculator: W-2, self-employment, rental, other income, document import with OCR, AUS findings, DTI |
+| `income-calculator-standalone.html` | The same Income Calculator as one self-contained file (no `assets/` needed) |
+| `doc-organizer.html` | Read, rename, split and combine borrower documents; send reviewed values onward |
+| `full-suite.html` | The complete Loan Suite and Income Calculator in one page |
+| `loan-suite-quote.html` | Quote, Scenario Control, mortgage calculator |
+| `loan-suite-setup.html` | Setup |
+| `loan-suite-property.html` | Property |
+| `loan-suite-renovation.html` | Renovation |
+| `loan-suite-max-mortgage.html` | Max Mortgage |
+| `loan-suite-mortgage-rates.html` | Mortgage Rates |
+| `loan-suite-closing-costs.html` | Closing Costs |
+| `loan-suite-escrow.html` | Escrow |
+| `loan-suite-taxes-proration.html` | Taxes & Proration |
+| `loan-suite-qualify.html` | Qualify |
+| `loan-suite-rental.html` | Rental |
+| `loan-suite-credit.html` | Credit workspace |
+| `loan-suite-advanced.html` | Advanced (rule tables) |
+| `loan-suite-contract-le.html` | Contract, LE & Closing Disclosure reader |
+| `loan-suite-scenarios.html` | Saved scenarios, comparison and history |
+| `loan-suite-summary.html` | Summary |
+| `loan-suite-documents-ocr.html` | Documents & OCR |
+| `loan-suite-documents-worksheets.html` | Documents & Worksheets (generators) |
+| `loan-suite-draft-le.html` | Draft Loan Estimate, shown inline, with Print / Save PDF |
 
-The older `quick-income.html`, `income-calculator.html`, and `renovation-suite.html` entry points remain available for compatibility. The primary Release 55 workflow uses the tested combined engine in All-in-One and Full Suite. In the Doc Organizer and Loan Suite Documents workspaces, extracted values are assigned and reviewed before they are sent to the Income Calculator; ordinary text PDFs with ASCII85/Flate streams are parsed locally before any network reader is attempted. Image-only scans still use the optional cached PDF.js/Tesseract path, with the universal prompt and paste-JSON workflow available when an OCR engine is not cached.
+`assets/` holds the shared engine (scripts and stylesheets) and the companion scripts. Every page except `income-calculator-standalone.html` needs it next to the page.
 
-## Verification
+## Putting it on a website
 
-Run the local static check with the bundled Node runtime:
+Upload the whole folder (pages plus `assets/`) to one directory of your site, for example `https://example.com/mortgage/`, and link to the pages you want. The engine downloads once and is then cached, so each further page costs about 37 KB.
 
-```text
-node test-static.mjs
+**Link to a page directly**, or **embed it** in an existing page:
+
+```html
+<iframe src="/mortgage/loan-suite-escrow.html?nav=0" style="width:100%;height:1400px;border:0" title="Escrow"></iframe>
 ```
 
-The supplied Release 55 source package also includes the calculation and build tests under `.tmp-10.02/v55/mortgage-suite-los/test/node` used before publishing.
+URL options for the Loan Suite pages:
 
-All calculations are planning estimates. Confirm current agency guidelines, limits, rates, and fees before relying on figures.
+- `?nav=0` hides the page navigation, for sites that have their own menu.
+- `?chrome=bare` shows only the page content: no header, page navigation or Live Summary.
+
+**Shared loan file.** All pages read and write one saved loan file in the visitor's browser (`localStorage`), so a change on one page shows on the others. That only works when the pages are served from the **same site** (same domain and protocol). Nothing is sent to a server.
+
+**Moving between pages.** Each Loan Suite page has its own page navigation with real links. Anything inside a page that leads to another feature, such as a Live Summary line, "Back to Qualify" or the Income button, opens that feature's page.
+
+**OCR and PDF export** load their libraries (pdf.js, Tesseract.js, html2canvas, jsPDF) from public CDNs the first time they are used, so they need an internet connection. Text-layer PDFs are also read by the built-in reader, which works offline.
+
+## Rebuilding
+
+The pages are generated, not hand-edited:
+
+```
+python3 tools/decompile.py tools/source <output-folder>
+```
+
+`tools/source/` holds the 55.13 source files the build reads. `tools/decompile.py` splits `full-suite.html` into the shared `assets/` (each script byte-for-byte, each stylesheet recreated as a real `<style>` element so the Loan Report and print views keep their styles), and writes one page per tab with `tools/loan-suite-embed.js` / `.css`. To change a feature, edit `tools/source/`, rebuild, and upload the output.

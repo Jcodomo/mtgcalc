@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>window.LOS_PAGE="allinone";window.LOS_EMBED={"page": "taxes-proration", "title": "Taxes & Proration", "pages": [{"id": "quote", "file": "loan-suite-quote.html", "label": "QUOTE", "group": "file", "title": "Quote"}, {"id": "setup", "file": "loan-suite-setup.html", "label": "SETUP", "group": "file", "title": "Setup"}, {"id": "property", "file": "loan-suite-property.html", "label": "PROPERTY", "group": "file", "title": "Property"}, {"id": "renovation", "file": "loan-suite-renovation.html", "label": "RENOVATION", "group": "loan", "title": "Renovation"}, {"id": "max-mortgage", "file": "loan-suite-max-mortgage.html", "label": "MAX MORTGAGE", "group": "loan", "title": "Max Mortgage"}, {"id": "mortgage-rates", "file": "loan-suite-mortgage-rates.html", "label": "MORTGAGE RATES", "group": "loan", "title": "Mortgage Rates"}, {"id": "closing-costs", "file": "loan-suite-closing-costs.html", "label": "CLOSING", "group": "costs", "title": "Closing Costs"}, {"id": "escrow", "file": "loan-suite-escrow.html", "label": "ESCROW", "group": "costs", "title": "Escrow"}, {"id": "taxes-proration", "file": "loan-suite-taxes-proration.html", "label": "TAXES & PRORATION", "group": "costs", "title": "Taxes & Proration"}, {"id": "qualify", "file": "loan-suite-qualify.html", "label": "QUALIFY", "group": "underwriting", "title": "Qualify"}, {"id": "rental", "file": "loan-suite-rental.html", "label": "RENTAL", "group": "underwriting", "title": "Rental"}, {"id": "credit", "file": "loan-suite-credit.html", "label": "CREDIT", "group": "underwriting", "title": "Credit"}, {"id": "advanced", "file": "loan-suite-advanced.html", "label": "ADVANCED", "group": "underwriting", "title": "Advanced"}, {"id": "contract-le", "file": "loan-suite-contract-le.html", "label": "CONTRACT & LE", "group": "underwriting", "title": "Contract & LE"}, {"id": "scenarios", "file": "loan-suite-scenarios.html", "label": "SCENARIOS", "group": "results", "title": "Scenarios"}, {"id": "summary", "file": "loan-suite-summary.html", "label": "SUMMARY", "group": "results", "title": "Summary"}, {"id": "documents-ocr", "file": "loan-suite-documents-ocr.html", "label": "DOCUMENTS & OCR", "group": "results", "title": "Documents & OCR"}, {"id": "documents-worksheets", "file": "loan-suite-documents-worksheets.html", "label": "DOCUMENTS & WORKSHEETS", "group": "results", "title": "Documents & Worksheets"}, {"id": "draft-le", "file": "loan-suite-draft-le.html", "label": "DRAFT LE", "group": "results", "title": "Draft LE"}], "groups": [{"id": "file", "label": "File"}, {"id": "loan", "label": "Loan"}, {"id": "costs", "label": "Costs"}, {"id": "underwriting", "label": "Underwriting"}, {"id": "results", "label": "Results"}], "persistCalc": false, "legacy": false};if(!/[?&]app=/.test(location.search)){try{history.replaceState(null,"",location.pathname+(location.search?location.search+"&":"?")+"app=suite"+location.hash)}catch(e){}}</script>
+<link rel="stylesheet" href="assets/loan-suite-embed.css">
+<meta name="los-release" content="55.3">
+<script id="los-release-50-bootstrap">!function(){try{var e=new URLSearchParams(location.search).get("app"),a=/^(suite|loan|loansuite)$/i.test(e)?"suite":/^(calc|income|calculator)$/i.test(e)?"calc":"";a&&(sessionStorage.setItem("los.v50.requestedWorkspace",a),document.cookie="los.v50.workspace="+encodeURIComponent(a)+"; Path=/; Max-Age=31536000; SameSite=Lax")}catch(e){}}();
+</script>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Taxes & Proration · Loan Suite</title>
+<script>!function(){var t=[["https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"],["https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"],["https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js",function(){try{window.pdfjsLib&&(pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js")}catch(t){}}]],n=!1;function start(){n||(n=!0,t.forEach(function(t){var n=document.createElement("script");n.src=t[0],n.async=!0,t[1]&&(n.onload=t[1]),(document.head||document.documentElement).appendChild(n)}))}window.LOS_LIBS={start},["pointerdown","keydown","dragenter","touchstart"].forEach(function(t){addEventListener(t,start,{once:!0,capture:!0,passive:!0})}),addEventListener("load",function(){(window.requestIdleCallback||function(t){setTimeout(t,1500)})(start,{timeout:3e3})})}();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"></noscript>
+<script src="assets/loan-suite-styles.js"></script>
+<script>LOSCSS(0)</script>
+<script>LOSCSS(1)</script>
+<script>LOSCSS(2)</script>
+
+<!-- ===== LOS PATCH LAYER — BEGIN (generated by inject.py) ===== -->
+<script>LOSCSS(3)</script>
+<!-- ===== LOS PATCH LAYER — END ===== -->
+<script>LOSCSS(4)</script>
+</head>
+<body>
+
+<div id="shellbar" class="no-print">
+  <div class="mark">
+    <svg viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M5 21V8l7-5 7 5v13"/><path d="M10 21v-6h4v6"/></svg>
+    <span>Mortgage Suite</span>
+  </div>
+  <div id="modeseg">
+    <button id="mode-calc" class="on" onclick="SHELL.go('calc')" type="button">
+      <svg viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="11" x2="8" y2="11"/><line x1="12" y1="11" x2="12" y2="11"/><line x1="16" y1="11" x2="16" y2="11"/><line x1="8" y1="16" x2="12" y2="16"/></svg>
+      Income Calculator
+    </button>
+    <button id="mode-suite" onclick="SHELL.go('suite')" type="button">
+      <svg viewBox="0 0 24 24"><path d="M3 10l9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg>
+      Renovation Suite
+    </button>
+  </div>
+  <div class="grow"></div>
+  <div class="lnk"><span class="dot" id="shellDot"></span><span id="shellStatus">One file &middot; one state</span></div>
+  <div class="hand">
+    <button onclick="SHELL.toSuite()" type="button" title="Send this file's qualifying income and monthly debts to the Renovation Suite">
+      <svg viewBox="0 0 24 24"><line x1="4" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>
+      <span>Income &rarr; Suite</span>
+    </button>
+    <button onclick="SHELL.toCalc()" type="button" title="Pull the Suite's loan setup, property and escrows into the calculator">
+      <svg viewBox="0 0 24 24"><line x1="20" y1="12" x2="5" y2="12"/><polyline points="11 6 5 12 11 18"/></svg>
+      <span>Suite &rarr; Income</span>
+    </button>
+  </div>
+</div>
+
+<div id="calc-root" class="mode-pane on">
+
+
+<svg style="display:none" aria-hidden="true"><defs>
+<symbol id="i-calc" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="8" y2="10"/><line x1="12" y1="10" x2="12" y2="10"/><line x1="16" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="8" y2="14"/><line x1="12" y1="14" x2="12" y2="14"/><line x1="16" y1="14" x2="16" y2="18"/><line x1="8" y1="18" x2="12" y2="18"/></symbol>
+<symbol id="i-briefcase" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></symbol>
+<symbol id="i-user" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/></symbol>
+<symbol id="i-building" viewBox="0 0 24 24"><rect x="3" y="3" width="12" height="18" rx="1"/><path d="M15 9h5a1 1 0 0 1 1 1v11h-6"/><line x1="7" y1="7" x2="11" y2="7"/><line x1="7" y1="11" x2="11" y2="11"/><line x1="7" y1="15" x2="11" y2="15"/></symbol>
+<symbol id="i-home" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></symbol>
+<symbol id="i-coins" viewBox="0 0 24 24"><circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/><path d="M7 6h1v4"/><path d="M16.71 13.88l.7.71-2.82 2.82"/></symbol>
+<symbol id="i-pig" viewBox="0 0 24 24"><path d="M19 10h2v4h-2"/><path d="M4 10c0-3 3-5 7-5 1 0 2 .1 3 .4L16 3l1 3c2 1 3 3 3 5v3c0 1-1 2-2 2v2h-3v-2H9v2H6v-2c-1-.6-2-2-2-3z"/><circle cx="8" cy="11" r="1"/></symbol>
+<symbol id="i-pie" viewBox="0 0 24 24"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></symbol>
+<symbol id="i-doc" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></symbol>
+<symbol id="i-book" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></symbol>
+<symbol id="i-trash" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></symbol>
+<symbol id="i-down" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></symbol>
+<symbol id="i-up" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></symbol>
+<symbol id="i-print" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></symbol>
+<symbol id="i-sheet" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/></symbol>
+<symbol id="i-chev" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></symbol>
+<symbol id="i-sliders" viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="8 12 11 15 16 9"/></symbol>
+<symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12" y2="16"/></symbol>
+<symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="9" x2="9" y2="21"/></symbol>
+<symbol id="i-trend" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></symbol>
+<symbol id="i-dollar" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></symbol>
+<symbol id="i-cal" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="17" rx="2"/><line x1="3" y1="9.5" x2="21" y2="9.5"/><line x1="8" y1="2.5" x2="8" y2="6"/><line x1="16" y1="2.5" x2="16" y2="6"/></symbol>
+<symbol id="i-upload" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></symbol>
+<symbol id="i-scan" viewBox="0 0 24 24"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="3" y1="12" x2="21" y2="12"/></symbol>
+<symbol id="i-magic" viewBox="0 0 24 24"><path d="M15 4V2M15 16v-2M8 9h2M20 9h2M17.8 11.8L19 13M15 9h0M17.8 6.2L19 5M3 21l9-9M12.2 6.2L11 5"/></symbol>
+<symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.2" y1="4.2" x2="5.6" y2="5.6"/><line x1="18.4" y1="18.4" x2="19.8" y2="19.8"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.2" y1="19.8" x2="5.6" y2="18.4"/><line x1="18.4" y1="5.6" x2="19.8" y2="4.2"/></symbol>
+<symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></symbol>
+<symbol id="i-eraser" viewBox="0 0 24 24"><path d="M3 17l6 6h12"/><path d="M13.5 3.5L21 11a2 2 0 0 1 0 2.8L12.8 22a2 2 0 0 1-2.8 0l-7.5-7.5a2 2 0 0 1 0-2.8l8.2-8.2a2 2 0 0 1 2.8 0z"/></symbol>
+<symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></symbol>
+<symbol id="i-ext" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></symbol>
+<symbol id="i-receipt" viewBox="0 0 24 24"><path d="M4 2v20l2.5-1.6L9 22l2.5-1.6L14 22l2.5-1.6L19 22V2l-2.5 1.6L14 2l-2.5 1.6L9 2 6.5 3.6z"/><line x1="8" y1="8" x2="15" y2="8"/><line x1="8" y1="12" x2="15" y2="12"/><line x1="8" y1="16" x2="12" y2="16"/></symbol>
+<symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><polyline points="21 3 21 9 15 9"/></symbol>
+<symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12" y2="17"/></symbol>
+</defs></svg>
+
+<!-- ======================== APP BAR ======================== -->
+<header class="appbar">
+  <div class="wrap topbar">
+    <div class="mark">MI</div>
+    <h1>Mortgage Income Calculator</h1>
+    <span class="prog-chip" id="progChip">FNMA</span>
+    <span class="spacer"></span>
+    <span class="tb-field">B1 <input id="b1Name" value="" placeholder="Borrower 1" oninput="RECALC()"></span>
+    <span class="tb-field">B2 <input id="b2Name" value="" placeholder="Borrower 2" oninput="RECALC()"></span>
+    <span class="tb-field">File <input id="fileNumber" value="" placeholder="Loan #" style="width:82px"></span>
+    <select id="agency" onchange="RECALC()" class="tb-sel">
+      <option value="FNMA">Fannie Mae (DU)</option>
+      <option value="FHLMC">Freddie Mac (LPA)</option>
+      <option value="FHA">FHA (4000.1)</option>
+      <option value="VA">VA</option>
+    </select>
+    <button class="theme-dot no-print" id="themeBtn" onclick="toggleTheme()" title="Light / dark">
+      <svg class="icon"><use href="#i-moon" id="themeIcon"/></svg></button>
+  </div>
+</header>
+<div class="toolbar no-print"><div class="wrap toolbar-inner">
+  <span class="kpi lead"><i>Income used</i><b id="hdrIncome">$0.00</b></span>
+  <span class="kpi"><i id="hdrB1k">B1</i><b id="hdrB1">$0.00</b></span>
+  <span class="kpi" id="hdrB2box"><i id="hdrB2k">B2</i><b id="hdrB2">$0.00</b></span>
+  <span class="kpi"><i>Front</i><b id="hdrFront">0.00%</b></span>
+  <span class="kpi"><i>Back</i><b id="hdrBack">0.00%</b></span>
+  <span class="spacer"></span>
+  <button class="btn btn-primary" onclick="openReport()"><svg class="icon"><use href="#i-doc"/></svg>Income Report</button>
+  <div class="menu-wrap">
+    <button class="btn btn-light" onclick="toggleLoadMenu(event)"><svg class="icon"><use href="#i-up"/></svg>Load</button>
+    <div class="menu" id="loadMenu" onclick="event.stopPropagation()"><div id="loadMenuBody"></div></div>
+  </div>
+  <button class="btn btn-light" onclick="saveJSON()"><svg class="icon"><use href="#i-down"/></svg>Save</button>
+  <div class="menu-wrap">
+    <button class="btn btn-light" onclick="toggleMenu(event)" title="More actions">&#8942;</button>
+    <div class="menu" id="moreMenu" onclick="event.stopPropagation()">
+      <button onclick="closeMenu();document.getElementById('loadFile').click()"><svg class="icon"><use href="#i-up"/></svg>Load saved file…</button>
+      <button onclick="closeMenu();exportWorkbook()"><svg class="icon"><use href="#i-sheet"/></svg>Export Excel workbook</button>
+      <button onclick="closeMenu();printSummary()"><svg class="icon"><use href="#i-print"/></svg>Print UW summary</button>
+      <div class="sep"></div>
+      <button onclick="closeMenu();importReno()"><svg class="icon"><use href="#i-up"/></svg>Import from Renovation Suite</button>
+      <button onclick="closeMenu();document.getElementById('renoFile').click()"><svg class="icon"><use href="#i-doc"/></svg>Import Suite scenario file…</button>
+      <button onclick="closeMenu();exportReno()"><svg class="icon"><use href="#i-down"/></svg>Send income to Renovation Suite</button>
+      <div class="sep"></div>
+      <label class="sw" style="justify-content:space-between">
+        <span style="display:flex;align-items:center;gap:9px"><svg class="icon"><use href="#i-shield"/></svg>Autosave to this browser</span>
+        <input type="checkbox" id="autosaveTgl" onchange="setAutosave(this.checked)"></label>
+      <button onclick="closeMenu();restoreAutosave()"><svg class="icon"><use href="#i-up"/></svg>Restore last autosave</button>
+      <div class="sep"></div>
+      <button class="danger" onclick="closeMenu();clearAll()"><svg class="icon"><use href="#i-eraser"/></svg>Clear all &amp; start a new file</button>
+    </div>
+  </div>
+  <input type="file" id="loadFile" accept=".json" style="display:none" onchange="loadJSON(event)">
+  <input type="file" id="renoFile" accept=".json" style="display:none" onchange="importRenoFile(event)">
+</div></div>
+
+
+<!-- ======================== TABS ======================== -->
+<nav class="tabbar no-print">
+  <div class="wrap tabbar-inner" id="tabbar">
+    <button class="tab active" data-tab="w2" onclick="switchTab('w2')" title="W-2 &amp; Salary Income"><svg class="icon"><use href="#i-briefcase"/></svg><span>W-2 &amp; Salary</span><span class="cnt" id="cnt-w2">1</span></button>
+    <button class="tab" data-tab="schc" onclick="switchTab('schc')" title="Schedule C — Sole Proprietorship"><svg class="icon"><use href="#i-user"/></svg><span>Schedule C</span><span class="cnt" id="cnt-schc">0</span></button>
+    <button class="tab" data-tab="corp" onclick="switchTab('corp')"><svg class="icon"><use href="#i-building"/></svg><span>1065 / 1120-S / 1120</span><span class="cnt" id="cnt-corp">0</span></button>
+    <button class="tab" data-tab="sche" onclick="switchTab('sche')" title="Schedule E — Rental Properties"><svg class="icon"><use href="#i-home"/></svg><span>Schedule E</span><span class="cnt" id="cnt-sche">0</span></button>
+    <button class="tab" data-tab="other" onclick="switchTab('other')"><svg class="icon"><use href="#i-coins"/></svg><span>Other Income</span><span class="cnt" id="cnt-other">0</span></button>
+    <button class="tab" data-tab="assets" onclick="switchTab('assets')" title="Asset Depletion / Employment-Related Assets"><svg class="icon"><use href="#i-pig"/></svg><span>Assets</span></button>
+    <button class="tab" data-tab="dti" onclick="switchTab('dti')" title="Subject Property PITIA &amp; Debt-to-Income"><svg class="icon"><use href="#i-pie"/></svg><span>PITIA &amp; DTI</span></button>
+    <button class="tab" data-tab="docs" onclick="switchTab('docs')" title="Document Import &amp; OCR"><svg class="icon"><use href="#i-scan"/></svg><span>Documents</span><span class="cnt" id="cnt-docs">0</span></button>
+    <button class="tab" data-tab="aus" onclick="switchTab('aus')" title="DU / LPA Findings"><svg class="icon"><use href="#i-shield"/></svg><span>AUS Findings</span><span class="cnt" id="cnt-aus">0</span></button>
+    <button class="tab" data-tab="summary" onclick="switchTab('summary')" title="Underwriting Summary, findings and the agency guidelines that apply"><svg class="icon"><use href="#i-doc"/></svg><span>UW Summary &amp; Guidelines</span><span class="cnt" id="cnt-guide">0</span></button>
+  </div>
+</nav>
+
+<main><div class="wrap">
+
+<!-- ======================== TAB: W-2 ======================== -->
+<section class="panel active" id="panel-w2">
+  <div class="section-head">
+    <div>
+      <h2><svg class="icon icon-lg" style="color:var(--sky)"><use href="#i-dollar"/></svg>W-2 Employment &amp; Salary Worksheets</h2>
+      <p>Calculate base hourly, salary, YTD variance, overtime, bonus, and commission based on FNMA / FHLMC guidelines.</p>
+    </div>
+    <button class="btn btn-add no-print" onclick="addW2()"><svg class="icon"><use href="#i-plus"/></svg>Add Employment / Job</button>
+  </div>
+  <div id="w2List"></div>
+  <div id="combineBox"></div>
+</section>
+
+<!-- ======================== TAB: SCHEDULE C ======================== -->
+<section class="panel" id="panel-schc">
+  <div class="section-head">
+    <div>
+      <h2><svg class="icon icon-lg" style="color:var(--amber)"><use href="#i-user"/></svg>Schedule C Sole Proprietorship Income</h2>
+      <p>Fannie Mae Form 1084 / Freddie Mac Form 91 add-backs and depletion for sole proprietorships.</p>
+    </div>
+    <button class="btn no-print" style="background:var(--amber);border-color:var(--amber);color:#fff" onclick="addSchC()"><svg class="icon"><use href="#i-plus"/></svg>Add Schedule C Business</button>
+  </div>
+  <div id="schcList"></div>
+</section>
+
+<!-- ======================== TAB: CORPORATE ======================== -->
+<section class="panel" id="panel-corp">
+  <div class="section-head">
+    <div>
+      <h2><svg class="icon icon-lg" style="color:var(--violet)"><use href="#i-building"/></svg>Partnership &amp; Corporate Cash Flow (1065 / 1120-S / 1120)</h2>
+      <p>Evaluate business cash flow, ownership percentage, K-1 distributions, and business liquidity tests.</p>
+    </div>
+    <button class="btn no-print" style="background:var(--violet);border-color:var(--violet);color:#fff" onclick="addCorp()"><svg class="icon"><use href="#i-plus"/></svg>Add Corporate Entity</button>
+  </div>
+  <div id="corpList"></div>
+</section>
+
+<!-- ======================== TAB: SCHEDULE E ======================== -->
+<section class="panel" id="panel-sche">
+  <div class="section-head">
+    <div>
+      <h2><svg class="icon icon-lg" style="color:var(--emerald)"><use href="#i-home"/></svg>Schedule E Rental Property Cash Flow</h2>
+      <p>Calculate net rental income or loss per property using Schedule E add-backs or the 75% lease agreement rule.</p>
+    </div>
+    <button class="btn btn-green no-print" onclick="addSchE()"><svg class="icon"><use href="#i-plus"/></svg>Add Rental Property</button>
+  </div>
+  <div id="scheList"></div>
+</section>
+
+<!-- ======================== TAB: OTHER INCOME ======================== -->
+<section class="panel" id="panel-other">
+  <div class="section-head">
+    <div>
+      <h2><svg class="icon icon-lg" style="color:#0891b2"><use href="#i-coins"/></svg>Other &amp; Non-Employment Income</h2>
+      <p>Retirement, Social Security, disability, alimony/child support, trust, notes receivable, 1099, and non-taxable gross-up.</p>
+    </div>
+    <button class="btn no-print" style="background:#0891b2;border-color:#0891b2;color:#fff" onclick="addOther()"><svg class="icon"><use href="#i-plus"/></svg>Add Other Income</button>
+  </div>
+  <div id="otherList"></div>
+</section>
+
+<!-- ======================== TAB: ASSETS ======================== -->
+<section class="panel" id="panel-assets">
+  <div class="section-head">
+    <div>
+      <h2><svg class="icon icon-lg" style="color:#be185d"><use href="#i-pig"/></svg>Asset Depletion / Employment-Related Assets</h2>
+      <p>Convert eligible liquid assets into qualifying monthly income using the agency amortization divisor.</p>
+    </div>
+    <button class="btn-link no-print" onclick="openGuide('assets')"><svg class="icon"><use href="#i-book"/></svg>Asset Depletion Guidelines</button>
+  </div>
+  <div class="card"><div class="card-body" id="assetsBody"></div></div>
+</section>
+
+<!-- ======================== TAB: DTI ======================== -->
+<section class="panel" id="panel-dti">
+  <div class="section-head">
+    <div>
+      <h2><svg class="icon icon-lg" style="color:var(--blue)"><use href="#i-pie"/></svg>Subject Property PITIA &amp; Debt-to-Income</h2>
+      <p>Housing expense, monthly liabilities, and front/back-end ratios measured against agency benchmarks.</p>
+    </div>
+    <button class="btn-link no-print" onclick="openGuide('dti')"><svg class="icon"><use href="#i-book"/></svg>DTI Limit Guidelines</button>
+  </div>
+  <div id="dtiBody"></div>
+</section>
+
+<!-- ======================== TAB: DOCUMENT IMPORT ======================== -->
+<section class="panel" id="panel-docs">
+  <div class="subtabs no-print">
+    <button class="subtab on" id="sub-docs-import" onclick="subTab('docs','import')">
+      <svg class="icon"><use href="#i-scan"/></svg>Document Import &amp; OCR</button>
+    <button class="subtab" id="sub-docs-paystub" onclick="subTab('docs','paystub')">
+      <svg class="icon"><use href="#i-receipt"/></svg>Pay Stub Generator</button>
+  </div>
+
+  <div class="subpanel on" id="subpanel-docs-import">
+  <div class="section-head">
+    <div>
+      <h2><svg class="icon icon-lg" style="color:#0891b2"><use href="#i-scan"/></svg>Document Import &amp; OCR</h2>
+      <p>Drop paystubs, W-2s, tax returns or K-1s here to pull the dollar amounts straight into the worksheets.</p>
+    </div>
+    <div class="actions">
+      <label class="btn btn-light btn-sm no-print" style="cursor:pointer">
+        <input type="checkbox" id="autoApply" checked onchange="AUTO_APPLY=this.checked" style="accent-color:var(--blue)">
+        Apply automatically on import</label>
+      <button class="btn btn-light btn-sm no-print" onclick="applyAllDocs()"><svg class="icon"><use href="#i-magic"/></svg>Apply all checked fields</button>
+      <button class="btn btn-light btn-sm no-print" onclick="clearDocs()"><svg class="icon"><use href="#i-trash"/></svg>Clear documents</button>
+    </div>
+  </div>
+  <div id="dropZone" class="dropzone" onclick="document.getElementById('docFile').click()">
+    <svg class="icon" style="width:34px;height:34px;color:var(--accent)"><use href="#i-upload"/></svg>
+    <div class="dz-t">Drag &amp; drop documents here</div>
+    <div class="dz-s">PDF, PNG or JPG &mdash; paystub, written VOE / The Work Number, W-2, Schedule C,
+      Schedule E, K-1, 1120 / 1120-S / 1065.
+      Text-based PDFs are read directly; scans and images fall back to OCR.</div>
+    <div class="dz-s" style="margin-top:6px">or click to browse</div>
+    <input type="file" id="docFile" multiple accept=".pdf,.png,.jpg,.jpeg,.webp" style="display:none" onchange="handleFiles(this.files);this.value=''">
+  </div>
+  <div class="notice warn" style="margin-top:14px"><svg class="icon"><use href="#i-alert"/></svg>
+    <span><b>Always verify before you qualify.</b> Extraction is a data-entry aid, not a substitute for reading the
+    document. Check every figure against the source before applying it, and confirm the underwriting file with the
+    original paystubs, W-2s and returns. Files are read entirely inside your browser &mdash; nothing is uploaded anywhere.</span></div>
+  <div id="docList" style="margin-top:16px"></div>
+  </div>
+
+  <!-- ---------------- Documents › Pay Stub Generator ---------------- -->
+  <div class="subpanel" id="subpanel-docs-paystub">
+  <div class="section-head">
+    <div>
+      <h2><svg class="icon icon-lg" style="color:#0f766e"><use href="#i-receipt"/></svg>New York Pay Stub Generator</h2>
+      <p>Build a pay statement with federal, New York State, NYC / Yonkers, FICA, SDI and Paid Family Leave
+         withholding, then push the year-to-date figures straight into an employment record.</p>
+    </div>
+    <button class="btn btn-light no-print btn-sm" onclick="psResetDates(true)">
+      <svg class="icon"><use href="#i-refresh"/></svg>Fill current period</button>
+  </div>
+  <div id="psBody"></div>
+  </div>
+</section>
+
+
+<!-- ======================== TAB: AUS ======================== -->
+<section class="panel" id="panel-aus">
+  <div class="section-head">
+    <div>
+      <h2><svg class="icon icon-lg" style="color:var(--violet)"><use href="#i-shield"/></svg>AUS Findings</h2>
+      <p>Drop a DU or LPA report on the Documents tab and it is read here — loan figures, every numbered message
+         indexed to the matching guideline, and the AUS income against what this file calculates.</p>
+    </div>
+    <button class="btn-link no-print" onclick="switchTab('docs');document.getElementById('docFile').click()">
+      <svg class="icon"><use href="#i-upload"/></svg>Load findings</button>
+  </div>
+  <div id="ausBody"></div>
+</section>
+
+
+
+<!-- ======================== TAB: SUMMARY ======================== -->
+<section class="panel" id="panel-summary">
+  <div class="section-head no-print">
+    <div>
+      <h2><svg class="icon icon-lg" style="color:var(--sky)"><use href="#i-doc"/></svg>Underwriting Summary &amp; Agency Guidelines</h2>
+      <p>Qualifying income, the method used for each source, ratios and compliance findings &mdash; followed by every
+         guideline that applies to the income in this file.</p>
+    </div>
+    <div class="actions">
+      <button class="btn btn-green btn-sm" onclick="exportWorkbook()"><svg class="icon"><use href="#i-sheet"/></svg>Export Excel Workbook</button>
+      <button class="btn btn-light btn-sm" onclick="exportSummaryHTML()"><svg class="icon"><use href="#i-doc"/></svg>Export Summary Page</button>
+      <button class="btn btn-primary btn-sm" onclick="openReport()"><svg class="icon"><use href="#i-doc"/></svg>Income Report (PDF / JPEG)</button>
+      <button class="btn btn-primary btn-sm" onclick="printSummary()"><svg class="icon"><use href="#i-print"/></svg>Print / PDF</button>
+    </div>
+  </div>
+  <div id="summaryBody"></div>
+
+  <!-- ---------------- Agency guidelines, on the same page ---------------- -->
+  <div class="section-head" id="guideHead" style="margin-top:26px">
+    <div>
+      <h2><svg class="icon icon-lg" style="color:var(--navy-800)"><use href="#i-book"/></svg>Agency Guideline Lookup</h2>
+      <p>Auto-selected from the income types entered in this file. Switch the agency in the header to compare requirements.</p>
+    </div>
+    <button class="btn btn-light no-print" onclick="toggleAllGuides()"><svg class="icon"><use href="#i-chev"/></svg>Expand / Collapse All</button>
+  </div>
+  <div id="guideBody"></div>
+</section>
+
+</div></main>
+<div class="toast" id="toast"></div>
+<div id="rptStage"></div>
+<div class="rpt-modal" id="exModal">
+  <div class="rpt-modal-bar">
+    <span class="ttl">Import an AI document extraction</span>
+    <button class="btn btn-light btn-sm" onclick="copyExtractPrompt()"><svg class="icon"><use href="#i-doc"/></svg>Copy the prompt</button>
+    <button class="btn btn-light btn-sm" onclick="downloadExtractPrompt()"><svg class="icon"><use href="#i-down"/></svg>Save prompt (.txt)</button>
+    <button class="btn btn-green btn-sm" onclick="runExtract()"><svg class="icon"><use href="#i-magic"/></svg>Import</button>
+    <button class="btn btn-sm" onclick="closeExtract()">Close</button>
+  </div>
+  <div class="rpt-picker">
+    <h4>How this works</h4>
+    <div class="sub" style="margin-bottom:9px">
+      <b>1.</b> Copy the prompt above. <b>2.</b> Send it to the assistant together with the tax returns,
+      paystubs, W-2s, VOEs, K-1s and award letters. <b>3.</b> Paste the JSON it returns into the box below
+      and press Import. Each entry becomes its own worksheet record &mdash; two jobs come back as two
+      employment records. Nothing is averaged on import: you still pick the method and confirm every figure
+      against the document.
+    </div>
+    <textarea class="cell-input" id="exText" spellcheck="false" style="min-height:230px;width:100%"
+      placeholder='Paste the JSON here — it starts with {"version": "nmb-income-extract/1", ...'></textarea>
+    <div id="exResult" style="margin-top:10px"></div>
+  </div>
+</div>
+<div class="rpt-modal" id="rptModal">
+  <div class="rpt-modal-bar">
+    <span class="ttl">Income Calculation Report</span>
+    <button class="btn btn-green btn-sm" onclick="reportPDF()"><svg class="icon"><use href="#i-down"/></svg>Download PDF</button>
+    <button class="btn btn-primary btn-sm" onclick="reportJPEG()"><svg class="icon"><use href="#i-down"/></svg>Download JPEG</button>
+    <button class="btn btn-sm" onclick="reportPrintWindow()"><svg class="icon"><use href="#i-print"/></svg>Print</button>
+    <button class="btn btn-sm" onclick="closeReport()">Close</button>
+    <div id="rptLibWarn" style="display:none;width:100%;font-size:11px;color:#fcd34d;font-family:'Plus Jakarta Sans',sans-serif">
+      Offline: the image/PDF renderer could not load. Use <b>Print</b> and choose "Save as PDF" — it produces a
+      sharper, text-selectable file anyway. JPEG export needs a connection the first time the page is opened.
+    </div>
+  </div>
+  <div class="rpt-picker" id="rptPicker"></div>
+  <div id="rptModalBody" class="rpt" style="max-width:816px;margin:0 auto;"></div>
+</div>
+
+
+</div>
+<div id="suite-root" class="mode-pane">
+<div id="root" class="app"></div>
+</div>
+<script src="assets/js/01-uid-1-const-uid-x-uid-n-e-const-n-pa.js"></script>
+<script src="assets/js/02-schc-lines-k-net31-sign-1-label-line.js"></script>
+<script src="assets/js/03-other-types-v-ssa-t-social-security.js"></script>
+<script src="assets/js/04-guides-key-w2-title-w-2-salaried-hou.js"></script>
+<script src="assets/js/05-m-name-current-base-pay-ytd-ytd-ytd1.js"></script>
+<script src="assets/js/06-docs-let-auto-apply-0-window-pdfjsli.js"></script>
+<script src="assets/js/07-ag4-fnma-fhlmc-fha-va-ag-name-fnma-f.js"></script>
+<script src="assets/js/08-cbase-only-base-cvariable-ot-comm-bo.js"></script>
+<script src="assets/js/09-loan-n-e-t-s-loan-n-t-n-e-e-renderdt.js"></script>
+<script src="assets/js/10-2-e-return-e-79-2e3-e-1900-e-functio.js"></script>
+<script src="assets/js/11-rpt-blobs-function-notereport-n-e-t.js"></script>
+<script src="assets/js/12-aus-label-casefile-casefile-id-recom.js"></script>
+<script src="assets/js/13-enc-lbl-base-base-ot-overtime-bonus.js"></script>
+<script src="assets/js/14-ps-emp-name-addr-ein-ee-name-addr-ss.js"></script>
+<script src="assets/js/15-w2-s-w2-push-neww2-renderw2-recalc-f.js"></script>
+<script src="assets/js/16-extract-version-nmb-income-extract-1.js"></script>
+<script src="assets/js/17-crc-t-const-t-new-uint32array-256-fo.js"></script>
+<script src="assets/js/18-book-const-t-stylebook-e-t-xf-o-e-sz.js"></script>
+<script src="assets/js/19-summaryhtml-rendersummary-const-e-do.js"></script>
+<script>!function(){var r={},n={};function req(e,t){if("require"===t)return function(r){return req(e,r)};if("exports"===t)return{};var o=function normalize(r,n){if("."!==n.charAt(0))return n;var e=r.split("/");return e.pop(),n.split("/").forEach(function(r){"."!==r&&(".."===r?e.pop():e.push(r))}),e.join("/")}(e,t);if(n[o])return n[o];var i=r[o];if(!i)throw new Error("Module not found: "+o+" (from "+e+")");var u=n[o]={},f=i.deps.map(function(r){return"exports"===r?u:"require"===r?function(r){return req(o,r)}:req(o,r)}),a=i.factory.apply(null,f);return void 0!==a&&(n[o]=a),n[o]}window.define=function(n,e,t){r[n]={deps:e,factory:t}},window.define.amd=!0,window.__amdStart=function(r){req(r,r)},window.__amdGet=function(r){return req(r,r)}}();
+</script>
+<script src="assets/js/20-createbinding-this-this-createbindin.js"></script>
+<script>window.__amdStart("src/standalone/main");
+</script>
+<script src="assets/js/21-shell-function-const-t-document-gete.js"></script>
+
+<!-- ===== LOS PATCH LAYER — BEGIN (generated by inject.py) ===== -->
+<script src="assets/js/22-if-window-los-scheduler-var-e-window.js"></script>
+<!-- ===== LOS PATCH LAYER — END ===== -->
+<!-- ===== RELEASE 50 — WORKBENCH LAYOUT ===== -->
+<script>LOSCSS(5)</script>
+<script id="los-2026-loan-limits" src="assets/js/23-los-2026-loan-limits.js"></script>
+<script id="los-release-50-js" src="assets/js/24-los-release-50-js.js"></script>
+<!-- ===== V51 BEGIN ===== -->
+<script>LOSCSS(6)</script>
+<script src="assets/js/25-function-g-e-try-return-0-eval-e-cat.js"></script>
+<!-- ===== V51 END ===== -->
+<!-- ===== V52 BEGIN ===== -->
+<script>LOSCSS(7)</script>
+<script src="assets/js/26-var-function-e-t-return-array-protot.js"></script>
+<!-- ===== V52 END ===== -->
+<!-- ===== V53 BEGIN ===== -->
+<script>LOSCSS(8)</script>
+<script src="assets/js/27-var-function-i-e-return-array-protot.js"></script>
+<!-- ===== V53 END ===== -->
+<script id="los-release-53-stamp">document.documentElement.setAttribute("data-los-release","55.3"),window.LOS_RELEASE="55.3";
+</script>
+<script>LOSCSS(9)</script><script>LOSCSS(10)</script>
+<script id="los55-kit-js" src="assets/js/28-los55-kit-js.js"></script>
+<script>LOSCSS(11)</script>
+<script id="los55-app-js" src="assets/js/29-los55-app-js.js"></script>
+
+<script src="assets/income-enhancements.js"></script>
+<script src="assets/sync-bridge.js"></script>
+<script src="assets/loan-ux.js"></script>
+<script src="assets/workflow-ui.js"></script>
+<script src="assets/loan-suite-embed.js"></script>
+</body>
+</html>

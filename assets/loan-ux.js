@@ -119,6 +119,55 @@
     }
     return new Uint8Array(out);
   }
+  /* 55.13: rebuild visual rows from a PDF content stream. The literal-string reader used to join every string on a page
+     into one line, so labels and amounts from different rows ran together (Net Pay YTD read as Regular YTD, the ZIP code
+     read as hours). Track the text position through BT/Tm/Td/TD/TL/T* and the ' " operators, then group by baseline and
+     read each row left to right, the way the PDF.js reader does. */
+  function pdfStreamLines(stream, unescapeText) {
+    var items = [], ops = [], i = 0, n = stream.length, x = 0, y = 0, lx = 0, ly = 0, lead = 0, seen = false;
+    function readString(at) { var d = 1, j = at + 1, s = ''; while (j < n && d > 0) { var ch = stream[j]; if (ch === '\\') { s += ch + (stream[j + 1] || ''); j += 2; continue; } if (ch === '(') d++; else if (ch === ')') { d--; if (!d) break; } s += ch; j++; } return {v: unescapeText(s), end: j + 1}; }
+    function readHex(at) { var j = stream.indexOf('>', at); if (j < 0) j = n; var h = stream.slice(at + 1, j).replace(/\s+/g, ''); return {v: String.fromCharCode.apply(null, (h.match(/../g) || []).map(function (p) { return parseInt(p, 16); })), end: j + 1}; }
+    function emit(t) { if (t && t.replace(/\s/g, '')) items.push({x: x, y: y, t: t}); x += t.length * 4; }
+    function newline() { ly -= (lead || 12); x = lx = lx; y = ly; x = lx; }
+    while (i < n) {
+      var c = stream[i];
+      if (c === '(') { var s1 = readString(i); ops.push({s: s1.v}); i = s1.end; continue; }
+      if (c === '<' && stream[i + 1] !== '<') { var h1 = readHex(i); ops.push({s: h1.v}); i = h1.end; continue; }
+      if (c === '[') {
+        var parts = [], j = i + 1;
+        while (j < n && stream[j] !== ']') {
+          var cj = stream[j];
+          if (cj === '(') { var s2 = readString(j); parts.push(s2.v); j = s2.end; continue; }
+          if (cj === '<') { var h2 = readHex(j); parts.push(h2.v); j = h2.end; continue; }
+          var mm = /^-?\d*\.?\d+/.exec(stream.slice(j, j + 24));
+          if (mm) { if (parseFloat(mm[0]) < -180) parts.push(' '); j += mm[0].length; continue; }
+          j++;
+        }
+        ops.push({a: parts.join('')}); i = j + 1; continue;
+      }
+      var m = /^-?\d*\.?\d+/.exec(stream.slice(i, i + 32));
+      if (m && /[-.\d]/.test(c)) { ops.push({n: parseFloat(m[0])}); i += m[0].length; continue; }
+      var w = /^(T\*|[A-Za-z'"]+)/.exec(stream.slice(i, i + 8));
+      if (w) {
+        var op = w[1], nums = ops.filter(function (o) { return o.n != null; }).map(function (o) { return o.n; }), str = ops.filter(function (o) { return o.s != null || o.a != null; }).pop();
+        if (op === 'BT') { x = y = lx = ly = 0; seen = true; }
+        else if (op === 'Tm' && nums.length >= 6) { lx = x = nums[nums.length - 2]; ly = y = nums[nums.length - 1]; }
+        else if ((op === 'Td' || op === 'TD') && nums.length >= 2) { var tx = nums[nums.length - 2], ty = nums[nums.length - 1]; if (op === 'TD') lead = -ty; lx += tx; ly += ty; x = lx; y = ly; }
+        else if (op === 'TL' && nums.length) lead = nums[nums.length - 1];
+        else if (op === 'T*') newline();
+        else if (op === 'Tj' && str) emit(str.s != null ? str.s : str.a);
+        else if (op === 'TJ' && str) emit(str.a != null ? str.a : str.s);
+        else if ((op === "'" || op === '"') && str) { newline(); emit(str.s != null ? str.s : str.a); }
+        ops = []; i += op.length; continue;
+      }
+      i++;
+    }
+    if (!seen || !items.length) return '';
+    items.sort(function (a, b) { return b.y - a.y || a.x - b.x; });
+    var rows = [];
+    items.forEach(function (it) { var r = rows[rows.length - 1]; if (!r || Math.abs(r.y - it.y) > 2) { r = {y: it.y, items: []}; rows.push(r); } r.items.push(it); });
+    return rows.map(function (r) { r.items.sort(function (a, b) { return a.x - b.x; }); return r.items.map(function (it) { return it.t; }).join(' ').replace(/\s+/g, ' ').trim(); }).filter(Boolean).join('\n');
+  }
   async function nativePdfTextBytes(bytes) {
     const raw = decodePdfBytes(bytes), chunks = [];
     let cursor = 0;
@@ -151,7 +200,8 @@
         });
         found.push(parts.join(' ')); return _;
       });
-      if (found.length) chunks.push(found.join(' '));
+      const rows = /\bBT\b/.test(stream) ? pdfStreamLines(stream, unescapePdfText) : '';
+      if (rows) chunks.push(rows); else if (found.length) chunks.push(found.join(' '));
       cursor = end + 9;
     }
     return chunks.join('\n');
@@ -169,7 +219,7 @@
           numPages: 1,
           getPage: async function () {
             return {
-              getTextContent: async function () { return { items: text.split(/\r?\n/).filter(Boolean).map(function (str) { return { str: str, transform: [1, 0, 0, 1, 0, 0] }; }) }; },
+              getTextContent: async function () { return { items: text.split(/\r?\n/).filter(Boolean).map(function (str, k, all) { return { str: str, transform: [1, 0, 0, 1, 0, (all.length - k) * 14] }; })   /* 55.13: one baseline per row, so readers that group by baseline keep the rows */ }; },
               getViewport: function () { return { width: 1, height: 1 }; },
               render: async function () { throw new Error('This PDF is text-readable but does not expose a renderable scan layer.'); }
             };
@@ -194,7 +244,7 @@
             numPages: 1,
             getPage: async function () {
               return {
-                getTextContent: async function () { return { items: text.split(/\r?\n/).filter(Boolean).map(function (str) { return { str: str, transform: [1, 0, 0, 1, 0, 0] }; }) }; },
+                getTextContent: async function () { return { items: text.split(/\r?\n/).filter(Boolean).map(function (str, k, all) { return { str: str, transform: [1, 0, 0, 1, 0, (all.length - k) * 14] }; })   /* 55.13: one baseline per row, so readers that group by baseline keep the rows */ }; },
                 getViewport: function () { return { width: 1, height: 1 }; },
                 render: async function () { throw new Error('This PDF is text-readable but does not expose a renderable scan layer.'); }
               };
