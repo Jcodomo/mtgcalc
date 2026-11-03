@@ -1,0 +1,91 @@
+/* Mortgage Suite shared theme (Release 55.14).
+   One look across every page, taken from the Income Calculator: navy bar, light slate canvas, white cards with soft
+   borders, slate text, blue accent and the worksheet's pale-yellow input cells. Pages opt in with data-mt-page on <html>;
+   Loan Suite pages are styled only under their default Look (Light / Ledger) so every other Look keeps its own colours. */
+:root{
+  --mt-bar:linear-gradient(135deg,#12263f,#1b3a5f); --mt-bar-solid:#16304f; --mt-bar-line:#26405f;
+  --mt-bg:#f4f6fa; --mt-surface:#ffffff; --mt-surface-2:#f8fafd; --mt-surface-3:#eef2f8;
+  --mt-line:#dde3ec; --mt-line-2:#c9d3e2; --mt-text:#344054; --mt-strong:#101828; --mt-muted:#667085;
+  --mt-accent:#1d4ed8; --mt-accent-soft:#e4eefb; --mt-accent-text:#17436f;
+  --mt-input:#fffbea; --mt-input-line:#e3d6a8; --mt-input-focus:#c99a1e;
+  --mt-calc:#eef4fd; --mt-calc-line:#cfe0f5; --mt-calc-ink:#12446f;
+  --mt-good:#059669; --mt-bad:#e11d48; --mt-radius:12px;
+  --mt-shadow:0 1px 3px 0 rgba(15,23,42,.10),0 1px 2px -1px rgba(15,23,42,.06);
+  --mt-font:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root{ --mt-bg:#0d1726; --mt-surface:#15233a; --mt-surface-2:#1a2a44; --mt-surface-3:#1f3150; --mt-line:#26384f; --mt-line-2:#33496a;
+    --mt-text:#c9d6e8; --mt-strong:#eef3fb; --mt-muted:#93a6c1; --mt-accent:#6ea8ff; --mt-accent-soft:#1d3358; --mt-accent-text:#cfe1ff;
+    --mt-input:#2a2615; --mt-input-line:#5a4d23; --mt-calc:#1a2c4a; --mt-calc-line:#2b4670; --mt-calc-ink:#cfe1ff; }
+}
+
+/* ---------- Doc Organizer: from its own dark design to the shared look ---------- */
+html[data-mt-page="docorg"]{
+  --bg:var(--mt-bg); --surface:var(--mt-surface); --surface2:var(--mt-surface-2); --ink:var(--mt-text); --muted:var(--mt-muted);
+  --line:var(--mt-line); --brand:var(--mt-accent); --brand-dark:var(--mt-accent-text); --accent:var(--mt-good); --bad:var(--mt-bad);
+  --shadow:var(--mt-shadow);
+}
+html[data-mt-page="docorg"] body{ font-family:var(--mt-font); background:var(--mt-bg); color:var(--mt-text); }
+html[data-mt-page="docorg"] .head{ background:var(--mt-bar); border-bottom:1px solid var(--mt-bar-line); color:#fff; }
+html[data-mt-page="docorg"] .head p{ color:#b9c8dc; }
+html[data-mt-page="docorg"] .head button, html[data-mt-page="docorg"] .head a{ color:#fff; border-color:rgba(255,255,255,.35); background:rgba(255,255,255,.08); }
+html[data-mt-page="docorg"] .card{ border-radius:var(--mt-radius); }
+html[data-mt-page="docorg"] .card h2{ color:var(--mt-accent-text); }
+html[data-mt-page="docorg"] input, html[data-mt-page="docorg"] select, html[data-mt-page="docorg"] textarea{
+  background:var(--mt-input); border:1px solid var(--mt-input-line); color:var(--mt-strong); border-radius:7px; }
+html[data-mt-page="docorg"] input:focus, html[data-mt-page="docorg"] select:focus{ outline:2px solid var(--mt-input-focus); outline-offset:0; }
+html[data-mt-page="docorg"] .drop, html[data-mt-page="docorg"] [class*="dropzone"]{ background:var(--mt-surface-2); border-color:var(--mt-line-2); }
+html[data-mt-page="docorg"] table th{ background:var(--mt-surface-3); color:var(--mt-muted); }
+html[data-mt-page="docorg"] button.primary, html[data-mt-page="docorg"] .btn-primary{ background:var(--mt-accent); color:#fff; }
+
+/* ---------- Hub, landing and Quick: same bar, canvas and cards ---------- */
+html[data-mt-page="hub"] header, html[data-mt-page="quick"] header{ background:var(--mt-bar) !important; }
+html[data-mt-page="hub"] body, html[data-mt-page="quick"] body{ font-family:var(--mt-font); }
+html[data-mt-page="hub"]{ --bg:var(--mt-bg); --panel:var(--mt-surface); --ink:var(--mt-strong); --mute:var(--mt-muted); --line:var(--mt-line); --acc:var(--mt-accent); }
+
+/* ---------- Loan Suite pages: a simpler header ---------- */
+/* the chip row repeats the four KPI cards right below it (and the Live Summary) - keep the cards, drop the duplicate row */
+html.lse body #suite-root #root #v34Bar #v251HeaderStats.v251-header-stats,
+html.lse body #root #v34Bar .v34-left #v251HeaderStats.v251-header-stats.v33-stats{ display:none !important; }
+html.lse body #suite-root #v34Bar{ padding-top:6px !important; padding-bottom:6px !important; min-height:0 !important; }
+/* page navigation in one row: the group as a segmented control, then that group's pages as tabs */
+#lseNav{ display:flex !important; align-items:center; gap:14px; flex-wrap:wrap; padding:8px 20px !important; }
+#lseNav .lse-row{ gap:4px !important; }
+#lseNav .lse-groups{ background:var(--mt-surface-3); border-radius:10px; padding:3px; }
+#lseNav .lse-groups a{ padding:6px 11px !important; border-radius:8px !important; }
+#lseNav .lse-pages{ margin:0 !important; padding:0 0 0 14px !important; border-top:0 !important; border-left:1px solid var(--mt-line); }
+#lseNav .lse-pages a{ border-radius:0 !important; padding:8px 10px !important; border-bottom:2px solid transparent; background:transparent !important; }
+#lseNav .lse-pages a.on{ border-bottom-color:var(--mt-accent); color:var(--mt-accent) !important; }
+#lseNav .lse-all{ margin-left:0 !important; }
+#lseNav .lse-groups a[href="index.html"]{ margin-left:6px; }
+@media (max-width:900px){ #lseNav .lse-pages{ border-left:0; padding-left:0 !important; width:100%; } }
+
+/* the default Look (Light / Ledger) matches the Income Calculator */
+html[data-theme="light"][data-v24-theme="ledger"] body #shellbar{ background:var(--mt-bar) !important; border-bottom:1px solid var(--mt-bar-line) !important; }
+html[data-theme="light"][data-v24-theme="ledger"] body #suite-root .v25-topbar{ background:var(--mt-bar) !important; }
+html[data-theme="light"][data-v24-theme="ledger"] body #suite-root #v34Bar{ background:var(--mt-surface) !important; border-bottom:1px solid var(--mt-line) !important; box-shadow:40px 0 0 var(--mt-surface) !important; }
+html[data-theme="light"][data-v24-theme="ledger"] body{ background:var(--mt-bg); }
+html[data-theme="light"][data-v24-theme="ledger"] #lseNav{ background:var(--mt-surface) !important; border-bottom:1px solid var(--mt-line) !important; }
+
+/* ---------- Renovation: worksheet-style sections ---------- */
+html.lse-renovation[data-theme="light"] #screen-body .card.lvl-major > h3,
+html.lse-renovation[data-theme="light"] #v21RenoGate > h3,
+html.lse-renovation[data-theme="light"] #v21RenoGate .v45-grip{ border-bottom:2px solid var(--mt-accent); }
+html.lse-renovation #screen-body .card.lvl-major{ border-radius:var(--mt-radius); }
+html.lse-renovation #screen-body .card.lvl-major .grid > div > h4,
+html.lse-renovation #screen-body .card.lvl-major [class*="col"] > h4{ font-size:11.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--mt-accent-text); border-bottom:1px solid var(--mt-line); padding-bottom:6px; margin-bottom:10px; }
+html.lse-renovation #screen-body label{ margin-bottom:3px; }
+html.lse-renovation #screen-body .field, html.lse-renovation #screen-body .fld{ margin-bottom:10px; }
+html.lse-renovation[data-theme="light"][data-input-tone="paper"] body #suite-root #screen-body input.cell-input:not([type=checkbox]):not([type=radio]),
+html.lse-renovation[data-theme="light"][data-input-tone="paper"] body #suite-root #screen-body input:not([type=checkbox]):not([type=radio]):not([readonly]),
+html.lse-renovation[data-theme="light"][data-input-tone="paper"] body #suite-root #screen-body select{ background:var(--mt-input) !important; border-color:var(--mt-input-line) !important; color:var(--mt-strong) !important; }
+html.lse-renovation[data-theme="light"] #screen-body .out{ background:var(--mt-calc) !important; border-color:var(--mt-calc-line) !important; color:var(--mt-calc-ink); border-radius:8px; }
+html.lse-renovation[data-theme="light"] #screen-body .out .v{ color:var(--mt-calc-ink) !important; font-weight:700; }
+html.lse-renovation #screen-body .card.lvl-sub > h3{ font-weight:700; }
+
+/* ---------- bottom page switcher: the same pill on every page ---------- */
+#mtgcalcPageNav{ font-family:var(--mt-font); }
+/* pages whose surface is now white keep the switcher's own navy pill */
+html[data-mt-page="docorg"] #mtgcalcPageNav, html[data-mt-page="hub"] #mtgcalcPageNav{ background:#0f2a4a !important; border-color:#26405f !important; }
+html[data-mt-page="docorg"] #mtgcalcPageNav a, html[data-mt-page="hub"] #mtgcalcPageNav a{ color:#dbe6f5 !important; }
+@media print{ #lseNav{ display:none !important; } }

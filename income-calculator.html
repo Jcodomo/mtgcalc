@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html data-mt-page="income" lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -786,6 +786,7 @@ body,#calc-root,#suite-root{min-width:0}
 @media (prefers-reduced-motion:no-preference){.card,.los55-nav a,.los55-btn,.lc-btn{transition-duration:.12s}}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}}
 </style>
+<link rel="stylesheet" href="assets/mtgcalc-theme.css">
 </head>
 <body>
 
@@ -1154,13 +1155,17 @@ function pDate(s){ if(!s) return null; const p=String(s).split('-'); if(p.length
 const isLeap = y => (y%4===0 && y%100!==0) || y%400===0;
 function dayOfYear(d){ return Math.round((d - new Date(d.getFullYear(),0,1))/86400000) + 1; }
 /* YTD months elapsed = days elapsed in calendar year / days in year * 12 */
+/* 55.14: months of income exactly as the NMB Income Worksheet counts them ('Wage Earner' Q21 / Y22).
+   Completed months plus the fraction of the current month: DAY(end) / days-in-month + (MONTH(end) - 1). The worksheet
+   reads days-in-month from its leap-year column (Tables!G21:G32), so February always has 29 days. Hired this year:
+   (DAY(end) - DAY(hire)) / 30 + (MONTH(end) - MONTH(hire)). */
+const WS_DIM = [31,29,31,30,31,30,31,31,30,31,30,31];
+function wsHireMonths(e, h){ return (e.getDate() - h.getDate()) / 30 + (e.getMonth() - h.getMonth()); }
 function ytdMonths(endStr, hireStr){
   const e = pDate(endStr); if(!e) return 0;
   const h = pDate(hireStr);
-  let days = dayOfYear(e);
-  const diy = isLeap(e.getFullYear()) ? 366 : 365;
-  if (h && h.getFullYear() === e.getFullYear()) days = Math.max(1, dayOfYear(e) - dayOfYear(h) + 1);
-  return Math.max(0.03, days / diy * 12);
+  if (h && h.getFullYear() === e.getFullYear()) return wsHireMonths(e, h);
+  return e.getDate() / WS_DIM[e.getMonth()] + e.getMonth();
 }
 function monthsOnJob(hireStr, endStr){
   const h=pDate(hireStr), e=pDate(endStr); if(!h||!e) return 0;
@@ -1351,37 +1356,50 @@ function newW2(){
     c:{base:0,ot:0,comm:0,bonus:0,other:0,unre:0}, notes:'' };
 }
 function calcW2(j){
-  const end = pDate(j.ytdThru);
+  /* 55.14: the Auto method is the NMB Income Worksheet's own logic ('Wage Earner' O29:T39 and Tables!M7 / M14). */
+  const end = pDate(j.ytdThru), hire = pDate(j.hireDate);
   const yr1 = end ? end.getFullYear() : new Date().getFullYear();
   const mo  = ytdMonths(j.ytdThru, j.hireDate);
-  const monthlyBase = monthlyFromFreq(j.freq, N(j.rate), N(j.hours));
+  const div = n => mo > 0 ? n / mo : 0;
+  const y22 = (end && hire) ? wsHireMonths(end, hire) : 0;                 /* worksheet Y22 */
+  const d2  = (hire && hire.getFullYear() === yr1 - 1) ? y22 : 12;         /* worksheet O30: a prior-year hire divides by Y22 */
+  const d3  = (hire && hire.getFullYear() === yr1 - 2) ? y22 : 12;         /* worksheet O31 */
+  const monthlyBase = monthlyFromFreq(j.freq, N(j.rate), N(j.hours));     /* worksheet H16 */
   const expectedYTD = monthlyBase * mo;
   const actualYTD   = N(j.y1.base);
   const varAmt = actualYTD - expectedYTD;
   const varPct = expectedYTD ? varAmt/expectedYTD : 0;
+  const daysOnJob = (end && hire) ? (end - hire) / 86400000 : 9999;
+  const daysIntoYear = end ? (end - new Date(end.getFullYear(), 0, 1)) / 86400000 : 999;
   const comp = {};
-  ['base','ot','comm','bonus','other','unre'].forEach(k=>{
+  ['base','ot','comm','bonus','other'].forEach(k=>{
     const a=N(j.y1[k]), b=N(j.y2[k]), c=N(j.y3[k]);
-    const ytd   = a/mo;
-    const a12   = (a+b)/(mo+12);
-    const a24   = (a+b+c)/(mo+24);
-    const m1=ytd, m2=b/12, m3=c/12;
-    let rec = (m1<=m2 || !b) ? 'ytd' : (m2<=m3 ? 'ytd12' : 'ytd24');
-    let why = '';
-    if (k==='base'){
-      rec = (j.incomeType==='consistent') ? ((monthlyBase > 0 && ytd >= monthlyBase) ? 'current' : rec) : rec;   /* 55.13: no hours/rate -> no current-pay figure; the YTD average governs */
-      why = (j.incomeType!=='consistent') ? 'Irregular hours — the YTD average governs, not the base rate'
-          : (monthlyBase > 0 && ytd >= monthlyBase) ? 'YTD tracks the base rate — use the current base'
-          : 'YTD is running below the base rate — the lower figure governs unless explained in writing';
-    } else {
-      if (!a && !b && !c) { rec='none'; why = 'Nothing entered for this component'; }
-      else if (!b) why = 'No prior-year history — a 2-year record is normally required before this can be used';
-      else if (rec==='ytd')   why = 'Current year is the lowest — use the YTD average';
-      else if (rec==='ytd12') why = 'Prior year is the lower of the two — average YTD with the prior year';
-      else                    why = 'Declining across both prior years — the 24-month average is the conservative figure';
-    }
-    comp[k] = {y1:a,y2:b,y3:c, ytd, a12, a24, rec, why, monthlyBase};
+    const m1 = div(a), m2 = d2 ? b / d2 : 0, m3 = d3 ? c / d3 : 0;
+    const a12 = m2 === 0 ? 0 : (a + b) / (mo + 12);                       /* worksheet O33 */
+    const a24 = (m3 === 0 || m2 === 0) ? 0 : (a + b + c) / (mo + 24);     /* worksheet O34 */
+    const cascade = m1 <= m2 ? 'ytd' : (m2 <= m3 ? 'ytd12' : 'ytd24');     /* worksheet O35 / O37: the lower figure governs */
+    let rec = cascade, why = '';
+    if (k !== 'base' && (a === 0 || b === 0 || c === 0)) { rec = 'none'; why = (a||b||c) ? 'Need 2 yrs to use this amount: year-to-date and both prior years must show it' : 'Nothing entered for this component'; }
+    else why = cascade === 'ytd' ? 'Current year is the lowest - use the YTD average' : cascade === 'ytd12' ? 'Prior year is the lower of the two - average YTD with the prior year' : 'Declining across both prior years - the 24-month average is the conservative figure';
+    comp[k] = {y1:a, y2:b, y3:c, ytd:m1, a12, a24, rec, why, monthlyBase};
   });
+  /* un-reimbursed expenses (worksheet T35): prior years only, the average unless the older year was higher */
+  { const J30 = N(j.y2.unre), J31 = N(j.y3.unre), T30 = J30/12, T31 = J31/12, T32 = 0;
+    const v = J30 === 0 ? (T32 >= T31 ? (J31 + 0) / 24 : T31) : (T31 >= T30 ? (J30 + J31) / 24 : T30);
+    comp.unre = {y1:N(j.y1.unre), y2:J30, y3:J31, ytd:v, a12:v, a24:v, rec: v ? 'ytd' : 'none', why: v ? 'Worksheet: un-reimbursed expenses from the prior years' : 'None entered', monthlyBase}; }
+  /* which base the worksheet uses (Tables!M14) and what it adds (Tables!M7) */
+  const consistent = j.incomeType !== 'irregular', choiceYtd = j.baseChoice === 'ytd';
+  let baseRule, varsUsed = true, wsNote = '';
+  if (daysOnJob < 31)               { baseRule = 'na'; varsUsed = false; wsNote = 'On the job 30 days or less - the worksheet does not calculate this income'; }
+  else if (daysIntoYear < 31)       { baseRule = 'current'; wsNote = 'Pay period ends in the first 30 days of the year - base pay plus qualifying variable income'; }
+  else if (daysOnJob < 730)         { baseRule = 'current'; varsUsed = false; wsNote = 'On the job under 2 years - the worksheet uses the base pay only'; }
+  else if (consistent && comp.base.ytd > monthlyBase) { baseRule = 'current'; wsNote = 'Consistent hours and YTD above the base rate - base pay'; }
+  else if (!consistent || choiceYtd){ baseRule = comp.base.rec; wsNote = consistent ? 'YTD is below the base salary and YTD was chosen - the lower-of average governs' : 'Irregular hours - the lower-of YTD average governs'; }
+  else                              { baseRule = 'current'; wsNote = 'Consistent hours - base pay (YTD is below the base salary: choose YTD if the shortfall is not explained)'; }
+  comp.base.rec = baseRule === 'na' ? 'none' : baseRule;
+  comp.base.why = wsNote;
+  if (!varsUsed) ['ot','comm','bonus','other','unre'].forEach(k => { if (comp[k].rec !== 'none') { comp[k].rec = 'none'; comp[k].why = wsNote; } });
+  const ytdBelowBase = consistent && monthlyBase > 0 && comp.base.ytd < monthlyBase && daysOnJob >= 730 && daysIntoYear >= 31;
   const tot = y => N(j[y].base)+N(j[y].ot)+N(j[y].comm)+N(j[y].bonus)+N(j[y].other);
   const t1=tot('y1'), t2=tot('y2'), t3=tot('y3');
   const ann1 = mo ? t1/mo*12 : 0;
@@ -1398,10 +1416,10 @@ function calcW2(j){
     return 0;
   };
   const parts = {base:val('base'),ot:val('ot'),comm:val('comm'),bonus:val('bonus'),other:val('other'),unre:val('unre')};
-  const total = parts.base+parts.ot+parts.comm+parts.bonus+parts.other;
+  const total = parts.base+parts.ot+parts.comm+parts.bonus+parts.other-parts.unre;
   const variable = N(j.y1.ot)+N(j.y2.ot)+N(j.y1.comm)+N(j.y2.comm)+N(j.y1.bonus)+N(j.y2.bonus);
   return {yr1, mo, monthlyBase, expectedYTD, actualYTD, varAmt, varPct, comp, t1,t2,t3, ann1, chg1, chg2,
-          parts, total, hasVariable: variable>0, monthsJob: monthsOnJob(j.hireDate,j.ytdThru)};
+          parts, total, hasVariable: variable>0, monthsJob: monthsOnJob(j.hireDate,j.ytdThru), wsNote, ytdBelowBase, baseRule};
 }
 function renderW2(){
   const wrap=$('w2List');
@@ -1543,6 +1561,14 @@ function w2Card(j,i){
           ${j.mode==='auto' ? `<div class="notice good"><svg class="icon"><use href="#i-check"/></svg>
             <span><b>Auto:</b> each component is using the recommended method shown below. Switch the toggle at the top
             of this card to <b>Manual</b> to override any of them.</span></div>` : ''}
+          <div class="notice" id="${P}-ws" style="margin:8px 0 10px;background:var(--surface-2,#f4f7fb);border:1px solid var(--line,#dbe3ee)">
+            <svg class="icon"><use href="#i-check"/></svg>
+            <span><b>Income worksheet rule:</b> <span class="ws-txt"></span>
+              <span class="ws-choice" style="display:none;margin-left:6px">YTD is below the base salary &mdash; use
+                <select class="cell-input" style="width:auto;display:inline-block;padding:2px 8px;margin-left:4px" onchange="setField('w2','${j.id}','baseChoice',this.value)">
+                  <option value="base" ${j.baseChoice!=='ytd'?'selected':''}>Base salary (worksheet default)</option>
+                  <option value="ytd" ${j.baseChoice==='ytd'?'selected':''}>Year-to-date average</option>
+                </select></span></span></div>
           <div style="${j.mode==='auto'?'pointer-events:none;opacity:.62':''}">
           ${COMPS.map(methodBox).join('')}
           </div>
@@ -1598,6 +1624,8 @@ function paintW2(){
     setH(`${P}-varflag`, r.hasVariable
       ? '<span style="color:var(--n-warn-tx);background:var(--n-warn-bg);border:1px solid var(--n-warn-bd);padding:2px 7px;border-radius:5px">Variable income detected: 24-month averaging enabled for OT / Bonus / Commission per FNMA 1084</span>' : '');
 
+    { const ws=$(`${P}-ws`); if (ws) { const t=ws.querySelector('.ws-txt'); if (t) t.textContent = r.wsNote || '';
+        const ch=ws.querySelector('.ws-choice'); if (ch) ch.style.display = r.ytdBelowBase ? '' : 'none'; } }
     COMPS.forEach(c=>{
       const k=c.k, C=r.comp[k];
       const vals = {current:r.monthlyBase, none:0, ytd:C.ytd, ytd12:C.a12, ytd24:C.a24, custom:N(j.c[k])};
@@ -1624,47 +1652,85 @@ function applyRec(id){
 
 <script>
 /* ================== SCHEDULE C (FNMA 1084 / FHLMC 91) ================== */
+/* 55.14: Schedule F (farm) and Schedule D (recurring capital gains), as in the income worksheet section A */
+const SCHF_LINES = [
+  {k:'net34',  sign:1,  label:'Net Farm Profit or (Loss)',                         cite:'Sch F Ln 34'},
+  {k:'depr14', sign:1,  label:'Plus: Depreciation',                                cite:'Sch F Ln 14'},
+  {k:'coop',   sign:1,  label:'Plus: Non-taxable Co-op &amp; CCC Payments',        cite:'Sch F Ln 3-6 (a minus b)'},
+  {k:'nonrec8',sign:-1, label:'Less: Non-recurring Income',                        cite:'Sch F Ln 8'},
+  {k:'amort32',sign:1,  label:'Plus: Amortization / Casualty Loss / Depletion',    cite:'Sch F Ln 32'},
+  {k:'home',   sign:1,  label:'Plus: Business Use of Home (if applicable)',        cite:'Sch F Ln 32'}
+];
+const SCHD_LINES = [
+  {k:'capg',   sign:1,  label:'Recurring Capital Gains (2 years of returns required)', cite:'Sch D Ln 7 &amp; 15'}
+];
+function setSchForm(id, v){ const r=S.schc.find(x=>x.id===id); if(!r) return; r.form=v; [...SCHC_LINES,...SCHF_LINES,...SCHD_LINES].forEach(l=>['y1','y2'].forEach(y=>{ if(r[y][l.k]==null) r[y][l.k]=0; })); renderAll(); }
+function schLines(b){ return b.form==='F' ? SCHF_LINES : b.form==='D' ? SCHD_LINES : SCHC_LINES; }
+/* the worksheet's business-mileage depreciation table (Tables!J2:K5) is keyed to today's year */
+function wsMileRate(yr){ const d = new Date().getFullYear() - N(yr); return ({4:0.27, 3:0.26, 2:0.26, 1:0.28})[d]; }
+/* worksheet Tables!K31: when the older year is empty in every section, every section uses the most recent year */
+function seOneYear(){
+  let older = 0;
+  (S.schc||[]).filter(b=>b.use!==false && b.form!=='D').forEach(b=>{ const r=schYears(b); older += r.base2 + r.mile2; });   /* K31 leaves out Schedule D (row 24) */
+  (S.corp||[]).filter(e=>e.use!==false).forEach(e=>{ older += corpYearVal(e,'y2'); });
+  return older === 0;
+}
 const SCHC_LINES = [
   {k:'net31',  sign:1,  label:'Line 31: Net Profit or (Loss)',                 cite:'Sch C Ln 31'},
   {k:'depl12', sign:1,  label:'Plus: Depletion',                               cite:'Sch C Ln 12'},
   {k:'depr13', sign:1,  label:'Plus: Depreciation',                            cite:'Sch C Ln 13'},
   {k:'meals',  sign:-1, label:'Less: Meals &amp; Entertainment Exclusion',     cite:'Sch C Ln 24b'},
   {k:'home30', sign:1,  label:'Plus: Business Use of Home',                    cite:'Sch C Ln 30'},
-  {k:'amort',  sign:1,  label:'Plus: Amortization / Casualty Loss / Non-recurring',cite:'Sch C Other'},
+  {k:'amort',  sign:1,  label:'Plus: Amortization / Casualty Loss',            cite:'Sch C Part V'},
+  {k:'nonrec6',sign:-1, label:'Less: Non-recurring Income',                    cite:'Sch C Ln 6'},
   {k:'miles',  sign:0,  label:'Business Miles Driven (x depreciation rate)',   cite:'Sch C Pt IV Ln 44a'}
 ];
 function newSchC(){
-  return { id:uid(), use:true, b:1, mode:'manual', name:'', rate:0.30, method:'auto',
-    y1:{yr:new Date().getFullYear()-1, net31:0, depl12:0, depr13:0, meals:0, home30:0, amort:0, miles:0},
-    y2:{yr:new Date().getFullYear()-2, net31:0, depl12:0, depr13:0, meals:0, home30:0, amort:0, miles:0},
+  const blank = yr => { const o={yr}; [...SCHC_LINES,...SCHF_LINES,...SCHD_LINES].forEach(l=>o[l.k]=0); return o; };
+  return { id:uid(), use:true, b:1, mode:'manual', name:'', form:'C', rate:0.30, method:'auto',
+    y1:blank(new Date().getFullYear()-1), y2:blank(new Date().getFullYear()-2),
     custom:0 };
 }
+function schYears(b){
+  /* section A1/A2/A3 value per year, and business mileage (section A4) on its own */
+  const L = schLines(b), base = y => L.reduce((a,l)=>a + l.sign*N(b[y][l.k]), 0);
+  const mile = y => b.form==='C' || !b.form ? N(b[y].miles) * (wsMileRate(b[y].yr) ?? N(b.rate)) : 0;
+  return {base1: base('y1'), base2: base('y2'), mile1: mile('y1'), mile2: mile('y2')};
+}
 function calcSchC(b){
-  const yr = y => {
-    const d=b[y];
-    return N(d.net31)+N(d.depl12)+N(d.depr13)-N(d.meals)+N(d.home30)+N(d.amort)+N(d.miles)*N(b.rate);
-  };
-  const a1=yr('y1'), a2=yr('y2');
+  /* 55.14: the income worksheet's Section A (Tables!J20:K23 and K18). Each section: if the older year is higher, the
+     most recent year; otherwise the two-year average. Schedule D takes the larger of the two years. When the older
+     year is empty everywhere, every section uses the most recent year. */
+  const r = schYears(b), one = seOneYear();
+  const pick = (recent, older, form) => one ? (form==='D' ? (recent+older)/2 : recent)
+                                            : form==='D' ? (older > recent ? older : recent)
+                                            : (older > recent ? recent : (recent+older)/2);
+  const a1 = r.base1 + r.mile1, a2 = r.base2 + r.mile2;
   const m1=a1/12, m2=a2/12, avg=(a1+a2)/24;
-  const declining = m1 < m2;
+  const declining = a2 > a1;
   let method = (b.mode==='auto') ? 'auto' : b.method, monthly;
-  if (method==='auto') method = declining ? 'recent' : 'avg2';
-  if (method==='recent') monthly=m1;
+  if (method==='auto' || method==='worksheet') { monthly = (pick(r.base1, r.base2, b.form) + pick(r.mile1, r.mile2, 'C')) / 12; method = one ? 'recent' : (b.form==='D' ? 'larger' : (declining ? 'recent' : 'avg2')); }
+  else if (method==='recent') monthly=m1;
   else if (method==='avg2') monthly=avg;
   else if (method==='lower') monthly=Math.min(m1,m2);
   else monthly=N(b.custom);
-  return {a1,a2,m1,m2,avg,declining,monthly,methodUsed:method};
+  return {a1,a2,m1,m2,avg,declining,monthly,methodUsed:method, oneYear:one};
 }
 function renderSchC(){
   $('schcList').innerHTML = S.schc.map((b,i)=>{
     const P=`schc-${b.id}`;
-    const rows = SCHC_LINES.map(L=>`
+    const rows = schLines(b).map(L=>`
       <tr><td class="rowlabel">${L.label}<span class="muted mono" style="margin-left:8px">${L.cite}</span></td>
       ${['y1','y2'].map(y=>`<td><input class="cell-input" type="number" step="0.01" value="${N(b[y][L.k])}"
         oninput="setField('schc','${b.id}','${y}.${L.k}',this.value,1)"></td>`).join('')}</tr>`).join('');
     return `<div class="card ${b.use===false?'excluded':''}">
-      <div class="card-top"><span class="tag amber">Sch C #${i+1}</span>
+      <div class="card-top"><span class="tag amber">Sch ${b.form||'C'} #${i+1}</span>
         <input class="name-input" placeholder="Business name" value="${esc(b.name)}" oninput="setField('schc','${b.id}','name',this.value)">
+        <select class="cell-input" style="width:auto;margin-left:8px" title="Which schedule" onchange="setSchForm('${b.id}',this.value)">
+          <option value="C" ${(b.form||'C')==='C'?'selected':''}>Schedule C (business)</option>
+          <option value="F" ${b.form==='F'?'selected':''}>Schedule F (farm)</option>
+          <option value="D" ${b.form==='D'?'selected':''}>Schedule D (recurring capital gains)</option>
+        </select>
         <div class="spacer"></div>
         ${cardCtl('schc', b)}
         ${guideBtn('schc','Guidelines')}
@@ -1672,8 +1738,12 @@ function renderSchC(){
       </div>
       <div class="status-strip">${chips(stSchC(b))}</div>
       <div class="card-body">
-        <div class="tbl-scroll"><table class="matrix">
-          <thead><tr><th>Schedule C Line Item</th>
+        <div class="tbl-scroll">${(b.form||'C')!=='C' ? '' : `<div class="notice" style="margin:10px 14px 0;background:var(--surface-2,#f4f7fb);border:1px solid var(--line,#dbe3ee);display:block;font-size:12.5px">
+        <b>W-2 income:</b> a sole proprietor is not paid W-2 wages by their own Schedule C business. If the borrower also has a W-2 job, enter it on the
+        W-2 &amp; Salary tab; if they own a corporation that pays them a W-2, add that business on the 1065 / 1120-S / 1120 tab and use its
+        <i>W-2 Income from this Business</i> line.</div>`}
+      <table class="matrix">
+          <thead><tr><th>${({C:'Schedule C',F:'Schedule F',D:'Schedule D'})[b.form||'C']} Line Item</th>
             <th style="width:230px">Most Recent Tax Year
               <input class="cell-input" style="width:80px;display:inline-block;margin-left:6px;padding:2px 5px" type="number"
                 value="${b.y1.yr}" oninput="setField('schc','${b.id}','y1.yr',this.value,1)"></th>
@@ -1687,7 +1757,7 @@ function renderSchC(){
               <td class="num" id="${P}-m1">$0.00</td><td class="num" id="${P}-m2">$0.00</td></tr>
           </tbody></table></div>
         <div class="grid g4" style="margin-top:14px">
-          <div class="field"><label>Mileage depreciation rate ($ per mile)</label>
+          <div class="field" style="${(b.form||'C')==='C'?'':'display:none'}"><label>Mileage depreciation rate ($ per mile, used when the worksheet table has no rate for the year)</label>
             <input class="cell-input" type="number" step="0.001" value="${b.rate}" oninput="setField('schc','${b.id}','rate',this.value,1)"></div>
           <div class="field"><label>Calculation Method${b.mode==='auto'?' — locked by Auto':''}</label>
             <select class="cell-input" ${b.mode==='auto'?'disabled':''} onchange="setField('schc','${b.id}','method',this.value)">
@@ -1730,7 +1800,7 @@ const K1_LINES = [
   {k:'othRental',label:'Other Net Rental Income (Loss)', cite:'K-1 Pt III Ln 3'},
   {k:'guar',     label:'Guaranteed Payments (1065 only)', cite:'K-1 Pt III Ln 4c'},
   {k:'dist',     label:'Distributions Received', cite:'1120S Ln 16d / 1065 Ln 19'},
-  {k:'w2biz',    label:'W-2 Wages Received From This Business', cite:'W-2 / Ln 7'}
+  {k:'w2biz',    label:'W-2 Income from this Business (added in full)', cite:'W-2 Box 5 · 1120-S Ln 7 / 1125-E'}
 ];
 const BIZ_ADJ = [
   {k:'depr',   sign:1,  label:'Plus: Depreciation',                       cite:'1120S Ln 14 / 1065 Ln 16a'},
@@ -1738,7 +1808,8 @@ const BIZ_ADJ = [
   {k:'amort',  sign:1,  label:'Plus: Amortization / Casualty Loss',       cite:'Attached schedule'},
   {k:'nonrec', sign:-1, label:'Less: Non-recurring Other Income',         cite:'1120S Ln 4-5 / 1065 Ln 5-7'},
   {k:'notes',  sign:-1, label:'Less: Mortgages / Notes Payable &lt; 1 Yr',cite:'Sch L Ln 16/17 Col D'},
-  {k:'travel', sign:-1, label:'Less: Travel &amp; Entertainment Exclusion',cite:'Sch M-1 Ln 3b / 4b'}
+  {k:'travel', sign:-1, label:'Less: Travel &amp; Entertainment Exclusion',cite:'Sch M-1 Ln 3b / 4b'},
+  {k:'othPship',sign:1, only:'1065', label:'Ordinary (Income) Loss from Other Partnerships (enter income as a negative)', cite:'1065 Ln 4'}
 ];
 const C1120 = [
   {k:'taxable', sign:1,  label:'Taxable Income',                      cite:'1120 Ln 30'},
@@ -1748,11 +1819,11 @@ const C1120 = [
   {k:'depr',    sign:1,  label:'Plus: Depreciation',                  cite:'1120 Ln 20'},
   {k:'depl',    sign:1,  label:'Plus: Depletion',                     cite:'1120 Ln 21'},
   {k:'amort',   sign:1,  label:'Plus: Amortization / Casualty Loss',  cite:'1120 Ln 26 attach.'},
-  {k:'nol',     sign:-1, label:'Less: Net Operating Loss &amp; Special Deductions', cite:'1120 Ln 29c'},
+  {k:'nol',     sign:1,  label:'Plus: Net Operating Loss &amp; Special Deductions', cite:'1120 Ln 29c'},
   {k:'notes',   sign:-1, label:'Less: Mortgages / Notes Payable &lt; 1 Yr',        cite:'Sch L Ln 17 Col D'},
   {k:'travel',  sign:-1, label:'Less: Travel &amp; Entertainment Exclusion',        cite:'Sch M-1 Ln 5c'},
-  {k:'divid',   sign:0,  label:'Dividends Paid to Borrower (added after ownership %)', cite:'1040 Sch B Ln 6'},
-  {k:'w2biz',   sign:0,  label:'W-2 Wages Received From This Business (added in full)', cite:'W-2 Box 1 / 1120 Ln 12'}   /* 55.13: owner wages from the C-corporation */
+  {k:'divid',   sign:0,  label:'Less: Dividends Paid to Borrower (after ownership %)', cite:'1040 Sch B'},
+  {k:'w2biz',   sign:0,  label:'W-2 Income from this Business (added in full)', cite:'W-2 Box 5 · 1120 Ln 12 / 1125-E'}   /* 55.13: owner wages from the C-corporation */
 ];
 function blankCorpYear(){ const o={}; [...K1_LINES,...BIZ_ADJ,...C1120].forEach(l=>o[l.k]=0); return o; }
 function newCorp(){
@@ -1761,37 +1832,39 @@ function newCorp(){
     y1:Object.assign({yr:new Date().getFullYear()-1},y1), y2:Object.assign({yr:new Date().getFullYear()-2},y2),
     curAssets:0, curLiab:0, method:'auto', custom:0 };
 }
+function corpYearVal(e, y){
+  /* 55.14: worksheet sections B-E. K-1 amounts are already the borrower's share and are added as they are; only the
+     business-return adjustments are multiplied by the ownership percentage. */
+  const own = N(e.own)/100, d = e[y], gov = (S.agency==='FHA' || S.agency==='VA');
+  if (e.form==='1120'){
+    let v=0; C1120.forEach(l=>{ if(l.sign) v += l.sign*N(d[l.k]); });
+    return v*own - N(d.divid) + N(d.w2biz);                 /* worksheet Q83: x ownership, less dividends; W-2 from section B */
+  }
+  let ord = N(d.ordinary);
+  /* Conventional: use LESSER of distributions or ordinary income unless business liquidity is documented */
+  if (!gov && !e.liquidity && N(d.dist)>0) ord = Math.min(ord, N(d.dist));
+  let adj = 0; BIZ_ADJ.forEach(l=>{ if (!l.only || l.only===e.form) adj += l.sign*N(d[l.k]); });
+  const k1 = ord + N(d.netRental) + N(d.othRental) + (e.form==='1065' ? N(d.guar) : 0) + N(d.w2biz);
+  return k1 + adj*own;
+}
 function calcCorp(e){
   const own = N(e.own)/100;
   const gov = (S.agency==='FHA' || S.agency==='VA');
-  const yearVal = y => {
-    const d=e[y];
-    if (e.form==='1120'){
-      let v=0; C1120.forEach(l=>{ if(l.sign) v += l.sign*N(d[l.k]); });
-      return v*own + N(d.divid) + N(d.w2biz);
-    }
-    let ord = N(d.ordinary);
-    /* Conventional: use LESSER of distributions or ordinary income unless business liquidity is documented */
-    if (!gov && !e.liquidity && N(d.dist)>0) ord = Math.min(ord, N(d.dist));
-    let adj = 0; BIZ_ADJ.forEach(l=> adj += l.sign*N(d[l.k]) );
-    const share = (ord + N(d.netRental) + N(d.othRental) + adj) * own;
-    return share + (e.form==='1065' ? N(d.guar) : 0) + N(d.w2biz);
-  };
-  const a1=yearVal('y1'), a2=yearVal('y2');
+  const a1=corpYearVal(e,'y1'), a2=corpYearVal(e,'y2'), one=seOneYear();
   const m1=a1/12, m2=a2/12, avg=(a1+a2)/24;
-  const declining = m1<m2;
+  const declining = a2 > a1;
   let method = (e.mode==='auto') ? 'auto' : e.method, monthly;
-  if (method==='auto') method = declining ? 'recent' : 'avg2';
+  if (method==='auto') method = (one || declining) ? 'recent' : 'avg2';
   if (method==='recent') monthly=m1; else if (method==='avg2') monthly=avg;
   else if (method==='lower') monthly=Math.min(m1,m2); else monthly=N(e.custom);
   const quick = N(e.curLiab) ? N(e.curAssets)/N(e.curLiab) : 0;
-  return {a1,a2,m1,m2,avg,monthly,declining,methodUsed:method,quick,own,gov};
+  return {a1,a2,m1,m2,avg,monthly,declining,methodUsed:method,quick,own,gov,oneYear:one};
 }
 function renderCorp(){
   $('corpList').innerHTML = S.corp.map((e,i)=>{
     const P=`corp-${e.id}`;
     const lines = e.form==='1120' ? C1120 : [...K1_LINES,...BIZ_ADJ];
-    const rows = lines.filter(l=>!(e.form==='1120S' && l.k==='guar')).map(L=>`
+    const rows = lines.filter(l=>!(e.form==='1120S' && l.k==='guar') && !(l.only && l.only!==e.form)).map(L=>`
       <tr><td class="rowlabel">${L.label}<span class="muted mono" style="margin-left:8px">${L.cite}</span></td>
       ${['y1','y2'].map(y=>`<td><input class="cell-input" type="number" step="0.01" value="${N(e[y][L.k])}"
         oninput="setField('corp','${e.id}','${y}.${L.k}',this.value,1)"></td>`).join('')}</tr>`).join('');
@@ -1816,7 +1889,12 @@ function renderCorp(){
       </div>
       <div class="status-strip">${chips(stCorp(e))}</div>
       <div class="card-body">
-        <div class="tbl-scroll"><table class="matrix">
+        <div class="tbl-scroll"><div class="notice" style="margin:10px 14px 0;background:var(--surface-2,#f4f7fb);border:1px solid var(--line,#dbe3ee);display:block;font-size:12.5px;line-height:1.45">
+        <b>Where to find W-2 income from this business.</b> Use the W-2 the business issued to the borrower, <b>Box 5 (Medicare wages)</b>, on the line
+        <i>W-2 Income from this Business</i>; it is added in full, not by ownership share. Check it against the return's officer compensation:
+        <b>1120-S line 7</b> or <b>1120 line 12</b> (Form 1125-E lists each officer's pay). Partnerships normally pay owners through
+        <b>guaranteed payments (K-1 box 4)</b> rather than a W-2. Enter these wages here or on the W-2 &amp; Salary tab, not both.</div>
+      <table class="matrix">
           <thead><tr><th>Tax Return / K-1 Line Item</th>
             <th style="width:230px">Yr 1 <input class="cell-input" style="width:80px;display:inline-block;margin-left:6px;padding:2px 5px" type="number" value="${e.y1.yr}" oninput="setField('corp','${e.id}','y1.yr',this.value,1)"></th>
             <th style="width:230px">Yr 2 <input class="cell-input" style="width:80px;display:inline-block;margin-left:6px;padding:2px 5px" type="number" value="${e.y2.yr}" oninput="setField('corp','${e.id}','y2.yr',this.value,1)"></th></tr></thead>
@@ -1900,6 +1978,7 @@ function scheMonths(p){
 }
 function calcSchE(p){
   let monthly=0, basis='';
+
   if (p.method==='sche'){
     const net = N(p.rents)+N(p.ins)+N(p.mortInt)+N(p.taxes)+N(p.depr)+N(p.otherAdd)-N(p.totalExp);
     const mos = scheMonths(p);
@@ -2024,9 +2103,18 @@ function grossUpDefault(){ return S.agency==='FHA' ? 15 : 25; }
 function newOther(){ return { id:uid(), use:true, b:1, type:'ssa', desc:'', amt:0,
   nonTax:true, grossUp:grossUpDefault(), continuance:36, docs:'' }; }
 function calcOther(o){
-  const base=N(o.amt);
-  const up = o.nonTax ? base*N(o.grossUp)/100 : 0;
-  return {base, up, total:base+up};
+  /* 55.14: the income worksheet's Freddie 1099 method - YTD on a 360-day basis, or YTD + the prior year when income is not
+     decreasing; and its Portion Non-Taxable sheet - gross up only the non-taxable share of the income */
+  let base=N(o.amt), f1099=null;
+  if (o.type==='1099' && (N(o.ytd1099) || N(o.prior1099))) {
+    const e = pDate(o.thru1099), days = e ? (e - new Date(e.getFullYear(),0,1)) / 86400000 : 0;
+    const ytd = days ? N(o.ytd1099)/days*360/12 : 0, y12 = (N(o.ytd1099)+N(o.prior1099)) / (12 + days/30), prior = N(o.prior1099)/12;
+    const decreasing = ytd < prior;
+    f1099 = {days, ytd, y12, decreasing, used: decreasing ? ytd : y12}; base = f1099.used;
+  }
+  const share = o.ntPct == null || o.ntPct === '' ? 1 : Math.max(0, Math.min(100, N(o.ntPct)))/100;
+  const up = o.nonTax ? base*share*N(o.grossUp)/100 : 0;
+  return {base, up, total:base+up, f1099};
 }
 function renderOther(){
   $('otherList').innerHTML = S.other.length ? `<div class="card"><div class="card-body">
@@ -2045,7 +2133,9 @@ function renderOther(){
           <td><select class="cell-input" onchange="setField('other','${o.id}','nonTax',this.value==='1')">
             <option value="0" ${!o.nonTax?'selected':''}>Taxable</option>
             <option value="1" ${o.nonTax?'selected':''}>Non-Taxable</option></select></td>
-          <td><input class="cell-input" type="number" step="0.01" value="${N(o.grossUp)}" oninput="setField('other','${o.id}','grossUp',this.value,1)"></td>
+          <td><input class="cell-input" type="number" step="0.01" value="${N(o.grossUp)}" oninput="setField('other','${o.id}','grossUp',this.value,1)">
+            ${o.nonTax ? `<label class="muted small" style="display:block;margin-top:4px">Non-taxable portion %
+              <input class="cell-input" type="number" step="0.01" min="0" max="100" style="margin-top:2px" value="${o.ntPct==null?100:N(o.ntPct)}" oninput="setField('other','${o.id}','ntPct',this.value,1)"></label>` : ''}</td>
           <td><input class="cell-input" type="number" value="${N(o.continuance)}" oninput="setField('other','${o.id}','continuance',this.value,1)"></td>
           <td><select class="cell-input" style="min-width:74px" onchange="setBor('other','${o.id}',this.value)">
             <option value="1" ${o.b!==2?'selected':''}>B1</option>
@@ -2057,6 +2147,10 @@ function renderOther(){
             <button class="btn-icon no-print" onclick="del('other','${o.id}')"><svg class="icon"><use href="#i-trash"/></svg></button></td>
         </tr>
         <tr ${o.use===false?'style="opacity:.5"':''}><td colspan="10" style="padding-top:0;padding-bottom:8px;border-bottom:2px solid var(--line)">
+          ${o.type==='1099' ? `<div class="grid g4" style="margin:4px 0 8px"><div class="field"><label>1099 income year to date</label><input class="cell-input" type="number" step="0.01" value="${N(o.ytd1099)}" oninput="setField('other','${o.id}','ytd1099',this.value,1)"></div>
+            <div class="field"><label>Prior-year 1099 income</label><input class="cell-input" type="number" step="0.01" value="${N(o.prior1099)}" oninput="setField('other','${o.id}','prior1099',this.value,1)"></div>
+            <div class="field"><label>Income through (date)</label><input class="cell-input" type="date" value="${o.thru1099||''}" onchange="setField('other','${o.id}','thru1099',this.value,1)"></div>
+            <div class="field"><label>Freddie 1099 method (income worksheet)</label><div class="calc-cell" style="text-align:left;white-space:normal" id="oth-${o.id}-1099">Enter YTD and prior-year 1099 income to use it</div></div></div>` : ''}
           ${chips(stOther(o))}</td></tr>`;}).join('')}
         <tr class="total-row"><td colspan="8">Total Other Monthly Income (sources in use)</td><td class="num" id="oth-total">$0.00</td><td></td></tr>
       </tbody></table></div>
@@ -2092,6 +2186,7 @@ function syncOtherType(id){
 function paintOther(){
   let tot=0, flags='';
   S.other.forEach(o=>{ const r=calcOther(o); if(o.use!==false) tot+=r.total; setT(`oth-${o.id}-tot`, money(r.total));
+      if (r.f1099) setT(`oth-${o.id}-1099`, `${r.f1099.decreasing ? 'Decreasing - YTD' : 'Not decreasing - YTD + prior year'}: ${money(r.f1099.used)} / mo (YTD ${money(r.f1099.ytd)}, YTD + 12 ${money(r.f1099.y12)})`);
     if (N(o.amt)>0 && N(o.continuance)<36)
       flags += `<div class="notice warn"><svg class="icon"><use href="#i-alert"/></svg><span><b>${esc(o.desc||o.type)}</b>: documented continuance of ${N(o.continuance)} months is less than the 3-year requirement — income may not be used.</span></div>`;
   });
@@ -3823,11 +3918,16 @@ function amountForTax(L, re){
   const m = hit.line.match(re), at = m ? m.index + m[0].length : 0;
   let v = taxMoneyOn(hit.line, at);                        /* the first amount after the label: two-column rows hold another item's amount further right */
   if (v.length) return {value: v[0], src: hit.line};
-  for (let k = 1; k <= 2; k++) {                           /* the amount can sit on the next row (K-1 boxes, wrapped labels) - but not on a new numbered line item */
+  for (let k = 1; k <= 4; k++) {                           /* the amount can sit a few rows down (K-1 boxes, wrapped instructions) - but not on a new numbered line item */
     const ln = L[hit.idx + k]; if (ln == null) break;
     if (/^\s*\d{1,2}[a-z]?\s+[A-Z][a-z]/.test(ln)) break;
-    v = taxMoneyOn(ln, 0);
-    if (v.length) return {value: v[v.length - 1], src: hit.line + ' / ' + ln};
+    if (k === 1) { v = taxMoneyOn(ln, 0); if (v.length) return {value: v[v.length - 1], src: hit.line + ' / ' + ln}; continue; }   /* K-1 boxes: the row below */
+    /* further down only the amount column counts: a figure at the end of the row, formatted as tax software prints amounts
+       (a comma, cents or the trailing period) - not a count inside the instructions, such as square footage */
+    const m2 = /(\(?-?\$?\d[\d,]*(?:\.\d{1,2})?\)?)(\.?)\s*$/.exec(String(ln).replace(/[\s|\]\[]+$/, ''));
+    if (!m2 || !(/\d,\d{3}/.test(m2[1]) || /\.\d{2}\)?$/.test(m2[1]) || m2[2] === '.')) continue;
+    const w = taxMoneyOn(m2[1], 0);
+    if (w.length) return {value: w[w.length - 1], src: hit.line + ' / ' + ln};
   }
   return null;
 }
@@ -4086,7 +4186,7 @@ function extractFields(type, text){
     push('depl12','Line 12 — Depletion',                    amountForTax(L,/\b12\b.*depletion|^depletion/i));
     push('depr13','Line 13 — Depreciation',                 amountForTax(L,/\b13\b.*depreciation|depreciation and section 179/i));
     push('meals', 'Line 24b — Deductible meals',            amountForTax(L,/24b|deductible meals/i));
-    push('home30','Line 30 — Business use of home',         amountForTax(L,/\b30\b.*business use of (?:your )?home|expenses for business use/i));
+    push('home30','Line 30 — Business use of home',         amountForTax(L,/^\W{0,3}30\b\W*expenses for business use|^\W{0,3}expenses for business use of your home\.\s*do not/i));   /* 55.14b: the line-30 item, not the Part II heading that mentions line 30 */
     const mi = afterPhrase(text,'business\\s*miles') || afterPhrase(text,'44a');
     if (mi && mi.value>50) F.push({slot:'miles', label:'Line 44a — Business miles', value:mi.value,
                                    src:mi.src, yearScoped:true, apply:true});
@@ -4888,9 +4988,15 @@ function calcCombined(jobs){
     if (m==='custom')return N(S.combine.c[k]);
     return 0; };
   const parts = {}; K.forEach(k=> parts[k] = val(k) );
-  const total = parts.base+parts.ot+parts.comm+parts.bonus+parts.other;
+  let total = parts.base+parts.ot+parts.comm+parts.bonus+parts.other;
+  /* 55.14: the income worksheet's Union Worker method - all pay stubs and W-2s together, 360-day basis, lowest of three */
+  const ends = J.map(j=>pDate(j.ytdThru)).filter(Boolean).sort((a,b)=>b-a), end = ends[0];
+  const days = end ? (end - new Date(end.getFullYear(),0,1)) / 86400000 : 0;
+  const union = {days, ytd: days ? t1/days*360/12 : 0, y12: (t1+t2)/(12 + days/30), y24: days+730 ? (t1+t2+t3)/(days+730)*360/12 : 0};
+  union.used = Math.min(union.ytd, union.y12, union.y24);
+  if (S.combine.method === 'union') total = union.used;
   return {comp, currentBase, parts, total, perJob, t1, t2, t3, yr:maxYr||new Date().getFullYear(),
-          mo:moMax, jobs:J, hasVar};
+          mo:moMax, jobs:J, hasVar, union};
 }
 const combineActive = () => S.combine.on && S.w2.filter(r=>r.use!==false).length > 1;
 
@@ -4940,10 +5046,15 @@ function renderCombine(){
 
   $('combineBox').innerHTML = `
   <div class="card">
+    <div class="notice" id="cmb-union" style="display:none;margin:10px 14px 0;background:var(--surface-2,#f4f7fb);border:1px solid var(--line,#dbe3ee);display:block;font-size:12.5px"></div>
     <div class="card-top">
       <span class="tag ${on?'green':'slate'}">${on?'Combined — in use':'Combined'}</span>
       <span class="doc-name">Combined Employment Income &mdash; All Jobs</span>
       <span class="muted small" id="cmb-headline">—</span>
+      <select class="cell-input" style="width:auto;margin-left:10px" title="How the combined income is worked out" onchange="S.combine.method=this.value;RECALC()">
+        <option value="components" ${S.combine.method!=='union'?'selected':''}>Each pay component (calculator method)</option>
+        <option value="union" ${S.combine.method==='union'?'selected':''}>Union worker: lowest of YTD, YTD + 12, YTD + 24 (income worksheet)</option>
+      </select>
       <div class="spacer"></div>
       <button class="btn ${on?'':'btn-add'} ${on?'btn-light':''} no-print" ${n<2?'disabled style="opacity:.5;cursor:not-allowed"':''}
         onclick="toggleCombine()" title="${n<2?'Add a second employment to combine':'Aggregate every job into one calculation'}">
@@ -4997,9 +5108,13 @@ function toggleCombine(){
   toast(S.combine.on ? 'Jobs combined — the summary now uses the aggregated calculation'
                      : 'Back to per-job calculations');
 }
+function paintUnion(r){ const el = $('cmb-union'); if (!el || !r || !r.union) return; const u = r.union;
+  el.style.display = S.combine.method === 'union' ? '' : 'none';
+  el.innerHTML = `<b>Union worker method (income worksheet):</b> ${u.days.toFixed(0)} days of pay this year &middot; YTD ${money(u.ytd)} &middot; YTD + 12 ${money(u.y12)} &middot; YTD + 24 ${money(u.y24)} &middot; <b>lowest used: ${money(u.used)} / mo</b>`; }
 function paintCombine(){
   if (!S.w2.length || !$('cmb-total')) return;
   const r = calcCombined();
+  paintUnion(r);
   setT('cmb-h1', `YTD ${r.yr} (Year 1)`); setT('cmb-h2', `Prior Year ${r.yr-1}`); setT('cmb-h3', `2 Years Prior ${r.yr-2}`);
   ['base','ot','comm','bonus','other'].forEach(k=>{
     const c = r.comp[k];
@@ -7560,7 +7675,7 @@ function nmbBook(){
       se.put(r,3,`${i+1}.  Schedule C — ${b.name||'Sole Proprietorship'}`,S_SECT); r++;
       se.put(r,9,'Line ref.',S_HEAD).put(r,10, String(b.y1.yr||''), S_HEAD).put(r,11, String(b.y2.yr||''), S_HEAD); r++;
       const AB = 'abcdefghij';
-      SCHC_LINES.forEach((L,k)=> seRow(`${AB[k]}.  ${stripTags(L.label)}`, stripTags(L.cite), N(b.y1[L.k]), N(b.y2[L.k])) );
+      schLines(b).forEach((L,k)=> seRow(`${AB[k]}.  ${stripTags(L.label)}`, stripTags(L.cite), N(b.y1[L.k]), N(b.y2[L.k])) );
       const cx = calcSchC(b);
       seRow('Adjusted annual income', '', cx.a1, cx.a2, S_LBL);
       seRow('Monthly income', '', cx.m1, cx.m2, S_LBL);

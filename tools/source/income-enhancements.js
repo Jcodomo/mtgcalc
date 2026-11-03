@@ -5,7 +5,7 @@
   'use strict';
 
   const yearNow = new Date().getFullYear();
-  const rentalKeys = ['rents', 'ins', 'mortInt', 'taxes', 'depr', 'otherAdd', 'totalExp', 'fairDays', 'personalDays', 'pitia'];
+  const rentalKeys = ['rents', 'ins', 'mortInt', 'taxes', 'depr', 'otherAdd', 'totalExp', 'fairDays', 'personalDays', 'pitia', 'line21'];
   const n = (v) => {
     const x = Number(String(v == null ? '' : v).replace(/[$,%\s,]/g, ''));
     return Number.isFinite(x) ? x : 0;
@@ -16,7 +16,7 @@
   const byId = (id) => document.getElementById(id);
 
   function blankYear(year) {
-    return { yr: year, rents: 0, ins: 0, mortInt: 0, taxes: 0, depr: 0, otherAdd: 0, totalExp: 0, fairDays: 365, personalDays: 0, pitia: 0 };
+    return { yr: year, rents: 0, ins: 0, mortInt: 0, taxes: 0, depr: 0, otherAdd: 0, totalExp: 0, fairDays: 365, personalDays: 0, pitia: 0, line21: 0 };
   }
 
   function ensureRental(p) {
@@ -41,6 +41,8 @@
     p.taxes = n(p.y2.taxes); p.depr = n(p.y2.depr); p.otherAdd = n(p.y2.otherAdd);
     p.totalExp = n(p.y2.totalExp); p.fairDays = n(p.y2.fairDays) || 365;
     p.personalDays = n(p.y2.personalDays); p.pitia = n(p.y2.pitia);
+    if (p.purchased == null) p.purchased = '';
+    if (p.ausYears == null) p.ausYears = 2;
     return p;
   }
 
@@ -58,10 +60,83 @@
     };
   }
 
+  /* 55.14: the income worksheet's Rental sheet (Tables!A36:E40). Owned before both tax years: the two-year average if
+     income increased, else the most recent year. Bought in the prior year: both years over the months owned, annualized.
+     Bought in the most recent year: that year annualized over the months owned. AUS requires one year: the most recent
+     year. Months owned use the worksheet's days-in-month table (leap-year column). The worksheet's own end-of-year
+     table (Tables!K12:K16) is frozen at 2013-2017; the real year end is used here. */
+  const WS_DIM_R = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  function worksheetRental(p, prior, current) {
+    const A = prior.annual, B = current.annual, recentYr = n(p.y2.yr), olderYr = recentYr - 1;
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(p.purchased || ''));
+    const pY = m ? +m[1] : 1900, pM = m ? +m[2] : 1, pD = m ? +m[3] : 1, dim = WS_DIM_R[pM - 1];
+    const I38 = m ? (dim - pD + 1) / dim : 0, I39 = m ? 12 - pM : 0, I40 = (recentYr - pY) * 12;
+    const A40 = olderYr === pY ? A / (I38 + I39) * 12 : null;
+    const inc = recentYr === pY ? true : (olderYr === pY ? A40 : A) <= B;
+    const C40 = pY < olderYr ? (inc ? (A + B) / 2 : B) : null;
+    const D40 = pY === olderYr ? (inc ? (A + B) / (I38 + I39 + I40) * 12 : B) : null;
+    const E40 = pY === recentYr ? B / (I38 + I39 + I40) * 12 : null;
+    const one = n(p.ausYears) === 1 && pY < recentYr;
+    const annual = one ? B : [C40, D40, E40].reduce((a, v) => a + (v == null ? 0 : v), 0);
+    let why = pY > recentYr ? 'Bought after the most recent return - no Schedule E history to use'
+            : one ? 'The AUS requires one year of returns - most recent year'
+            : pY === recentYr ? 'Bought in the most recent tax year - that year annualized over the months owned'
+            : pY === olderYr ? (inc ? 'Bought in the prior tax year - both years over the months owned' : 'Income decreased - most recent year')
+            : inc ? 'Income increased - two-year average' : 'Income decreased from the prior year - most recent year only';
+    const priorBlank = !rentalKeys.filter(k => !['fairDays', 'personalDays', 'pitia'].includes(k)).some(k => n(p.y1[k]) !== 0);
+    if (!one && priorBlank && pY < olderYr && B) why += '. The prior year is blank, so the worksheet averages it as zero: enter it, or set the AUS requirement to 1 year';
+    return {annual, why, years: one || pY >= recentYr || !inc ? 1 : 2};
+  }
+  /* 55.14b: the income worksheet's 'Rent - FHA NOO & VA' sheet (Tables!U39:Y39): each year is depreciation (line 18) plus
+     total rental income or loss (line 21); an FHA property bought during a tax year is annualized over the months owned
+     (VA is not); the older year when it is lower or equal is averaged in, otherwise the most recent year. Line 21 already
+     carries the property's expenses, so nothing is subtracted here. */
+  function fhaRental(p) {
+    const yrOf = y => n(y.depr) + n(y.line21), recentYr = n(p.y2.yr), olderYr = recentYr - 1;
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(p.purchased || ''));
+    const pY = m ? +m[1] : 1900, pM = m ? +m[2] : 1, pD = m ? +m[3] : 1, dim = WS_DIM_R[pM - 1];
+    const part = m ? (dim - pD + 1) / dim + (12 - pM) : 12;
+    const adj = (v, yr) => (!p.va && yr === pY) ? v / part * 12 : v;
+    const U = adj(yrOf(p.y1), olderYr), V = adj(yrOf(p.y2), recentYr);
+    const annual = U === 0 ? V : (U <= V ? (U + V) / 2 : V);
+    const why = U === 0 ? 'No prior year - most recent year' : U <= V ? 'Income increased - two-year average' : 'Income decreased - most recent year';
+    return {annual, why: (p.va ? 'VA: ' : 'FHA non-owner: ') + why};
+  }
+  /* 55.14b: the income worksheet's 'Rent - FHA Owner Occ.' sheet (Tables!K39:O39), for a 2-4 unit property the borrower
+     lives in: each year is Schedule E line 21 net income plus insurance, mortgage interest, taxes, depreciation and the HOA
+     portion of line 19 (the subject's full PITIA is in the housing payment); a year the property was bought in is
+     annualized over the months owned; the most recent year when the older year is zero or higher, else the average. */
+  function fhaOwnerRental(p) {
+    const yrOf = y => n(y.ins) + n(y.mortInt) + n(y.taxes) + n(y.depr) + n(y.otherAdd) + n(y.line21), recentYr = n(p.y2.yr), olderYr = recentYr - 1;
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(p.purchased || ''));
+    const pY = m ? +m[1] : 1900, pM = m ? +m[2] : 1, pD = m ? +m[3] : 1, dim = WS_DIM_R[pM - 1];
+    const part = m ? (dim - pD + 1) / dim + (12 - pM) : 12;
+    const adj = (v, yr) => yr === pY ? v / part * 12 : v;
+    const K = adj(yrOf(p.y1), olderYr), L = adj(yrOf(p.y2), recentYr);
+    const annual = K === 0 ? L : (K <= L ? (K + L) / 2 : L);
+    return {annual, why: 'FHA owner-occupied: ' + (K === 0 ? 'no prior year - most recent year' : K <= L ? 'income increased - two-year average' : 'income decreased - most recent year')};
+  }
   function calcTwoYearRental(p) {
     ensureRental(p);
+    if (p.method === 'fhaoo') {
+      const f = fhaOwnerRental(p), wm = f.annual / 12, prior = rentalNet(p.y1), current = rentalNet(p.y2);
+      return { net: f.annual, gross: wm, worksheetMonthly: wm, monthly: wm, pitia: 0, mos: 12, prior, current, yearsUsed: 2,
+               basis: 'Income worksheet - ' + f.why + ' (the subject property\'s PITIA is in the housing payment)' };
+    }
     if (p.method === 'lease' && typeof window.__mtgcalcLegacyCalcSchE === 'function') return window.__mtgcalcLegacyCalcSchE(p);
+    if (p.method === 'fha') {
+      const f = fhaRental(p), wm = f.annual / 12, prior = rentalNet(p.y1), current = rentalNet(p.y2);
+      return { net: f.annual, gross: wm, worksheetMonthly: wm, monthly: wm, pitia: 0, mos: 12, prior, current, yearsUsed: 2,
+               basis: 'Income worksheet - ' + f.why + ' (line 21 already includes the property expenses)' };
+    }
     const prior = rentalNet(p.y1), current = rentalNet(p.y2);
+    /* the worksheet method, unless the property was rented for part of a year and no purchase date is given -
+       then the fair-rental-days method (Schedule E line 2) annualizes each year */
+    if (p.purchased || (n(p.y1.fairDays) >= 365 && n(p.y2.fairDays) >= 365) || (!n(p.y1.fairDays) && !n(p.y2.fairDays))) {
+      const w = worksheetRental(p, prior, current), pitia = n(p.pitia), wm = w.annual / 12;
+      return { net: w.annual, gross: wm, worksheetMonthly: wm, monthly: wm - pitia, pitia, mos: 12, prior, current, yearsUsed: w.years,
+               basis: 'Income worksheet: ' + w.why };
+    }
     const hasAmounts = y => rentalKeys.filter(k => !['fairDays', 'personalDays', 'pitia'].includes(k)).some(k => n(y[k]) !== 0);
     const priorEntered = hasAmounts(p.y1);
     const currentEntered = hasAmounts(p.y2);
@@ -140,14 +215,19 @@
           <span class="spacer"></span><button class="btn-icon no-print" title="Remove rental property" onclick="del('sche','${p.id}')"><svg class="icon"><use href="#i-trash"/></svg></button>
         </div>
         <div class="card-body">
-          <div class="se-meta grid g4">
+          <div class="se-meta grid g3">
             <div class="field"><label>Tax years used</label><div class="calc-cell" id="se-${p.id}-years">${r.yearsUsed}</div></div>
             <div class="field"><label>Prior tax year</label><input class="cell-input" type="text" inputmode="numeric" value="${escLocal(y1.yr)}" oninput="setRental('${p.id}','y1','yr',this.value,true)"></div>
             <div class="field"><label>Current tax year</label><input class="cell-input" type="text" inputmode="numeric" value="${escLocal(y2.yr)}" oninput="setRental('${p.id}','y2','yr',this.value,true)"></div>
-            <div class="field"><label>Method</label><select class="cell-input" onchange="setRental('${p.id}','flat','method',this.value,false)"><option value="sche" ${p.method === 'sche' ? 'selected' : ''}>Schedule E tax return</option><option value="lease" ${p.method === 'lease' ? 'selected' : ''}>Lease / 75% rule</option></select></div>
+            <div class="field"><label>Date purchased</label><input class="cell-input" type="date" value="${escLocal(p.purchased || '')}" onchange="setRental('${p.id}','flat','purchased',this.value,false)"></div>
+            <div class="field"><label>Years of returns the AUS requires</label><select class="cell-input" onchange="setRental('${p.id}','flat','ausYears',this.value,true)"><option value="2" ${n(p.ausYears) !== 1 ? 'selected' : ''}>2 years</option><option value="1" ${n(p.ausYears) === 1 ? 'selected' : ''}>1 year</option></select></div>
+            <div class="field"><label>Method</label><select class="cell-input" onchange="setRental('${p.id}','flat','method',this.value,false)"><option value="sche" ${p.method === 'sche' ? 'selected' : ''}>Schedule E tax return</option><option value="lease" ${p.method === 'lease' ? 'selected' : ''}>Lease / 75% rule</option><option value="fha" ${p.method === 'fha' ? 'selected' : ''}>FHA non-owner / VA (line 21 + depreciation)</option><option value="fhaoo" ${p.method === 'fhaoo' ? 'selected' : ''}>FHA owner-occupied (2-4 units)</option></select></div>
+            ${p.method === 'fha' ? `<div class="field"><label>Loan type for this sheet</label><select class="cell-input" onchange="setRental('${p.id}','flat','va',this.value === '1',false)"><option value="0" ${!p.va ? 'selected' : ''}>FHA non-owner</option><option value="1" ${p.va ? 'selected' : ''}>VA</option></select></div>` : ''}
           </div>
           <div class="tbl-scroll se-table-wrap"><table class="matrix se-table"><thead><tr><th>Schedule E line</th><th class="num">${escLocal(y1.yr)} prior year</th><th class="num">${escLocal(y2.yr)} current year</th></tr></thead><tbody>
-            ${rows.map(([key, label, hint]) => `<tr class="${key === 'totalExp' ? 'total-row' : ''}"><td class="rowlabel"><span>${label}</span><small>${hint}</small></td><td>${yearInput(p, 'y1', key, label)}</td><td>${yearInput(p, 'y2', key, label)}</td></tr>`).join('')}
+            ${(p.method === 'fha' ? [['depr', 'Depreciation', 'Schedule E line 18'], ['line21', 'Total rental real estate and royalty income or (loss)', 'Schedule E line 21']]
+              : p.method === 'fhaoo' ? [['ins', 'Insurance', 'Schedule E line 9'], ['mortInt', 'Mortgage interest', 'Schedule E line 12'], ['taxes', 'Taxes', 'Schedule E line 16'], ['depr', 'Depreciation / depletion', 'Schedule E line 18'], ['otherAdd', 'HOA dues (only that portion of line 19)', 'Schedule E line 19'], ['line21', 'Net income or (loss)', 'Schedule E line 21']]
+              : rows).map(([key, label, hint]) => `<tr class="${key === 'totalExp' ? 'total-row' : ''}"><td class="rowlabel"><span>${label}</span><small>${hint}</small></td><td>${yearInput(p, 'y1', key, label)}</td><td>${yearInput(p, 'y2', key, label)}</td></tr>`).join('')}
             <tr class="meta-row"><td class="rowlabel"><span>Fair rental days</span><small>Schedule E line 2; controls rent proration</small></td><td>${yearInput(p, 'y1', 'fairDays', 'Fair rental days')}</td><td>${yearInput(p, 'y2', 'fairDays', 'Fair rental days')}</td></tr>
             <tr class="meta-row"><td class="rowlabel"><span>Personal-use days</span><small>Recorded separately from days rented</small></td><td>${yearInput(p, 'y1', 'personalDays', 'Personal-use days')}</td><td>${yearInput(p, 'y2', 'personalDays', 'Personal-use days')}</td></tr>
           </tbody></table></div>

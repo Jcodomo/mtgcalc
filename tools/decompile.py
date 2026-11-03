@@ -93,7 +93,7 @@ def main():
 
     for f in COMPANIONS:
         if (SRC / f).exists(): shutil.copy(SRC / f, OUT / 'assets' / f)
-    for f in ['loan-suite-embed.js', 'loan-suite-embed.css']:
+    for f in ['loan-suite-embed.js', 'loan-suite-embed.css', 'mtgcalc-theme.css']:
         shutil.copy(pathlib.Path(__file__).parent / f, OUT / 'assets' / f)
 
     pages_js = json.dumps([{'id': p, 'file': f'loan-suite-{p}.html', 'label': l, 'group': g, 'title': t} for p, l, g, t in PAGES])
@@ -103,7 +103,7 @@ def main():
         cfg['legacy'] = cfg['persistCalc']                                       # v54-era app: also carries the name-field typing fix
         return ('<script>window.LOS_PAGE="' + ('allinone' if page else 'full') + '";window.LOS_EMBED=' + json.dumps(cfg) + ';'
                 'if(!/[?&]app=/.test(location.search)){try{history.replaceState(null,"",location.pathname+(location.search?location.search+"&":"?")+"app=' + app + '"+location.hash)}catch(e){}}</script>\n'
-                '<link rel="stylesheet" href="assets/loan-suite-embed.css">')
+                '<link rel="stylesheet" href="assets/loan-suite-embed.css">\n<link rel="stylesheet" href="assets/mtgcalc-theme.css">')
     tail = '<script src="assets/loan-suite-embed.js"></script>\n'
     def emit(fname, page, title, doc_title, app='suite'):
         doc = skeleton.replace('<!--LOS-PAGE-BOOT-->', boot(page, title, app), 1)
@@ -124,7 +124,11 @@ def main():
     for f in ['income-calculator.html', 'quick.html', 'doc-organizer.html']:
         if (SRC / f).exists():
             t = (SRC / f).read_text(encoding='utf-8').replace('\r\n', '\n')
-            (OUT / f).write_text(comp.sub(r'src="assets/\1.js', t), encoding='utf-8'); print(f'  {f}  (companion scripts -> assets/)')
+            t = comp.sub(r'src="assets/\1.js', t)
+            tag = {'income-calculator.html': 'income', 'quick.html': 'quick', 'doc-organizer.html': 'docorg'}[f]
+            t = re.sub(r'<html\b', f'<html data-mt-page="{tag}"', t, count=1)
+            t = t.replace('</head>', '<link rel="stylesheet" href="assets/mtgcalc-theme.css">\n</head>', 1)
+            (OUT / f).write_text(t, encoding='utf-8'); print(f'  {f}  (companion scripts -> assets/, shared theme)')
     hub(OUT)
     # the Income Calculator as one self-contained file: companion scripts inlined (OCR libraries still load from their CDNs)
     t = (OUT / 'income-calculator.html').read_text(encoding='utf-8')
@@ -156,7 +160,8 @@ def hub(OUT):
         sec.append(f'<section><h3>{glabel}</h3><ul>{links}</ul></section>')
     cards = [c for c in cards if (OUT / c[0]).exists()]
     html = """<!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light dark">
+<html lang="en" data-mt-page="hub"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light dark">
+<link rel="stylesheet" href="assets/mtgcalc-theme.css">
 <title>Mortgage Suite</title>
 <style>
 :root{--bg:#eef2f7;--panel:#fff;--ink:#0f2a4a;--mute:#56677a;--line:#d5dee9;--acc:#1f6fd6;--nav:#0f2a4a}

@@ -1,6 +1,6 @@
-# Mortgage Suite: one page per feature (Release 55.13)
+# Mortgage Suite: one page per feature (Release 55.14b)
 
-Every feature of the Loan Suite and the Income Calculator as its own HTML page, ready to upload to a website. Built from Release 55.12 (`jcodomo/mtgcalc`, main).
+Every feature of the Loan Suite and the Income Calculator as its own HTML page, ready to upload to a website. This package includes the Release 55.14b income, rental, OCR, and shared-theme updates.
 
 ## Pages
 
