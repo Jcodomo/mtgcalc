@@ -48,7 +48,7 @@ for (const file of walk(path.join(root, 'assets')).filter(name => name.endsWith(
   assert.doesNotThrow(() => new vm.Script(readFileSync(file, 'utf8')), `${path.relative(root, file)} parses`);
 }
 
-const landing = readFileSync(path.join(root, 'index.html'), 'utf8');
+const landing = readFileSync(path.join(root, 'pages.html'), 'utf8');
 for (const target of ['quick.html', 'income-calculator.html', 'doc-organizer.html', 'full-suite.html']) {
   assert.match(landing, new RegExp(`href=["']${target.replace('.', '\\.')}`), `landing links to ${target}`);
 }
