@@ -214,7 +214,7 @@ main{flex:1;padding:20px 0 60px;}
 .cell-input:focus{border-color:var(--blue);box-shadow:0 0 0 2px rgba(37,99,235,.25);background:var(--input-focus-bg);}
 select.cell-input{font-family:'Inter',sans-serif;cursor:pointer;}
 input[type=number].cell-input::-webkit-inner-spin-button,
-input[type=number].cell-input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0;}
+input[data-num].cell-input, input[type=number].cell-input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0;}
 input[type=number].cell-input{-moz-appearance:textfield;}
 textarea.cell-input{font-family:'JetBrains Mono',monospace;min-height:80px;resize:vertical;}
 
@@ -771,6 +771,7 @@ table.matrix tr.meta-row td{font-size:10.5px;}
   .card,.summary-doc{box-shadow:none;border-color:#cbd5e1;break-inside:avoid;}
   main{padding:0;}
 }
+  .yr-in{width:76px;display:inline-block;padding:2px 6px;margin-left:4px;font-size:11.5px}
 </style>
 <style id="mtgcalc-performance-pass">
 /* Release 55.3 rendering pass: stable scrollbar, no sideways drift, compact card rhythm, quick transitions.
@@ -838,6 +839,7 @@ body,#calc-root,#suite-root{min-width:0}
     <span class="tb-field">B2 <input id="b2Name" value="" placeholder="Borrower 2" oninput="RECALC()"></span>
     <span class="tb-field">File <input id="fileNumber" value="" placeholder="Loan #" style="width:82px"></span>
     <select id="agency" onchange="RECALC()" class="tb-sel">
+      <option value="AUTO" selected>Auto (best fit)</option>
       <option value="FNMA">Fannie Mae (DU)</option>
       <option value="FHLMC">Freddie Mac (LPA)</option>
       <option value="FHA">FHA (4000.1)</option>
@@ -870,6 +872,9 @@ body,#calc-root,#suite-root{min-width:0}
       <button onclick="closeMenu();importReno()"><svg class="icon"><use href="#i-up"/></svg>Import from Renovation Suite</button>
       <button onclick="closeMenu();document.getElementById('renoFile').click()"><svg class="icon"><use href="#i-doc"/></svg>Import Suite scenario file…</button>
       <button onclick="closeMenu();exportReno()"><svg class="icon"><use href="#i-down"/></svg>Send income to Renovation Suite</button>
+      <div class="sep"></div>
+      <button onclick="closeMenu();switchTab('rates')"><svg class="icon"><use href="#i-pie"/></svg>Mortgage rates (daily survey)</button>
+      <button onclick="closeMenu();switchTab('taxes')"><svg class="icon"><use href="#i-home"/></svg>Taxes &amp; escrow (proration)</button>
       <div class="sep"></div>
       <label class="sw" style="justify-content:space-between">
         <span style="display:flex;align-items:center;gap:9px"><svg class="icon"><use href="#i-shield"/></svg>Autosave to this browser</span>
@@ -1137,7 +1142,9 @@ body,#calc-root,#suite-root{min-width:0}
 
 let UID = 1;
 const uid = () => 'x' + (UID++);
-const N   = v => { const n = parseFloat(String(v ?? '').replace(/[$,\s%]/g,'')); return isFinite(n) ? n : 0; };
+/* 55.19: free-form numbers - "$1,234.56", "1,234", "15%", "(1,200)" and "1,200-" all read as numbers */
+const N   = v => { let t = String(v ?? '').trim(); const neg = /^\(.*\)$/.test(t) || /-$/.test(t);
+  t = t.replace(/[()$,\s%]/g,'').replace(/-$/,''); const n = parseFloat(t); return isFinite(n) ? (neg && n > 0 ? -n : n) : 0; };
 const $   = id => document.getElementById(id);
 const money = v => (v<0?'-':'') + '$' + Math.abs(v||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 const money0= v => (v<0?'-':'') + '$' + Math.abs(v||0).toLocaleString('en-US',{maximumFractionDigits:0});
@@ -1173,7 +1180,7 @@ function monthsOnJob(hireStr, endStr){
 
 /* ================== GLOBAL STATE ================== */
 const S = {
-  b1:'', b2:'', borrower:'', file:'', agency:'FNMA',
+  b1:'', b2:'', borrower:'', file:'', agency:'FNMA', agencyAuto:true,
   settings:{ autosave:false }, checklist:{},
   loan:{ address:'', program:'FHA', txn:'Purchase', occ:'Primary Residence', units:1, fico:680,
          price:0, value:0, dpMode:'pct', dpPct:3.5, dpAmt:0, baseOverride:0,
@@ -1183,7 +1190,7 @@ const S = {
   w2:[], schc:[], corp:[], sche:[], other:[],
   combine:{ on:false, m:{base:'current',ot:'none',comm:'none',bonus:'none',other:'none',unre:'none'},
             c:{base:0,ot:0,comm:0,bonus:0,other:0,unre:0} },
-  assets:{ rows:[], fundsToClose:0, reserves:0, divisor:360, use:false },
+  assets:{ rows:[], fundsToClose:0, reserves:0, divisor:360, use:false, guideline:'fnma', term:360, gifts:0, pledged:0, age62:false, seasoned:true },
   dti:{ pi:0, taxes:0, ins:0, hoa:0, mi:0, otherHousing:0, debts:[] },
   notes:''
 };
@@ -1361,18 +1368,24 @@ function calcW2(j){
   const mo  = ytdMonths(j.ytdThru, j.hireDate);
   const div = n => mo > 0 ? n / mo : 0;
   const y22 = (end && hire) ? wsHireMonths(end, hire) : 0;                 /* worksheet Y22 */
-  const d2  = (hire && hire.getFullYear() === yr1 - 1) ? y22 : 12;         /* worksheet O30: a prior-year hire divides by Y22 */
-  const d3  = (hire && hire.getFullYear() === yr1 - 2) ? y22 : 12;         /* worksheet O31 */
-  const monthlyBase = monthlyFromFreq(j.freq, N(j.rate), N(j.hours));     /* worksheet H16 */
+  /* 55.15: the prior-year columns' years can be set on each entry (when the latest W-2 on hand is not last year's) */
+  const yr2 = N(j.y2 && j.y2.yr) || yr1 - 1, yr3 = N(j.y3 && j.y3.yr) || yr1 - 2;
+  const d2  = (hire && hire.getFullYear() === yr2) ? y22 : 12;             /* worksheet O30: a prior-year hire divides by Y22 */
+  const d3  = (hire && hire.getFullYear() === yr3) ? y22 : 12;             /* worksheet O31 */
+  /* 55.20: contractual longevity / service increments are a guaranteed add-on to the stated base (annual rate / 12) */
+  const monthlyBase = monthlyFromFreq(j.freq, N(j.rate), N(j.hours)) + N(j.longevity)/12;     /* worksheet H16 */
   const expectedYTD = monthlyBase * mo;
-  const actualYTD   = N(j.y1.base);
+  /* 55.20: a lump-sum retro / back-pay check on the YTD stub is taken out so it does not inflate the current run rate */
+  const net = (y,k) => k === 'base' ? N(j[y].base) - (y === 'y1' ? N(j.y1.retro) : 0)
+                      : k === 'other' ? N(j[y].other) + N(j[y].diff) + N(j[y].swing) : N(j[y][k]);
+  const actualYTD   = net('y1','base');
   const varAmt = actualYTD - expectedYTD;
   const varPct = expectedYTD ? varAmt/expectedYTD : 0;
   const daysOnJob = (end && hire) ? (end - hire) / 86400000 : 9999;
   const daysIntoYear = end ? (end - new Date(end.getFullYear(), 0, 1)) / 86400000 : 999;
   const comp = {};
   ['base','ot','comm','bonus','other'].forEach(k=>{
-    const a=N(j.y1[k]), b=N(j.y2[k]), c=N(j.y3[k]);
+    const a=net('y1',k), b=net('y2',k), c=net('y3',k);
     const m1 = div(a), m2 = d2 ? b / d2 : 0, m3 = d3 ? c / d3 : 0;
     const a12 = m2 === 0 ? 0 : (a + b) / (mo + 12);                       /* worksheet O33 */
     const a24 = (m3 === 0 || m2 === 0) ? 0 : (a + b + c) / (mo + 24);     /* worksheet O34 */
@@ -1382,12 +1395,15 @@ function calcW2(j){
     else why = cascade === 'ytd' ? 'Current year is the lowest - use the YTD average' : cascade === 'ytd12' ? 'Prior year is the lower of the two - average YTD with the prior year' : 'Declining across both prior years - the 24-month average is the conservative figure';
     comp[k] = {y1:a, y2:b, y3:c, ytd:m1, a12, a24, rec, why, monthlyBase};
   });
+  /* 55.20: a bonus paid once a year - a mid-year YTD would overstate it, so average the two prior years over 24 months */
+  if (j.bonusAnnual && comp.bonus.y2 > 0 && comp.bonus.y3 > 0) { comp.bonus.rec = 'annual'; comp.bonus.annual = (comp.bonus.y2 + comp.bonus.y3) / 24;
+    comp.bonus.why = 'Bonus paid once a year - the two prior years averaged over 24 months; the current year confirms the trend'; }
   /* un-reimbursed expenses (worksheet T35): prior years only, the average unless the older year was higher */
   { const J30 = N(j.y2.unre), J31 = N(j.y3.unre), T30 = J30/12, T31 = J31/12, T32 = 0;
     const v = J30 === 0 ? (T32 >= T31 ? (J31 + 0) / 24 : T31) : (T31 >= T30 ? (J30 + J31) / 24 : T30);
     comp.unre = {y1:N(j.y1.unre), y2:J30, y3:J31, ytd:v, a12:v, a24:v, rec: v ? 'ytd' : 'none', why: v ? 'Worksheet: un-reimbursed expenses from the prior years' : 'None entered', monthlyBase}; }
   /* which base the worksheet uses (Tables!M14) and what it adds (Tables!M7) */
-  const consistent = j.incomeType !== 'irregular', choiceYtd = j.baseChoice === 'ytd';
+  const consistent = !['irregular','variable'].includes(j.incomeType), choiceYtd = j.baseChoice === 'ytd';   /* variable / other pay follows the irregular-hours rule */
   let baseRule, varsUsed = true, wsNote = '';
   if (daysOnJob < 31)               { baseRule = 'na'; varsUsed = false; wsNote = 'On the job 30 days or less - the worksheet does not calculate this income'; }
   else if (daysIntoYear < 31)       { baseRule = 'current'; wsNote = 'Pay period ends in the first 30 days of the year - base pay plus qualifying variable income'; }
@@ -1399,7 +1415,7 @@ function calcW2(j){
   comp.base.why = wsNote;
   if (!varsUsed) ['ot','comm','bonus','other','unre'].forEach(k => { if (comp[k].rec !== 'none') { comp[k].rec = 'none'; comp[k].why = wsNote; } });
   const ytdBelowBase = consistent && monthlyBase > 0 && comp.base.ytd < monthlyBase && daysOnJob >= 730 && daysIntoYear >= 31;
-  const tot = y => N(j[y].base)+N(j[y].ot)+N(j[y].comm)+N(j[y].bonus)+N(j[y].other);
+  const tot = y => net(y,'base')+net(y,'ot')+net(y,'comm')+net(y,'bonus')+net(y,'other');
   const t1=tot('y1'), t2=tot('y2'), t3=tot('y3');
   const ann1 = mo ? t1/mo*12 : 0;
   const chg1 = t2 ? ann1/t2-1 : 0;
@@ -1412,12 +1428,13 @@ function calcW2(j){
     if (m==='ytd12')  return C.a12;
     if (m==='ytd24')  return C.a24;
     if (m==='custom') return N(j.c[k]);
+    if (m==='annual') return C.annual || 0;
     return 0;
   };
   const parts = {base:val('base'),ot:val('ot'),comm:val('comm'),bonus:val('bonus'),other:val('other'),unre:val('unre')};
   const total = parts.base+parts.ot+parts.comm+parts.bonus+parts.other-parts.unre;
-  const variable = N(j.y1.ot)+N(j.y2.ot)+N(j.y1.comm)+N(j.y2.comm)+N(j.y1.bonus)+N(j.y2.bonus);
-  return {yr1, mo, monthlyBase, expectedYTD, actualYTD, varAmt, varPct, comp, t1,t2,t3, ann1, chg1, chg2,
+  const variable = N(j.y1.ot)+N(j.y2.ot)+N(j.y1.comm)+N(j.y2.comm)+N(j.y1.bonus)+N(j.y2.bonus)+net('y1','other')+net('y2','other')-N(j.y1.other)-N(j.y2.other);
+  return {yr1, yr2, yr3, mo, monthlyBase, expectedYTD, actualYTD, varAmt, varPct, comp, t1,t2,t3, ann1, chg1, chg2,
           parts, total, hasVariable: variable>0, monthsJob: monthsOnJob(j.hireDate,j.ytdThru), wsNote, ytdBelowBase, baseRule};
 }
 function renderW2(){
@@ -1432,7 +1449,7 @@ function w2Card(j,i){
   const yrRow = (y,label,editable=true)=>`
     <tr>
       <td class="rowlabel">${label}</td>
-      ${['y1','y2','y3'].map(yy=>`<td><input class="cell-input" type="number" step="0.01" value="${N(j[yy][y])}"
+      ${['y1','y2','y3'].map(yy=>`<td><input class="cell-input" type="text" inputmode="decimal" data-num="1" step="0.01" value="${N(j[yy][y])}"
         oninput="setField('w2','${j.id}','${yy}.${y}',this.value,1)"></td>`).join('')}
       <td class="num"><span class="calc-cell" id="${P}-${y}-a12">$0.00</span></td>
       <td class="num"><span class="calc-cell" id="${P}-${y}-a24">$0.00</span></td>
@@ -1457,7 +1474,7 @@ function w2Card(j,i){
           <input type="radio" name="${P}-${c.k}" value="custom" ${j.m[c.k]==='custom'?'checked':''}
             onchange="setField('w2','${j.id}','m.${c.k}','custom')">
           <span style="flex:1"><span class="ol">Override</span>
-          <input class="cell-input" style="margin-top:3px;padding:3px 6px;font-size:11px" type="number" step="0.01"
+          <input class="cell-input" style="margin-top:3px;padding:3px 6px;font-size:11px" type="text" inputmode="decimal" data-num="1" step="0.01"
             value="${N(j.c[c.k])}" oninput="setField('w2','${j.id}','c.${c.k}',this.value,1)"
             onfocus="setField('w2','${j.id}','m.${c.k}','custom')"></span></label>
       </div>
@@ -1481,10 +1498,14 @@ function w2Card(j,i){
         <div class="er"><label>Employer Name</label>
           <input class="cell-input" value="${esc(j.employer)}" placeholder="Employer"
             oninput="setField('w2','${j.id}','employer',this.value)"></div>
+        <div class="er"><label>Job title (optional)</label>
+          <input class="cell-input" value="${esc(j.jobTitle||'')}" placeholder="Job title"
+            oninput="setField('w2','${j.id}','jobTitle',this.value)"></div>
         <div class="er"><label>Type of Income</label>
           <select class="cell-input" onchange="setField('w2','${j.id}','incomeType',this.value)">
             <option value="consistent" ${j.incomeType==='consistent'?'selected':''}>Consistent Hours</option>
             <option value="irregular"  ${j.incomeType==='irregular'?'selected':''}>Irregular Hours</option>
+            <option value="variable"   ${j.incomeType==='variable'?'selected':''}>Variable / Other Pay</option>
           </select>
           <span class="er-note">Consistent = the same hours every pay period. Irregular = union, shift or variable hours.</span></div>
       </div>
@@ -1501,20 +1522,27 @@ function w2Card(j,i){
                 ${FREQ.map(f=>`<option ${j.freq===f?'selected':''}>${f}</option>`).join('')}
               </select></div>
             <div class="cf"><label>Rate / salary ($)</label>
-              <input class="cell-input" type="number" step="0.01" value="${N(j.rate)}" oninput="setField('w2','${j.id}','rate',this.value,1)"></div>
+              <input class="cell-input" type="text" inputmode="decimal" data-num="1" step="0.01" value="${N(j.rate)}" oninput="setField('w2','${j.id}','rate',this.value,1)"></div>
             <div class="cf"><label>Hours / week</label>
-              <input class="cell-input" type="number" step="0.01" value="${N(j.hours)}" oninput="setField('w2','${j.id}','hours',this.value,1)"></div>
+              <input class="cell-input" type="text" inputmode="decimal" data-num="1" step="0.01" value="${N(j.hours)}" oninput="setField('w2','${j.id}','hours',this.value,1)"></div>
+            <div class="cf"><label>Longevity / service increment ($ per year)</label>
+              <input class="cell-input" type="text" inputmode="decimal" data-num="1" value="${N(j.longevity)}" title="Contractual longevity step - added to the stated base as annual / 12" oninput="setField('w2','${j.id}','longevity',this.value,1)"></div>
             <div class="cf"><label>Hire date</label>
               ${dateFld(j.hireDate,'setField','w2',j.id,'hireDate')}</div>
             <div class="cf"><label>Paystub end (YTD thru)</label>
               ${dateFld(j.ytdThru,'setField','w2',j.id,'ytdThru')}</div>
+            <div class="cf"><label>Bonus paid once a year?</label>
+              <select class="cell-input" onchange="setField('w2','${j.id}','bonusAnnual',this.value==='1')" title="A once-a-year bonus makes a mid-year YTD average too high">
+                <option value="0" ${!j.bonusAnnual?'selected':''}>No</option><option value="1" ${j.bonusAnnual?'selected':''}>Yes - prior 2 yrs / 24</option></select></div>
 
           </div>
 
           <div class="tbl-scroll" style="margin-top:9px"><table class="matrix">
             <thead><tr>
               <th>Income Category</th>
-              <th id="${P}-h1">YTD (Year 1)</th><th id="${P}-h2">Prior Year</th><th id="${P}-h3">2 Years Prior</th>
+              <th id="${P}-h1">YTD (Year 1)</th>
+              <th><span id="${P}-h2">Prior Year</span> <input class="cell-input yr-in" type="text" inputmode="decimal" data-num="1" min="1990" max="2100" title="Year of this column's income" value="${N(j.y2.yr)||''}" placeholder="year" oninput="setField('w2','${j.id}','y2.yr',this.value,1)"></th>
+              <th><span id="${P}-h3">2 Years Prior</span> <input class="cell-input yr-in" type="text" inputmode="decimal" data-num="1" min="1990" max="2100" title="Year of this column's income" value="${N(j.y3.yr)||''}" placeholder="year" oninput="setField('w2','${j.id}','y3.yr',this.value,1)"></th>
               <th class="num">YTD + Prev Yr</th><th class="num">YTD + Last 2 Yrs</th>
             </tr></thead>
             <tbody>
@@ -1523,6 +1551,12 @@ function w2Card(j,i){
               ${yrRow('comm','Commissions')}
               ${yrRow('bonus','Bonuses')}
               ${yrRow('other','Other Income')}
+              ${['diff','swing'].map(y=>`<tr class="sub-row"><td class="rowlabel" style="padding-left:18px">${y==='diff'?'Shift / night / weekend differentials':'Swing / report / travel time (MTA)'}</td>
+                ${['y1','y2','y3'].map(yy=>`<td><input class="cell-input" type="text" inputmode="decimal" data-num="1" value="${N(j[yy][y])}" oninput="setField('w2','${j.id}','${yy}.${y}',this.value,1)"></td>`).join('')}
+                <td colspan="2" class="muted small">Variable pay - counted in Other Income's averages</td></tr>`).join('')}
+              <tr class="sub-row"><td class="rowlabel" style="padding-left:18px">Less: retro / back pay in YTD</td>
+                <td><input class="cell-input" type="text" inputmode="decimal" data-num="1" value="${N(j.y1.retro)}" oninput="setField('w2','${j.id}','y1.retro',this.value,1)"></td>
+                <td></td><td></td><td colspan="2" class="muted small">Lump-sum union settlement - taken out of YTD base</td></tr>
               <tr class="total-row">
                 <td class="rowlabel">Total Earnings</td>
                 <td class="num" id="${P}-t1">$0.00</td><td class="num" id="${P}-t2">$0.00</td><td class="num" id="${P}-t3">$0.00</td>
@@ -1587,7 +1621,8 @@ function paintW2(){
   S.w2.forEach(j=>{
     const P=`w2-${j.id}`, r=calcW2(j);
     setT(`${P}-cardname`, j.employer || 'New employment');
-    setT(`${P}-h1`, `YTD ${r.yr1} (Year 1)`); setT(`${P}-h2`, `Prior Year ${r.yr1-1}`); setT(`${P}-h3`, `2 Years Prior ${r.yr1-2}`);
+    setT(`${P}-h1`, `YTD ${r.yr1} (Year 1)`); setT(`${P}-h2`, `Prior Year`); setT(`${P}-h3`, `2 Years Prior`);
+    document.querySelectorAll(`#${P}-h2 + .yr-in, #${P}-h3 + .yr-in`).forEach((el,k)=>{ el.placeholder = String(k ? r.yr3 : r.yr2); });
     setT(`${P}-mbase`, money(r.monthlyBase)); setT(`${P}-mbase-s`, j.freq + ' basis');
     setT(`${P}-expytd`, money(r.expectedYTD)); setT(`${P}-expytd-s`, `Rate x ${r.mo.toFixed(2)} YTD months`);
     setT(`${P}-actytd`, money(r.actualYTD)); setT(`${P}-actytd-s`, `YTD Monthly Avg: ${money(r.comp.base.ytd)}`);
@@ -1720,7 +1755,7 @@ function renderSchC(){
     const P=`schc-${b.id}`;
     const rows = schLines(b).map(L=>`
       <tr><td class="rowlabel">${L.label}<span class="muted mono" style="margin-left:8px">${L.cite}</span></td>
-      ${['y1','y2'].map(y=>`<td><input class="cell-input" type="number" step="0.01" value="${N(b[y][L.k])}"
+      ${['y1','y2'].map(y=>`<td><input class="cell-input" type="text" inputmode="decimal" data-num="1" step="0.01" value="${N(b[y][L.k])}"
         oninput="setField('schc','${b.id}','${y}.${L.k}',this.value,1)"></td>`).join('')}</tr>`).join('');
     return `<div class="card ${b.use===false?'excluded':''}">
       <div class="card-top"><span class="tag amber">Sch ${b.form||'C'} #${i+1}</span>
@@ -1744,10 +1779,10 @@ function renderSchC(){
       <table class="matrix">
           <thead><tr><th>${({C:'Schedule C',F:'Schedule F',D:'Schedule D'})[b.form||'C']} Line Item</th>
             <th style="width:230px">Most Recent Tax Year
-              <input class="cell-input" style="width:80px;display:inline-block;margin-left:6px;padding:2px 5px" type="number"
+              <input class="cell-input" style="width:80px;display:inline-block;margin-left:6px;padding:2px 5px" type="text" inputmode="decimal" data-num="1"
                 value="${b.y1.yr}" oninput="setField('schc','${b.id}','y1.yr',this.value,1)"></th>
             <th style="width:230px">Prior Tax Year
-              <input class="cell-input" style="width:80px;display:inline-block;margin-left:6px;padding:2px 5px" type="number"
+              <input class="cell-input" style="width:80px;display:inline-block;margin-left:6px;padding:2px 5px" type="text" inputmode="decimal" data-num="1"
                 value="${b.y2.yr}" oninput="setField('schc','${b.id}','y2.yr',this.value,1)"></th></tr></thead>
           <tbody>${rows}
             <tr class="total-row"><td class="rowlabel">Adjusted Annual Business Income</td>
@@ -1757,7 +1792,7 @@ function renderSchC(){
           </tbody></table></div>
         <div class="grid g4" style="margin-top:14px">
           <div class="field" style="${(b.form||'C')==='C'?'':'display:none'}"><label>Mileage depreciation rate ($ per mile, used when the worksheet table has no rate for the year)</label>
-            <input class="cell-input" type="number" step="0.001" value="${b.rate}" oninput="setField('schc','${b.id}','rate',this.value,1)"></div>
+            <input class="cell-input" type="text" inputmode="decimal" data-num="1" step="0.001" value="${b.rate}" oninput="setField('schc','${b.id}','rate',this.value,1)"></div>
           <div class="field"><label>Calculation Method${b.mode==='auto'?' — locked by Auto':''}</label>
             <select class="cell-input" ${b.mode==='auto'?'disabled':''} onchange="setField('schc','${b.id}','method',this.value)">
               <option value="auto"   ${b.method==='auto'?'selected':''}>Auto (agency rule)</option>
@@ -1767,7 +1802,7 @@ function renderSchC(){
               <option value="custom" ${b.method==='custom'?'selected':''}>Custom Override</option>
             </select></div>
           <div class="field"><label>Custom Override ($/mo)</label>
-            <input class="cell-input" type="number" step="0.01" ${b.mode==='auto'?'disabled':''}
+            <input class="cell-input" type="text" inputmode="decimal" data-num="1" step="0.01" ${b.mode==='auto'?'disabled':''}
               value="${N(b.custom)}" oninput="setField('schc','${b.id}','custom',this.value,1)"></div>
         </div>
         <div class="result-bar amber">
@@ -1846,7 +1881,23 @@ function corpYearVal(e, y){
   const k1 = ord + N(d.netRental) + N(d.othRental) + (e.form==='1065' ? N(d.guar) : 0) + N(d.w2biz);
   return k1 + adj*own;
 }
+/* 55.22: Schedule L liquidity test (NMB 'Liquidity Test' / 'Quick Ratio Test'; Comprehensive tab 4): quick ratio
+   = (cash + receivables + government / tax-exempt securities + other current assets) / (payables + notes due in under a
+   year + other current liabilities); the current ratio also counts inventory. Most recent year >= 1.00 passes. */
+const SCHL_A = [['cash','Cash','Sch L 1d'],['ar','Accounts receivable, net','Sch L 2b(d)'],['inv','Inventories (current ratio only)','Sch L 3d'],['sec','U.S. government / tax-exempt securities','Sch L 4d, 5d'],['oca','Other current assets','Sch L 6d']];
+const SCHL_L = [['ap','Accounts payable','1065 15d / 1120-S 16d'],['notes','Mortgages, notes, bonds due in under 1 year','1065 16d / 1120-S 17d'],['ocl','Other current liabilities','1065 17d / 1120-S 18d']];
+function schL(e){
+  const L = e.schL || {}, yr = y => { const v = L[y] || {}, q = N(v.cash)+N(v.ar)+N(v.sec)+N(v.oca), cur = q + N(v.inv), li = N(v.ap)+N(v.notes)+N(v.ocl);
+    const any = q || cur || li; return any ? {quickAssets:q, curAssets:cur, liab:li, quick: li ? q/li : 999, current: li ? cur/li : 999} : null; };
+  const r = {y1: yr('y1'), y2: yr('y2')};
+  r.has = !!(r.y1 || r.y2); r.recent = r.y1 || r.y2; r.pass = r.recent ? r.recent.quick >= 1 : null;
+  return r;
+}
+function setSchL(id,y,k,v){ const e=S.corp.find(x=>x.id===id); if(!e) return; e.schL = e.schL || {}; e.schL[y] = e.schL[y] || {}; e.schL[y][k] = N(v);
+  if (e.liqAuto === undefined) e.liqAuto = true; RECALC(); }
+function setLiq(id,v){ const e=S.corp.find(x=>x.id===id); if(!e) return; e.liqAuto = v==='auto'; if (v!=='auto') e.liquidity = v==='1'; renderCorp(); RECALC(); }
 function calcCorp(e){
+  if (e.liqAuto) { const t = schL(e); if (t.has) e.liquidity = !!t.pass; }   /* "Auto": the Schedule L result decides */
   const own = N(e.own)/100;
   const gov = (S.agency==='FHA' || S.agency==='VA');
   const a1=corpYearVal(e,'y1'), a2=corpYearVal(e,'y2'), one=seOneYear();
@@ -1865,7 +1916,7 @@ function renderCorp(){
     const lines = e.form==='1120' ? C1120 : [...K1_LINES,...BIZ_ADJ];
     const rows = lines.filter(l=>!(e.form==='1120S' && l.k==='guar') && !(l.only && l.only!==e.form)).map(L=>`
       <tr><td class="rowlabel">${L.label}<span class="muted mono" style="margin-left:8px">${L.cite}</span></td>
-      ${['y1','y2'].map(y=>`<td><input class="cell-input" type="number" step="0.01" value="${N(e[y][L.k])}"
+      ${['y1','y2'].map(y=>`<td><input class="cell-input" type="text" inputmode="decimal" data-num="1" step="0.01" value="${N(e[y][L.k])}"
         oninput="setField('corp','${e.id}','${y}.${L.k}',this.value,1)"></td>`).join('')}</tr>`).join('');
     /* 55.13: owner wages entered here must not also be on the W-2 tab */
     const w2here = N(e.y1.w2biz) + N(e.y2.w2biz) > 0, nm = String(e.name || '').trim().toLowerCase();
@@ -1881,7 +1932,7 @@ function renderCorp(){
         </select>
         <div class="spacer"></div>
         <span class="muted small">Ownership %</span>
-        <input class="cell-input" style="width:70px" type="number" step="0.01" value="${N(e.own)}" oninput="setField('corp','${e.id}','own',this.value,1)">
+        <input class="cell-input" style="width:70px" type="text" inputmode="decimal" data-num="1" step="0.01" value="${N(e.own)}" oninput="setField('corp','${e.id}','own',this.value,1)">
         ${cardCtl('corp', e)}
         ${guideBtn(e.form==='1065'?'partnership':e.form==='1120S'?'scorp':'ccorp','Guidelines')}
         <button class="btn-icon no-print" onclick="del('corp','${e.id}')"><svg class="icon"><use href="#i-trash"/></svg></button>
@@ -1895,8 +1946,8 @@ function renderCorp(){
         <b>guaranteed payments (K-1 box 4)</b> rather than a W-2. Enter these wages here or on the W-2 &amp; Salary tab, not both.</div>
       <table class="matrix">
           <thead><tr><th>Tax Return / K-1 Line Item</th>
-            <th style="width:230px">Yr 1 <input class="cell-input" style="width:80px;display:inline-block;margin-left:6px;padding:2px 5px" type="number" value="${e.y1.yr}" oninput="setField('corp','${e.id}','y1.yr',this.value,1)"></th>
-            <th style="width:230px">Yr 2 <input class="cell-input" style="width:80px;display:inline-block;margin-left:6px;padding:2px 5px" type="number" value="${e.y2.yr}" oninput="setField('corp','${e.id}','y2.yr',this.value,1)"></th></tr></thead>
+            <th style="width:230px">Yr 1 <input class="cell-input" style="width:80px;display:inline-block;margin-left:6px;padding:2px 5px" type="text" inputmode="decimal" data-num="1" value="${e.y1.yr}" oninput="setField('corp','${e.id}','y1.yr',this.value,1)"></th>
+            <th style="width:230px">Yr 2 <input class="cell-input" style="width:80px;display:inline-block;margin-left:6px;padding:2px 5px" type="text" inputmode="decimal" data-num="1" value="${e.y2.yr}" oninput="setField('corp','${e.id}','y2.yr',this.value,1)"></th></tr></thead>
           <tbody>${rows}
             <tr class="total-row"><td class="rowlabel">Borrower Share of Annual Cash Flow</td>
               <td class="num" id="${P}-a1">$0.00</td><td class="num" id="${P}-a2">$0.00</td></tr>
@@ -1911,15 +1962,22 @@ function renderCorp(){
           </div>
           <div class="block-body">
             <div class="grid g4">
-              <div class="field"><label>Current Assets ($)</label><input class="cell-input" type="number" value="${N(e.curAssets)}" oninput="setField('corp','${e.id}','curAssets',this.value,1)"></div>
-              <div class="field"><label>Current Liabilities ($)</label><input class="cell-input" type="number" value="${N(e.curLiab)}" oninput="setField('corp','${e.id}','curLiab',this.value,1)"></div>
+              ${(N(e.curAssets)||N(e.curLiab)) && !schL(e).has ? `<div class="field"><label>Current Assets ($)</label><input class="cell-input" type="text" inputmode="decimal" data-num="1" value="${N(e.curAssets)}" oninput="setField('corp','${e.id}','curAssets',this.value,1)"></div>
+              <div class="field"><label>Current Liabilities ($)</label><input class="cell-input" type="text" inputmode="decimal" data-num="1" value="${N(e.curLiab)}" oninput="setField('corp','${e.id}','curLiab',this.value,1)"></div>` : ''}
               <div class="field"><label>Ratio Result</label><div class="calc-cell" style="text-align:left" id="${P}-quick">—</div></div>
               <div class="field"><label>Liquidity Documented?</label>
-                <select class="cell-input" onchange="setField('corp','${e.id}','liquidity',this.value==='1')">
-                  <option value="0" ${!e.liquidity?'selected':''}>No — cap income at distributions</option>
-                  <option value="1" ${e.liquidity?'selected':''}>Yes — use full ordinary income</option>
+                <select class="cell-input" onchange="setLiq('${e.id}',this.value)">
+                  <option value="auto" ${e.liqAuto?'selected':''}>Auto — from the Schedule L test</option>
+                  <option value="0" ${!e.liqAuto&&!e.liquidity?'selected':''}>No — cap income at distributions</option>
+                  <option value="1" ${!e.liqAuto&&e.liquidity?'selected':''}>Yes — use full ordinary income</option>
                 </select></div>
             </div>
+            <div class="tbl-scroll" style="margin-top:10px"><table class="matrix" style="min-width:640px">
+              <thead><tr><th>Schedule L</th><th>Line</th><th>Prior year</th><th>Most recent year</th></tr></thead><tbody>
+              ${SCHL_A.map(([k,l,c])=>`<tr><td class="rowlabel">${l}</td><td class="mono muted">${c}</td>${['y2','y1'].map(y=>`<td><input class="cell-input" type="text" inputmode="decimal" data-num="1" value="${N(((e.schL||{})[y]||{})[k])}" oninput="setSchL('${e.id}','${y}','${k}',this.value)"></td>`).join('')}</tr>`).join('')}
+              ${SCHL_L.map(([k,l,c])=>`<tr><td class="rowlabel">Less: ${l}</td><td class="mono muted">${c}</td>${['y2','y1'].map(y=>`<td><input class="cell-input" type="text" inputmode="decimal" data-num="1" value="${N(((e.schL||{})[y]||{})[k])}" oninput="setSchL('${e.id}','${y}','${k}',this.value)"></td>`).join('')}</tr>`).join('')}
+              <tr class="total-row"><td class="rowlabel">Quick ratio (acid test) / current ratio</td><td></td><td class="num" id="${P}-q2">—</td><td class="num" id="${P}-q1">—</td></tr>
+              </tbody></table></div>
             <div class="notice info" style="margin-top:10px"><svg class="icon"><use href="#i-alert"/></svg>
               <span>Conventional: use the <b>lesser of K-1 distributions or ordinary business income</b>. To use the higher ordinary income
               the business must show adequate liquidity (ratio &ge; 1.00). Government loans (FHA / VA) use ordinary business income.</span></div>
@@ -1936,7 +1994,7 @@ function renderCorp(){
               <option value="custom" ${e.method==='custom'?'selected':''}>Custom Override</option>
             </select></div>
           <div class="field"><label>Custom Override ($/mo)</label>
-            <input class="cell-input" type="number" step="0.01" value="${N(e.custom)}" oninput="setField('corp','${e.id}','custom',this.value,1)"></div>
+            <input class="cell-input" type="text" inputmode="decimal" data-num="1" step="0.01" value="${N(e.custom)}" oninput="setField('corp','${e.id}','custom',this.value,1)"></div>
         </div>
         <div class="result-bar violet">
           <div><div class="big" id="${P}-res">Qualifying Corporate Income: $0.00 / mo</div>
@@ -1952,7 +2010,10 @@ function paintCorp(){
   S.corp.forEach(e=>{ const P=`corp-${e.id}`, r=calcCorp(e);
     setT(`${P}-a1`, money(r.a1)); setT(`${P}-a2`, money(r.a2));
     setT(`${P}-m1`, money(r.m1)); setT(`${P}-m2`, money(r.m2));
-    setT(`${P}-quick`, r.quick ? r.quick.toFixed(2) + (r.quick>=1?'  — PASS':'  — FAIL') : '—');
+    { const t = schL(e), fmt = v => v >= 999 ? 'no current liabilities' : v.toFixed(2);
+      if (t.has) { setT(`${P}-quick`, 'Quick ' + fmt(t.recent.quick) + (t.pass ? '  — PASS' : '  — FAIL') + (e.liqAuto ? ' (used)' : ''));
+        ['y1','y2'].forEach(y => setT(`${P}-q${y.slice(1)}`, t[y] ? fmt(t[y].quick) + ' / ' + fmt(t[y].current) : '—')); }
+      else setT(`${P}-quick`, r.quick ? r.quick.toFixed(2) + (r.quick>=1?'  — PASS':'  — FAIL') : '—'); }
     setT(`${P}-res`, `Qualifying Corporate Income: ${money(r.monthly)} / mo`);
     setT(`${P}-sub`, `Based on ${N(e.own)}% ownership ${e.form==='1065'?'pass-through + guaranteed payments':'pass-through'}`
       + (r.declining ? ' — DECLINING, most recent year used.' : ' — stable, 24-month average used.'));
@@ -1998,21 +2059,21 @@ function renderSchE(){
     const P=`sche-${p.id}`;
     const schE = `
       <div class="grid g4">
-        <div class="field"><label>Gross Rents Received ($/yr) &mdash; Ln 3</label><input class="cell-input" type="number" value="${N(p.rents)}" oninput="setField('sche','${p.id}','rents',this.value,1)"></div>
-        <div class="field"><label>Total Expenses ($/yr) &mdash; Ln 20</label><input class="cell-input" type="number" value="${N(p.totalExp)}" oninput="setField('sche','${p.id}','totalExp',this.value,1)"></div>
-        <div class="field"><label>Add: Insurance &mdash; Ln 9</label><input class="cell-input" type="number" value="${N(p.ins)}" oninput="setField('sche','${p.id}','ins',this.value,1)"></div>
-        <div class="field"><label>Add: Mortgage Interest &mdash; Ln 12</label><input class="cell-input" type="number" value="${N(p.mortInt)}" oninput="setField('sche','${p.id}','mortInt',this.value,1)"></div>
-        <div class="field"><label>Add: Taxes &mdash; Ln 16</label><input class="cell-input" type="number" value="${N(p.taxes)}" oninput="setField('sche','${p.id}','taxes',this.value,1)"></div>
-        <div class="field"><label>Add: Depreciation / Depletion &mdash; Ln 18</label><input class="cell-input" type="number" value="${N(p.depr)}" oninput="setField('sche','${p.id}','depr',this.value,1)"></div>
-        <div class="field"><label>Add: HOA / Documented Repairs &mdash; Ln 14/19</label><input class="cell-input" type="number" value="${N(p.otherAdd)}" oninput="setField('sche','${p.id}','otherAdd',this.value,1)"></div>
+        <div class="field"><label>Gross Rents Received ($/yr) &mdash; Ln 3</label><input class="cell-input" type="text" inputmode="decimal" data-num="1" value="${N(p.rents)}" oninput="setField('sche','${p.id}','rents',this.value,1)"></div>
+        <div class="field"><label>Total Expenses ($/yr) &mdash; Ln 20</label><input class="cell-input" type="text" inputmode="decimal" data-num="1" value="${N(p.totalExp)}" oninput="setField('sche','${p.id}','totalExp',this.value,1)"></div>
+        <div class="field"><label>Add: Insurance &mdash; Ln 9</label><input class="cell-input" type="text" inputmode="decimal" data-num="1" value="${N(p.ins)}" oninput="setField('sche','${p.id}','ins',this.value,1)"></div>
+        <div class="field"><label>Add: Mortgage Interest &mdash; Ln 12</label><input class="cell-input" type="text" inputmode="decimal" data-num="1" value="${N(p.mortInt)}" oninput="setField('sche','${p.id}','mortInt',this.value,1)"></div>
+        <div class="field"><label>Add: Taxes &mdash; Ln 16</label><input class="cell-input" type="text" inputmode="decimal" data-num="1" value="${N(p.taxes)}" oninput="setField('sche','${p.id}','taxes',this.value,1)"></div>
+        <div class="field"><label>Add: Depreciation / Depletion &mdash; Ln 18</label><input class="cell-input" type="text" inputmode="decimal" data-num="1" value="${N(p.depr)}" oninput="setField('sche','${p.id}','depr',this.value,1)"></div>
+        <div class="field"><label>Add: HOA / Documented Repairs &mdash; Ln 14/19</label><input class="cell-input" type="text" inputmode="decimal" data-num="1" value="${N(p.otherAdd)}" oninput="setField('sche','${p.id}','otherAdd',this.value,1)"></div>
         <div class="field"><label>Fair Rental Days &mdash; Sch E Ln 2</label>
-          <input class="cell-input" type="number" min="0" max="366" value="${N(p.fairDays)}" oninput="setField('sche','${p.id}','fairDays',this.value,1)"></div>
+          <input class="cell-input" type="text" inputmode="decimal" data-num="1" min="0" max="366" value="${N(p.fairDays)}" oninput="setField('sche','${p.id}','fairDays',this.value,1)"></div>
         <div class="field"><label>Personal Use Days &mdash; Sch E Ln 2</label>
-          <input class="cell-input" type="number" min="0" max="366" value="${N(p.personalDays)}" oninput="setField('sche','${p.id}','personalDays',this.value,1)"></div>
+          <input class="cell-input" type="text" inputmode="decimal" data-num="1" min="0" max="366" value="${N(p.personalDays)}" oninput="setField('sche','${p.id}','personalDays',this.value,1)"></div>
         <div class="field"><label>Months in Service (from fair rental days)</label>
           <div class="calc-cell" style="text-align:left" id="sche-${p.id}-mos">12.00</div></div>
         <div class="field"><label>Override Months (0 = auto)</label>
-          <input class="cell-input" type="number" step="0.01" min="0" max="12" value="${N(p.monthsOverride)}" oninput="setField('sche','${p.id}','monthsOverride',this.value,1)"></div>
+          <input class="cell-input" type="text" inputmode="decimal" data-num="1" step="0.01" min="0" max="12" value="${N(p.monthsOverride)}" oninput="setField('sche','${p.id}','monthsOverride',this.value,1)"></div>
       </div>
       <div class="notice info" style="margin-top:10px"><svg class="icon"><use href="#i-alert"/></svg>
         <span><b>Fair rental days</b> (Schedule E line 2) drive the annualization: months in service =
@@ -2021,8 +2082,8 @@ function renderSchE(){
         differs from the days reported on the return.</span></div>`;
     const lease = `
       <div class="grid g4">
-        <div class="field"><label>Gross Monthly Lease Rent ($)</label><input class="cell-input" type="number" value="${N(p.leaseRent)}" oninput="setField('sche','${p.id}','leaseRent',this.value,1)"></div>
-        <div class="field"><label>Vacancy Factor (%)</label><input class="cell-input" type="number" value="${N(p.vacancy)}" oninput="setField('sche','${p.id}','vacancy',this.value,1)"></div>
+        <div class="field"><label>Gross Monthly Lease Rent ($)</label><input class="cell-input" type="text" inputmode="decimal" data-num="1" value="${N(p.leaseRent)}" oninput="setField('sche','${p.id}','leaseRent',this.value,1)"></div>
+        <div class="field"><label>Vacancy Factor (%)</label><input class="cell-input" type="text" inputmode="decimal" data-num="1" value="${N(p.vacancy)}" oninput="setField('sche','${p.id}','vacancy',this.value,1)"></div>
       </div>`;
     return `<div class="card ${p.use===false?'excluded':''}">
       <div class="card-top"><span class="tag green">Property #${i+1}</span>
@@ -2040,7 +2101,7 @@ function renderSchE(){
       <div class="card-body">
         ${p.method==='sche'?schE:lease}
         <div class="grid g4" style="margin-top:12px">
-          <div class="field"><label>Full PITIA on This Property ($/mo)</label><input class="cell-input" type="number" value="${N(p.pitia)}" oninput="setField('sche','${p.id}','pitia',this.value,1)"></div>
+          <div class="field"><label>Full PITIA on This Property ($/mo)</label><input class="cell-input" type="text" inputmode="decimal" data-num="1" value="${N(p.pitia)}" oninput="setField('sche','${p.id}','pitia',this.value,1)"></div>
           <div class="field"><label>Is this the subject property?</label>
             <select class="cell-input" onchange="setField('sche','${p.id}','subject',this.value==='1')">
               <option value="0" ${!p.subject?'selected':''}>No — existing REO</option>
@@ -2128,14 +2189,14 @@ function renderOther(){
           <td><select class="cell-input" style="min-width:210px" onchange="setField('other','${o.id}','type',this.value);syncOtherType('${o.id}')">
             ${OTHER_TYPES.map(t=>`<option value="${t.v}" ${o.type===t.v?'selected':''}>${t.t}</option>`).join('')}</select></td>
           <td><input class="cell-input" style="min-width:180px" placeholder="Source / documentation" value="${esc(o.desc)}" oninput="setField('other','${o.id}','desc',this.value)"></td>
-          <td><input class="cell-input" type="number" step="0.01" value="${N(o.amt)}" oninput="setField('other','${o.id}','amt',this.value,1)"></td>
+          <td><input class="cell-input" type="text" inputmode="decimal" data-num="1" step="0.01" value="${N(o.amt)}" oninput="setField('other','${o.id}','amt',this.value,1)"></td>
           <td><select class="cell-input" onchange="setField('other','${o.id}','nonTax',this.value==='1')">
             <option value="0" ${!o.nonTax?'selected':''}>Taxable</option>
             <option value="1" ${o.nonTax?'selected':''}>Non-Taxable</option></select></td>
-          <td><input class="cell-input" type="number" step="0.01" value="${N(o.grossUp)}" oninput="setField('other','${o.id}','grossUp',this.value,1)">
+          <td><input class="cell-input" type="text" inputmode="decimal" data-num="1" step="0.01" value="${N(o.grossUp)}" oninput="setField('other','${o.id}','grossUp',this.value,1)">
             ${o.nonTax ? `<label class="muted small" style="display:block;margin-top:4px">Non-taxable portion %
-              <input class="cell-input" type="number" step="0.01" min="0" max="100" style="margin-top:2px" value="${o.ntPct==null?100:N(o.ntPct)}" oninput="setField('other','${o.id}','ntPct',this.value,1)"></label>` : ''}</td>
-          <td><input class="cell-input" type="number" value="${N(o.continuance)}" oninput="setField('other','${o.id}','continuance',this.value,1)"></td>
+              <input class="cell-input" type="text" inputmode="decimal" data-num="1" step="0.01" min="0" max="100" style="margin-top:2px" value="${o.ntPct==null?100:N(o.ntPct)}" oninput="setField('other','${o.id}','ntPct',this.value,1)"></label>` : ''}</td>
+          <td><input class="cell-input" type="text" inputmode="decimal" data-num="1" value="${N(o.continuance)}" oninput="setField('other','${o.id}','continuance',this.value,1)"></td>
           <td><select class="cell-input" style="min-width:74px" onchange="setBor('other','${o.id}',this.value)">
             <option value="1" ${o.b!==2?'selected':''}>B1</option>
             <option value="2" ${o.b===2?'selected':''}>B2</option></select></td>
@@ -2146,9 +2207,9 @@ function renderOther(){
             <button class="btn-icon no-print" onclick="del('other','${o.id}')"><svg class="icon"><use href="#i-trash"/></svg></button></td>
         </tr>
         <tr ${o.use===false?'style="opacity:.5"':''}><td colspan="10" style="padding-top:0;padding-bottom:8px;border-bottom:2px solid var(--line)">
-          ${o.type==='1099' ? `<div class="grid g4" style="margin:4px 0 8px"><div class="field"><label>1099 income year to date</label><input class="cell-input" type="number" step="0.01" value="${N(o.ytd1099)}" oninput="setField('other','${o.id}','ytd1099',this.value,1)"></div>
-            <div class="field"><label>Prior-year 1099 income</label><input class="cell-input" type="number" step="0.01" value="${N(o.prior1099)}" oninput="setField('other','${o.id}','prior1099',this.value,1)"></div>
-            <div class="field"><label>Income through (date)</label><input class="cell-input" type="date" value="${o.thru1099||''}" onchange="setField('other','${o.id}','thru1099',this.value,1)"></div>
+          ${o.type==='1099' ? `<div class="grid g4" style="margin:4px 0 8px"><div class="field"><label>1099 income year to date</label><input class="cell-input" type="text" inputmode="decimal" data-num="1" step="0.01" value="${N(o.ytd1099)}" oninput="setField('other','${o.id}','ytd1099',this.value,1)"></div>
+            <div class="field"><label>Prior-year 1099 income</label><input class="cell-input" type="text" inputmode="decimal" data-num="1" step="0.01" value="${N(o.prior1099)}" oninput="setField('other','${o.id}','prior1099',this.value,1)"></div>
+            <div class="field"><label>Income through (date)</label><input class="cell-input" type="text" inputmode="numeric" data-date="1" placeholder="MM/DD/YYYY" autocomplete="off" value="${o.thru1099||''}" onchange="setField('other','${o.id}','thru1099',this.value,1)"></div>
             <div class="field"><label>Freddie 1099 method (income worksheet)</label><div class="calc-cell" style="text-align:left;white-space:normal" id="oth-${o.id}-1099">Enter YTD and prior-year 1099 income to use it</div></div></div>` : ''}
           ${chips(stOther(o))}</td></tr>`;}).join('')}
         <tr class="total-row"><td colspan="8">Total Other Monthly Income (sources in use)</td><td class="num" id="oth-total">$0.00</td><td></td></tr>
@@ -2199,17 +2260,80 @@ const ASSET_TYPES = [
   {v:'stocks',   t:'Stocks / Bonds / Mutual Funds', e:70},
   {v:'ret59',    t:'Retirement — age 59½ or older', e:70},
   {v:'ret',      t:'Retirement — under 59½ (penalty)', e:60},
+  {v:'sev',      t:'Lump-sum severance / retirement distribution', e:100},
   {v:'trust',    t:'Trust / Vested Assets', e:100},
   {v:'other',    t:'Other Eligible Asset', e:100}
 ];
-function newAsset(){ return {id:uid(), name:'', type:'checking', bal:0, elig:100}; }
+/* 55.15: asset depletion by guideline. Fannie Mae B3-3.4-06 (employment-related assets: net balance divided by the loan's
+   amortization term); Freddie Mac Guide 5307.1 (net eligible assets divided by 240 months, or 180 months under Bulletin
+   2026-10, required for loans settling on or after February 3, 2027, with at least $30,000 remaining). */
+const ASSET_GUIDES = {
+  fnma:     {t:'Fannie Mae — employment-related assets (B3-3.4-06)', div:null},
+  fhlmc240: {t:'Freddie Mac — 240 months (Guide 5307.1, current)', div:240},
+  fhlmc180: {t:'Freddie Mac — 180 months (Bulletin 2026-10)', div:180},
+  custom:   {t:'Custom divisor', div:null}
+};
+/* default share of each account that counts, by guideline (each account's Eligible % can still be changed) */
+function assetDefaultElig(type, g){
+  if (g === 'fnma') return ({ret59:100, ret:90, sev:100})[type] ?? 0;                 /* Fannie: retirement-type money only; 10% early-withdrawal penalty under 59½ */
+  if (g === 'fhlmc240' || g === 'fhlmc180') return type === 'ret' ? 90 : 100;           /* Freddie: depository, securities and retirement assets */
+  return (ASSET_TYPES.find(x=>x.v===type)||{}).e ?? 100;
+}
+function newAsset(){ return {id:uid(), name:'', type:'checking', bal:0, elig:assetDefaultElig('checking', (S.assets||{}).guideline||'fnma')}; }
 function calcAssets(){
-  const gross = S.assets.rows.reduce((s,r)=>s+N(r.bal),0);
-  const eligible = S.assets.rows.reduce((s,r)=>s+N(r.bal)*N(r.elig)/100,0);
-  const net = Math.max(0, eligible - N(S.assets.fundsToClose) - N(S.assets.reserves));
-  const div = Math.max(1,N(S.assets.divisor));
-  const monthly = S.assets.use ? net/div : 0;
-  return {gross, eligible, net, monthly, div};
+  const A = S.assets, g = A.guideline || 'custom';
+  const gross = A.rows.reduce((s,r)=>s+N(r.bal),0);
+  const eligible = A.rows.reduce((s,r)=>s+N(r.bal)*N(r.elig)/100,0);
+  const less = [];
+  if (g === 'fnma')        less.push(['Funds for the down payment and closing costs', N(A.fundsToClose)], ['Required reserves', N(A.reserves)]);
+  else if (g === 'custom') less.push(['Funds required to close', N(A.fundsToClose)], ['Required reserves', N(A.reserves)], ['Gift or borrowed funds', N(A.gifts)], ['Assets pledged as collateral', N(A.pledged)]);
+  else                     less.push(['Funds needed to close', N(A.fundsToClose)], ['Required reserves', N(A.reserves)], ['Gift or borrowed funds', N(A.gifts)], ['Assets pledged as collateral', N(A.pledged)]);   /* 55.19: reserves are subtracted under Freddie Mac too (Comprehensive calculator and the NMB guide) */
+  const lessTotal = less.reduce((s,x)=>s+x[1],0);
+  const net = Math.max(0, eligible - lessTotal);
+  const div = Math.max(1, g === 'fnma' ? (N(A.term) || 360) : ASSET_GUIDES[g] && ASSET_GUIDES[g].div ? ASSET_GUIDES[g].div : N(A.divisor));
+  const monthly = A.use ? net/div : 0, potential = net/div;
+  const warn = [];
+  if (S.agency === 'FHA') warn.push('FHA does not accept asset depletion as effective income. The assets can still count for closing funds and reserves.');
+  if (g === 'fhlmc180' && net < 30000) warn.push('Bulletin 2026-10 requires at least $30,000 of net eligible assets to remain; this file has ' + money(net) + '.');
+  if (g === 'fnma') warn.push('Fannie Mae: maximum LTV 70%, or 80% when the asset owner is 62 or older at closing; purchase or limited cash-out refinance of a primary residence or second home.');
+  if ((g === 'fhlmc240' || g === 'fhlmc180') && !A.seasoned) warn.push('Freddie Mac: assets generally need 12 months of seasoning.');
+  if (g === 'fhlmc240') warn.push('Loans settling on or after February 3, 2027 must use the 180-month divisor (Bulletin 2026-10); lenders may adopt it sooner.');
+  return {gross, eligible, less, lessTotal, net, monthly, potential, div, guideline:g, warn};
+}
+/* the worksheet, step by step, in plain words - used on screen, in its own printout and in the Income Report */
+function assetSteps(a){
+  const g = a.guideline, G = ASSET_GUIDES[g] || ASSET_GUIDES.custom, rows = [];
+  S.assets.rows.forEach((x,i)=>{ const t = ASSET_TYPES.find(y=>y.v===x.type);
+    rows.push([`${i+1}. ${esc(x.name)||'Account'}`, `${t?t.t:x.type}: ${money(N(x.bal))} × ${N(x.elig)}% counted`, money(N(x.bal)*N(x.elig)/100)]); });
+  rows.push(['Eligible assets', 'Sum of the amounts counted above', money(a.eligible)]);
+  a.less.forEach(([l,v])=>rows.push(['Less: '+l, '', '− '+money(v)]));
+  rows.push(['Net eligible assets', `${money(a.eligible)} − ${money(a.lessTotal)}`, money(a.net)]);
+  rows.push(['Monthly qualifying income', `${money(a.net)} ÷ ${a.div} months`, money(a.potential)]);
+  const how = g === 'fnma'
+    ? `Fannie Mae counts employment-related assets only: retirement accounts the borrower can fully withdraw (401(k), IRA, SEP, Keogh) and lump-sum severance or retirement distributions. Each balance is reduced by any penalty for a full withdrawal; the funds needed for the down payment, closing costs and reserves are then subtracted, and what remains is divided by the loan's amortization term in months (${a.div}).`
+    : g === 'custom'
+    ? `Eligible assets, less the funds to close, reserves, gift or borrowed funds and pledged assets, divided by the divisor entered (${a.div} months).`
+    : `Freddie Mac counts depository accounts, securities and retirement assets. The funds needed to close, required reserves, any gift or borrowed funds and any assets pledged as collateral are subtracted from the eligible assets, and the net is divided by ${a.div} months` + (g === 'fhlmc180' ? ' under Bulletin 2026-10, which also requires at least $30,000 of net eligible assets to remain.' : ', the current Guide 5307.1 divisor (180 months under Bulletin 2026-10 for loans settling on or after February 3, 2027).');
+  return {rows, how, title:G.t};
+}
+function printAssetWorksheet(){
+  const a = calcAssets(), st = assetSteps(a), w = window.open('', '_blank');
+  if (!w) { alert('Allow pop-ups to print the worksheet.'); return; }
+  const who = [S.b1, S.b2].filter(Boolean).join(' & ') || 'Borrower';
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Asset Depletion Worksheet - ${esc(who)}</title><style>
+    body{font:13px/1.45 Inter,Segoe UI,Roboto,Arial,sans-serif;color:#101828;margin:28px}h1{font-size:19px;margin:0 0 2px}
+    .sub{color:#667085;margin-bottom:14px}.band{background:#12263f;color:#fff;padding:7px 10px;font-weight:700;border-radius:6px 6px 0 0}
+    table{width:100%;border-collapse:collapse;border:1px solid #dde3ec;margin-bottom:14px}td{padding:6px 10px;border-top:1px solid #eef2f8}
+    td:last-child{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}tr.tot td{font-weight:700;background:#eef4fd}
+    .how{border:1px solid #cfe0f5;background:#f5f9ff;padding:10px 12px;border-radius:6px}.warn{margin:8px 0 0;padding:8px 10px;background:#fff7e6;border:1px solid #f4d58d;border-radius:6px}
+    @media print{body{margin:12mm}}</style></head><body>
+    <h1>Asset Depletion Worksheet</h1><div class="sub">${esc(who)}${S.file?' · Loan '+esc(S.file):''} · ${st.title} · ${new Date().toLocaleDateString()}</div>
+    <div class="band">Calculation</div><table>${st.rows.map((r,i)=>`<tr class="${i>=st.rows.length-1||/^Net eligible/.test(r[0])?'tot':''}"><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join('')}</table>
+    <div class="band">How this was calculated</div><div class="how">${st.how}</div>
+    ${a.warn.map(x=>`<div class="warn">${x}</div>`).join('')}
+    <p class="sub" style="margin-top:14px">${S.assets.use ? 'Included in qualifying income: ' + money(a.monthly) + ' per month.' : 'Not included in qualifying income (Use asset depletion income is set to No).'} Confirm eligibility, seasoning and documentation against the current guide before underwriting.</p>
+    <script>setTimeout(function(){window.print()},350)<\/script></body></html>`);
+  w.document.close();
 }
 function renderAssets(){
   $('assetsBody').innerHTML = `
@@ -2220,20 +2344,31 @@ function renderAssets(){
         <td><input class="cell-input" placeholder="Account / institution" value="${esc(a.name)}" oninput="setAsset('${a.id}','name',this.value)"></td>
         <td><select class="cell-input" onchange="setAsset('${a.id}','type',this.value);syncAssetType('${a.id}')">
           ${ASSET_TYPES.map(t=>`<option value="${t.v}" ${a.type===t.v?'selected':''}>${t.t}</option>`).join('')}</select></td>
-        <td><input class="cell-input" type="number" value="${N(a.bal)}" oninput="setAsset('${a.id}','bal',this.value,1)"></td>
-        <td><input class="cell-input" type="number" value="${N(a.elig)}" oninput="setAsset('${a.id}','elig',this.value,1)"></td>
+        <td><input class="cell-input" type="text" inputmode="decimal" data-num="1" value="${N(a.bal)}" oninput="setAsset('${a.id}','bal',this.value,1)"></td>
+        <td><input class="cell-input" type="text" inputmode="decimal" data-num="1" value="${N(a.elig)}" oninput="setAsset('${a.id}','elig',this.value,1)"></td>
         <td class="num"><span class="calc-cell" id="ast-${a.id}">$0.00</span></td>
         <td><button class="btn-icon no-print" onclick="delAsset('${a.id}')"><svg class="icon"><use href="#i-trash"/></svg></button></td>
       </tr>`).join('')}</tbody></table></div>
     <button class="btn btn-light btn-sm no-print" style="margin-top:10px" onclick="S.assets.rows.push(newAsset());renderAssets();RECALC()">
       <svg class="icon"><use href="#i-plus"/></svg>Add Asset Account</button>
     <div class="grid g4" style="margin-top:16px">
-      <div class="field"><label>Less: Funds Required to Close ($)</label>
-        <input class="cell-input" type="number" value="${N(S.assets.fundsToClose)}" oninput="S.assets.fundsToClose=N(this.value);RECALC()"></div>
-      <div class="field"><label>Less: Required Reserves ($)</label>
-        <input class="cell-input" type="number" value="${N(S.assets.reserves)}" oninput="S.assets.reserves=N(this.value);RECALC()"></div>
-      <div class="field"><label>Amortization Divisor (months)</label>
-        <input class="cell-input" type="number" value="${N(S.assets.divisor)}" oninput="S.assets.divisor=N(this.value);RECALC()"></div>
+      <div class="field" style="grid-column:span 2"><label>Guideline</label>
+        <select class="cell-input" onchange="setAssetGuide(this.value)">
+          ${Object.entries(ASSET_GUIDES).map(([k,v])=>`<option value="${k}" ${(S.assets.guideline||'fnma')===k?'selected':''}>${v.t}</option>`).join('')}</select></div>
+      ${(S.assets.guideline||'fnma')==='fnma' ? `<div class="field"><label>Loan amortization term (months)</label>
+        <input class="cell-input" type="text" inputmode="decimal" data-num="1" value="${N(S.assets.term)||360}" oninput="S.assets.term=N(this.value);RECALC()"></div>` : ''}
+      ${(S.assets.guideline||'fnma')==='custom' ? `<div class="field"><label>Divisor (months)</label>
+        <input class="cell-input" type="text" inputmode="decimal" data-num="1" value="${N(S.assets.divisor)}" oninput="S.assets.divisor=N(this.value);RECALC()"></div>` : ''}
+      <div class="field"><label>Less: Funds ${(S.assets.guideline||'fnma')==='fnma'?'for Down Payment &amp; Closing':'Needed to Close'} ($)</label>
+        <input class="cell-input" type="text" inputmode="decimal" data-num="1" value="${N(S.assets.fundsToClose)}" oninput="S.assets.fundsToClose=N(this.value);RECALC()"></div>
+      ${true ? `<div class="field"><label>Less: Required Reserves ($)</label>
+        <input class="cell-input" type="text" inputmode="decimal" data-num="1" value="${N(S.assets.reserves)}" oninput="S.assets.reserves=N(this.value);RECALC()"></div>` : ''}
+      ${(S.assets.guideline||'fnma')!=='fnma' ? `<div class="field"><label>Less: Gift or Borrowed Funds ($)</label>
+        <input class="cell-input" type="text" inputmode="decimal" data-num="1" value="${N(S.assets.gifts)}" oninput="S.assets.gifts=N(this.value);RECALC()"></div>
+      <div class="field"><label>Less: Assets Pledged as Collateral ($)</label>
+        <input class="cell-input" type="text" inputmode="decimal" data-num="1" value="${N(S.assets.pledged)}" oninput="S.assets.pledged=N(this.value);RECALC()"></div>` : ''}
+      ${['fhlmc240','fhlmc180'].includes(S.assets.guideline) ? `<div class="field"><label>Assets seasoned 12 months?</label>
+        <select class="cell-input" onchange="S.assets.seasoned=this.value==='1';RECALC()"><option value="1" ${S.assets.seasoned!==false?'selected':''}>Yes</option><option value="0" ${S.assets.seasoned===false?'selected':''}>No</option></select></div>` : ''}
       <div class="field"><label>Use Asset Depletion Income?</label>
         <select class="cell-input" onchange="S.assets.use=this.value==='1';RECALC()">
           <option value="0" ${!S.assets.use?'selected':''}>No</option>
@@ -2245,14 +2380,20 @@ function renderAssets(){
       <div class="stat"><span class="k">Net After Close &amp; Reserves</span><span class="v" id="ast-net">$0.00</span></div>
       <div class="stat"><span class="k">Monthly Income</span><span class="v blue" id="ast-mo">$0.00</span><span class="s" id="ast-div">—</span></div>
     </div>
-    <div class="notice info" style="margin-top:14px"><svg class="icon"><use href="#i-alert"/></svg>
-      <span><b>Divisor reference:</b> Fannie Mae employment-related assets use a <b>360-month</b> (or note-term) divisor;
-      Freddie Mac asset-depletion uses <b>240 months</b>; FHA does not permit asset depletion as income (assets may still be reserves).</span></div>`;
+    <div class="card" style="margin-top:14px"><div class="card-top"><span class="doc-name">Asset depletion worksheet</span>
+      <button class="btn btn-light btn-sm no-print" style="margin-left:auto" onclick="printAssetWorksheet()"><svg class="icon"><use href="#i-print"/></svg>Print worksheet</button></div>
+      <div class="card-body" id="ast-worksheet"></div></div>`;
 }
+function setAssetGuide(g){ S.assets.guideline = g; S.assets.rows.forEach(r=>{ r.elig = assetDefaultElig(r.type, g); }); renderAssets(); RECALC(); }
+function paintAssetWorksheet(){ const el = $('ast-worksheet'); if (!el) return; const a = calcAssets(), st = assetSteps(a);
+  el.innerHTML = `<table class="matrix"><tbody>${st.rows.map(r=>`<tr><td class="rowlabel">${r[0]}</td><td class="muted">${r[1]}</td><td class="num"><b>${r[2]}</b></td></tr>`).join('')}</tbody></table>
+    <div class="notice info" style="margin-top:10px;display:block"><b>How this was calculated.</b> ${st.how}</div>
+    ${a.warn.map(w=>`<div class="notice" style="margin-top:8px;display:block;background:#fff7e6;border:1px solid #f4d58d;color:#7a4b00">${w}</div>`).join('')}`; }
 function setAsset(id,f,v,num){ const a=S.assets.rows.find(r=>r.id===id); if(a){a[f]= num?N(v):v; RECALC();} }
-function syncAssetType(id){ const a=S.assets.rows.find(r=>r.id===id); const t=ASSET_TYPES.find(x=>x.v===a.type); if(t)a.elig=t.e; renderAssets(); RECALC(); }
+function syncAssetType(id){ const a=S.assets.rows.find(r=>r.id===id); if (a) a.elig = assetDefaultElig(a.type, S.assets.guideline||'fnma'); renderAssets(); RECALC(); }
 function delAsset(id){ S.assets.rows=S.assets.rows.filter(r=>r.id!==id); renderAssets(); RECALC(); }
 function paintAssets(){
+  try { paintAssetWorksheet(); } catch (e) {}
   const r=calcAssets();
   S.assets.rows.forEach(a=> setT(`ast-${a.id}`, money(N(a.bal)*N(a.elig)/100)) );
   setT('ast-gross', money(r.gross)); setT('ast-elig', money(r.eligible));
@@ -2311,7 +2452,7 @@ function renderDTI(){
             const held = (k==='pi' && L0.piHold!=null && L0.piHold!=='')
                       || (k==='mi' && L0.miHold!=null && L0.miHold!=='');
             return `<div class="field"><label>${l} ($/mo)</label>
-              <input class="cell-input" type="number" step="0.01" id="dti-in-${k}"
+              <input class="cell-input" type="text" inputmode="decimal" data-num="1" step="0.01" id="dti-in-${k}"
                 value="${N(S.dti[k]).toFixed(2)}" oninput="setHousing('${k}',this.value)"
                 ${(k==='pi'||k==='mi')?'onchange="renderDTI()"':''}>
               ${held?`<div class="fhint">Typed over the calculation.
@@ -2335,7 +2476,7 @@ function renderDTI(){
         <thead><tr><th>Creditor / Description</th><th class="num">Monthly Payment ($)</th><th></th></tr></thead>
         <tbody>${S.dti.debts.map(d=>`<tr>
           <td><input class="cell-input" placeholder="Creditor" value="${esc(d.name)}" oninput="setDebt('${d.id}','name',this.value)"></td>
-          <td><input class="cell-input" type="number" step="0.01" value="${N(d.amt)}" oninput="setDebt('${d.id}','amt',this.value,1)"></td>
+          <td><input class="cell-input" type="text" inputmode="decimal" data-num="1" step="0.01" value="${N(d.amt)}" oninput="setDebt('${d.id}','amt',this.value,1)"></td>
           <td><button class="btn-icon no-print" onclick="S.dti.debts=S.dti.debts.filter(x=>x.id!=='${d.id}');renderDTI();RECALC()"><svg class="icon"><use href="#i-trash"/></svg></button></td>
         </tr>`).join('') || '<tr><td colspan="3" class="muted">No liabilities entered.</td></tr>'}</tbody></table></div>
     </div></div>`;
@@ -2533,7 +2674,7 @@ const GUIDES = [
 {key:'assets', title:'Asset Depletion / Employment-Related Assets', cat:'Assets',
  cite:{FNMA:'B3-3.1-09 / B3-4.3-04', FHLMC:'Guide 5307.1', FHA:'4000.1 II.A.4'},
  FNMA:`Employment-related assets (retirement accounts, vested stock, severance) may be converted to income. Net eligible assets after funds to close and reserves are divided by the loan term in months (commonly <b>360</b>). Retirement accounts are typically discounted to 70% and require the borrower to have unrestricted access.`,
- FHLMC:`Asset depletion divides eligible assets by <b>240 months</b>; the borrower must be the sole owner or have documented access, and assets used for the down payment are excluded.`,
+ FHLMC:`Guide 5307.1: net eligible assets (depository accounts, securities and retirement assets, less funds to close, gift or borrowed funds and pledged assets) divided by <b>240 months</b>, or <b>180 months</b> under Bulletin 2026-10 (required for loans settling on or after February 3, 2027; at least $30,000 of net eligible assets must remain; the age-62 requirement and the special 80% LTV cap are removed; assets generally seasoned 12 months).`,
  FHA:`FHA does not recognize asset depletion as effective income. Liquid assets may still be used for reserves and closing funds only.`,
  rule:`Adjust the divisor on the Asset Depletion tab to match the agency and product.`},
 
@@ -2760,7 +2901,7 @@ function renderSummary(){
     <div class="doc-head">
       <div><h2>Comprehensive Income Underwriting Summary</h2>
         <p>Official Underwriting File Recap &amp; Agency Calculation Breakdown — Borrower: <b>${esc(S.borrower)||'—'}</b></p></div>
-      <div class="doc-id">Form Identifier: 1084-COMBINED<br>File #: ${esc(S.file)}<br>Agency: ${S.agency}</div>
+      <div class="doc-id">Form Identifier: 1084-COMBINED<br>File #: ${esc(S.file)}<br>Agency: ${AG_NAME[S.agency]||S.agency}</div>
     </div>
     <table class="summary">
       <thead><tr><th>Category</th><th>Source / Entity Name</th><th>Calculation Basis / Method</th><th class="num">Monthly Qualifying Income</th></tr></thead>
@@ -2865,7 +3006,7 @@ function rptHead(title, sub){
     <div><h1 class="rpt-title">${title}</h1>${sub?`<div class="rpt-sub">${sub}</div>`:''}</div>
     <div style="text-align:right;font-size:10.5px">
       <div><b>Date:</b> ${today()}</div>
-      <div><b>Agency:</b> ${S.agency}</div>
+      <div><b>Agency:</b> ${AG_NAME[S.agency]||S.agency}</div>
     </div></div>`;
 }
 function rptIdBar(){
@@ -3295,7 +3436,7 @@ function detailW2(j, idx){
     let f='', v=0;
     if (m==='current'){ f = FREQ_TXT(j); v = r.monthlyBase; }
     else if (m==='ytd'){   f = `${rMoney(a)} YTD &divide; ${mo.toFixed(2)} months`; v=c.ytd; }
-    else if (m==='ytd12'){ f = `(${rMoney(a)} YTD + ${rMoney(b)} in ${yr-1}) &divide; (${mo.toFixed(2)} + 12 months)`; v=c.a12; }
+    else if (m==='ytd12'){ f = `(${rMoney(a)} YTD + ${rMoney(b)} in ${r.yr2}) &divide; (${mo.toFixed(2)} + 12 months)`; v=c.a12; }
     else if (m==='ytd24'){ f = `(${rMoney(a)} YTD + ${rMoney(b)} + ${rMoney(d)}) &divide; (${mo.toFixed(2)} + 24 months)`; v=c.a24; }
     else { f = 'Manual override entered by the underwriter'; v = N(j.c[k]); }
     rows.push([`${nm[k]} &mdash; ${M_NAME[m]}`, f, rMoney(v)]);
@@ -3308,8 +3449,8 @@ function detailW2(j, idx){
     <table>
       <thead><tr><th style="width:26%">Line Item</th>
         <th>${yr} YTD</th><th>&divide; ${mo.toFixed(2)} mo</th>
-        <th>${yr-1}</th><th>&divide; 12 mo</th>
-        <th>${yr-2}</th><th>&divide; 12 mo</th></tr></thead>
+        <th>${r.yr2}</th><th>&divide; 12 mo</th>
+        <th>${r.yr3}</th><th>&divide; 12 mo</th></tr></thead>
       <tbody>${LN.map(([k,lb],i)=>`<tr class="${i%2?'alt':''}">
         <td>${lb}</td>
         <td class="n">${rMoney(N(j.y1[k]))}</td><td class="n">${rMoney(N(j.y1[k])/mo)}</td>
@@ -3460,19 +3601,10 @@ function detailOther(list){
           totalLabel:'Total Other Monthly Income Used', totalSub:'', note:''};
 }
 function detailAssets(){
-  const a = calcAssets(), rows = [];
-  S.assets.rows.forEach(x=>{ const t=ASSET_TYPES.find(y=>y.v===x.type);
-    rows.push([esc(x.name)||'Account', `${t?t.t:x.type}: ${rMoney(N(x.bal))} &times; ${N(x.elig)}% eligible`,
-      rMoney(N(x.bal)*N(x.elig)/100)]); });
-  rows.push(['Net eligible assets',
-    `${rMoney(a.eligible)} &minus; funds to close ${rMoney(N(S.assets.fundsToClose))} &minus; reserves ${rMoney(N(S.assets.reserves))}`,
-    rMoney(a.net)]);
-  rows.push(['<b>Qualifying monthly income</b>',
-    `${rMoney(a.net)} &divide; ${a.div} months` + (S.assets.use?'':' &mdash; not included in qualifying income'),
-    `<b>${rMoney(a.monthly)}</b>`]);
-  return {pageTitle:'Asset Depletion &mdash; Line-by-Line Calculation', title:'Asset Depletion', rows, total:a.monthly,
-          totalLabel:'Asset Depletion Monthly Income Used',
-          totalSub: S.assets.use ? '' : 'Not included in qualifying income', note:''};
+  const a = calcAssets(), st = assetSteps(a);
+  return {pageTitle:'Asset Depletion Worksheet &mdash; ' + st.title, title:'Asset Depletion', rows: st.rows.map(r=>[r[0], r[1], r[2]]), total:a.monthly,
+          totalLabel:'Asset Depletion Monthly Income Used', totalSub: S.assets.use ? '' : 'Not included in qualifying income',
+          note: '<b>How this was calculated.</b> ' + st.how + (a.warn.length ? '<br><br>' + a.warn.join('<br>') : '')};
 }
 function rptDetailBlock(d){
   return `<div class="rpt-frame" style="margin-bottom:11px">
@@ -3546,7 +3678,7 @@ function reportSummaryRows(){
   S.other.forEach(o=>{ if(!rptOn('other:'+o.id)) return; const r=calcOther(o); const t=OTHER_TYPES.find(x=>x.v===o.type);
     out.push(['Other Income', o.desc || (t?t.t:''), o.nonTax?`Non-taxable + ${N(o.grossUp)}% gross-up`:'Taxable', r.total]); });
   if (rptOn('assets') && S.assets.use) out.push(['Asset Depletion','Liquid Financial Assets',
-    `${calcAssets().div}-month amortization`, calcAssets().monthly]);
+    `${(ASSET_GUIDES[S.assets.guideline]||ASSET_GUIDES.custom).t}: ${calcAssets().div}-month divisor`, calcAssets().monthly]);
   return out;
 }
 function buildReportPages(){
@@ -3572,7 +3704,7 @@ function buildReportPages(){
   if (others.length || wantAssets){
     if (RPT.worksheets) pages.push(rptOtherPage(others, wantAssets));
     if (RPT.detail && others.length) pages.push(detailPage(detailOther(others)));
-    if (RPT.detail && wantAssets)    pages.push(detailPage(detailAssets()));
+    if (wantAssets && (RPT.detail || S.assets.use)) pages.push(detailPage(detailAssets()));   /* 55.15: the asset depletion worksheet is always attached when it is used */
   }
   if (RPT.encompass){ pages.push(encPage1()); pages.push(encPage2()); }
   if (!pages.length) pages.push(`${rptHead('Income Calculation Report','Nothing selected')}
@@ -3619,7 +3751,7 @@ function pickOne(k, v){ RPT.pick[k]=v; refreshReport(); }
 function reportHTML(){
   const pages = buildReportPages();
   return pages.map((h,i)=>`<div class="rpt-page">${h}
-    <div class="rpt-foot"><span>${esc(S.borrower)||'Borrower'} &nbsp;|&nbsp; File #${esc(S.file)||'—'} &nbsp;|&nbsp; Prepared ${today()}</span>
+    <div class="rpt-foot"><span>${esc(S.borrower)||'Borrower'} &nbsp;|&nbsp; File #${esc(S.file)||'—'} &nbsp;|&nbsp; ${AG_NAME[S.agency]||S.agency} &nbsp;|&nbsp; Prepared ${today()}</span>
     <span>Page ${i+1} of ${pages.length}</span></div></div>`).join('');
 }
 function reportLibsReady(){
@@ -4530,7 +4662,7 @@ function renderDocs(){
                  ? dateFld(f.value,'setFld',d.id,i,'value')
                  : f.isText
                  ? `<input class="cell-input" value="${esc(f.value)}" oninput="setFld('${d.id}',${i},'value',this.value)">`
-                 : `<input class="cell-input" type="number" step="0.01" value="${f.value}" oninput="setFld('${d.id}',${i},'value',N(this.value))">`}</td>
+                 : `<input class="cell-input" type="text" inputmode="decimal" data-num="1" step="0.01" value="${f.value}" oninput="setFld('${d.id}',${i},'value',N(this.value))">`}</td>
             <td><select class="cell-input" onchange="setFld('${d.id}',${i},'slot',this.value)">
                   <option value="">— skip —</option>
                   ${slotOptions(kind, d.yearCol).map(([v,l])=>`<option value="${v}" ${f.slot===v?'selected':''}>${l}</option>`).join('')}
@@ -5028,7 +5160,7 @@ function renderCombine(){
           <input type="radio" name="cmb-${c.k}" value="custom" ${canOverride?'':'disabled'}
             ${S.combine.m[c.k]==='custom'?'checked':''} onchange="S.combine.m['${c.k}']='custom';RECALC()">
           <span style="flex:1"><span class="ol">Custom Override${canOverride?'':' (variable income only)'}</span>
-          <input class="cell-input" style="margin-top:3px;padding:3px 6px;font-size:11px" type="number" step="0.01"
+          <input class="cell-input" style="margin-top:3px;padding:3px 6px;font-size:11px" type="text" inputmode="decimal" data-num="1" step="0.01"
             ${canOverride?'':'disabled'} value="${N(S.combine.c[c.k])}"
             oninput="S.combine.c['${c.k}']=N(this.value);RECALC()"
             onfocus="S.combine.m['${c.k}']='custom';RECALC()"></span></label>
@@ -5293,9 +5425,9 @@ function escGrid(L){
   const row = (lbl, which, annual, extra) => `
     <tr>
       <td class="rowlabel">${lbl}</td>
-      <td><input class="cell-input" type="number" step="0.01" id="esc-${which}-yr"
+      <td><input class="cell-input" type="text" inputmode="decimal" data-num="1" step="0.01" id="esc-${which}-yr"
             value="${round2(annual)}" oninput="setEsc('${which}',this.value,'yr')"></td>
-      <td><input class="cell-input" type="number" step="0.01" id="esc-${which}-mo"
+      <td><input class="cell-input" type="text" inputmode="decimal" data-num="1" step="0.01" id="esc-${which}-mo"
             value="${round2(annual/12)}" oninput="setEsc('${which}',this.value,'mo')"></td>
       <td>${extra||'<span class="muted small">&mdash;</span>'}</td>
     </tr>`;
@@ -5304,7 +5436,7 @@ function escGrid(L){
       <th class="num">% of value</th></tr></thead>
     <tbody>
       ${row('Property taxes','taxes', N(L.taxAnnual),
-        `<input class="cell-input" type="number" step="0.001" id="esc-taxes-pct"
+        `<input class="cell-input" type="text" inputmode="decimal" data-num="1" step="0.001" id="esc-taxes-pct"
            value="${value?round2(N(L.taxAnnual)/value*100):0}" oninput="setEsc('taxes',this.value,'pct')">`)}
       ${row('Hazard insurance','ins', N(L.insAnnual))}
       ${row('Flood insurance','flood', N(L.floodAnnual))}
@@ -5317,7 +5449,7 @@ function escGrid(L){
 function loanSetupCard(){
   const L = S.loan, prog = L.program;
   const f = (lbl,k,type,extra)=>`<div class="field"><label>${lbl}</label>
-    <input class="cell-input" type="${type||'number'}" step="0.001" value="${type==='text'?esc(L[k]):N(L[k])}"
+    <input class="cell-input" type="text" ${type==='text'?'':'inputmode="decimal" data-num="1"'} value="${type==='text'?esc(L[k]):N(L[k])}"
       ${extra||''} oninput="setLoan('${k}',this.value,${type==='text'?0:1})"></div>`;
   const sel = (lbl,k,opts)=>`<div class="field"><label>${lbl}</label>
     <select class="cell-input" onchange="setLoan('${k}',this.value)">
@@ -5343,10 +5475,10 @@ function loanSetupCard(){
           ${f('Units','units')}
           ${f('Representative FICO','fico')}
           <div class="field"><label>Purchase price / cost basis ($)</label>
-            <input class="cell-input" type="number" step="0.01" id="ln-f-price" value="${N(L.price)}"
+            <input class="cell-input" type="text" inputmode="decimal" data-num="1" step="0.01" id="ln-f-price" value="${N(L.price)}"
               oninput="setLinked('price',this.value)"></div>
           <div class="field"><label>Appraised value ($, blank = price)</label>
-            <input class="cell-input" type="number" step="0.01" id="ln-f-value" value="${N(L.value)}"
+            <input class="cell-input" type="text" inputmode="decimal" data-num="1" step="0.01" id="ln-f-value" value="${N(L.value)}"
               oninput="setLinked('value',this.value)"></div>
         </div></div></div>
 
@@ -5354,13 +5486,13 @@ function loanSetupCard(){
         <h3><svg class="icon"><use href="#i-dollar"/></svg>Loan Amount &amp; Terms</h3><svg class="icon chev"><use href="#i-chev"/></svg></div>
         <div class="block-body"><div class="grid g4">
           <div class="field"><label>Down payment (%)</label>
-            <input class="cell-input" type="number" step="0.001" id="ln-f-dpPct" value="${round2(N(L.dpPct))}"
+            <input class="cell-input" type="text" inputmode="decimal" data-num="1" step="0.001" id="ln-f-dpPct" value="${round2(N(L.dpPct))}"
               oninput="setLinked('dpPct',this.value)"></div>
           <div class="field"><label>Down payment ($)</label>
-            <input class="cell-input" type="number" step="0.01" id="ln-f-dpAmt" value="${round2(N(L.dpAmt))}"
+            <input class="cell-input" type="text" inputmode="decimal" data-num="1" step="0.01" id="ln-f-dpAmt" value="${round2(N(L.dpAmt))}"
               oninput="setLinked('dpAmt',this.value)"></div>
           <div class="field"><label>Loan amount ($)</label>
-            <input class="cell-input" type="number" step="0.01" id="ln-f-loanAmt" value="${round2(calcLoan().base)}"
+            <input class="cell-input" type="text" inputmode="decimal" data-num="1" step="0.01" id="ln-f-loanAmt" value="${round2(calcLoan().base)}"
               oninput="setLinked('loanAmt',this.value)">
             <div class="fhint">${N(L.baseOverride)>0
               ? `Held — the down payment follows. <button class="btn-link no-print" style="padding:0 4px"
@@ -6557,8 +6689,8 @@ function psSetR(path, v){ psSet(path, v); }
 function psSetHard(path, v){ const p=path.split('.'); let o=PS; while(p.length>1) o=o[p.shift()]; o[p[0]]=v; renderPaystub(); }
 
 const psF = (lbl, path, val, type, extra) => `<div class="field"><label>${lbl}</label>
-  <input class="cell-input" type="${type||'text'}" value="${esc(val)}"
-    ${type==='number'?'step="0.01"':''} ${extra||''}
+  <input class="cell-input" type="text" ${type==='number'?'inputmode="decimal" data-num="1"':''} ${type==='date'?'inputmode="numeric" data-date="1" placeholder="MM/DD/YYYY" autocomplete="off"':''} value="${esc(val)}"
+    ${extra||''}
     oninput="psSet('${path}', this.value)"></div>`;
 const psSel = (lbl, path, val, opts) => `<div class="field"><label>${lbl}</label>
   <select class="cell-input" onchange="psSetHard('${path}', this.value)">
@@ -6912,7 +7044,12 @@ let guideSig='';
 function RECALC(){
   S.b1 = $('b1Name').value; S.b2 = $('b2Name').value; S.borrower = S.b1;
   S.file     = $('fileNumber').value;
-  S.agency   = $('agency').value;
+  /* 55.16: "Auto (best fit)" resolves to the agency that qualifies with the most income (agencyBest) on every recalculation */
+  { const sel = $('agency').value;
+    if (sel === 'AUTO') { S.agencyAuto = true; if (!S.agency || S.agency === 'AUTO') S.agency = 'FNMA';
+      try { if (!RECALC.__auto) { RECALC.__auto = 1; const best = agencyBest(); S.agency = best.ag; } } finally { RECALC.__auto = 0; }
+      $('agency').title = 'Auto: ' + (AG_NAME[S.agency] || S.agency) + ' gives the strongest result'; }
+    else { S.agencyAuto = false; S.agency = sel; $('agency').title = ''; } }
   syncLoanToDTI();
   paintLoan(); paintW2(); paintCombine(); paintSchC(); paintCorp(); paintSchE(); paintOther(); paintAssets(); paintDTI();
   const t=calcTotals();
@@ -6952,7 +7089,7 @@ function loadJSON(ev){
       Object.keys(S).forEach(k=>{ if(d[k]!==undefined) S[k]=d[k]; });
       normalise();
       $('b1Name').value=S.b1||''; $('b2Name').value=S.b2||'';
-      $('fileNumber').value=S.file; $('agency').value=S.agency;
+      $('fileNumber').value=S.file; $('agency').value=S.agencyAuto!==false?'AUTO':S.agency;
       if ($('autosaveTgl')) $('autosaveTgl').checked = !!(S.settings && S.settings.autosave);
       renderAll(); toast('Loan file loaded');
     }catch(err){ alert('Could not read that file: '+err.message); }
@@ -7558,7 +7695,7 @@ function nmbBook(){
     sh.put(3,L.rl,'Date:',S_LBLR).put(3,L.rv, XD(new Date().toISOString().slice(0,10)) || 0, S_DATE);
     sh.put(4,L.l,'Borrower:',S_LBLR).put(4,L.v,S.borrower||'',S_TXTB);
     if (L.ve>L.v) sh.merge(4,L.v,4,L.ve);
-    sh.put(4,L.rl,'Agency:',S_LBLR).put(4,L.rv,S.agency,S_TXTB);
+    sh.put(4,L.rl,'Agency:',S_LBLR).put(4,L.rv,AG_NAME[S.agency]||S.agency,S_TXTB);
     return 6;
   }
   const widths = (sh, map) => { Object.keys(map).forEach(k=> sh.width(+k, map[k]) ); return sh; };
@@ -7609,7 +7746,7 @@ function nmbBook(){
     ['Year','Base Pay / YTD Amount','Overtime','Commission','Bonus','Other Income','Total Amount Entered']
       .forEach((h,i)=> we.put(r, 4+i, h, S_HEAD) );
     we.height(r,30); r++;
-    [['y1', yr+' YTD'],['y2', String(yr-1)],['y3', String(yr-2)]].forEach(([k,lbl])=>{
+    [['y1', yr+' YTD'],['y2', String(c.yr2)],['y3', String(c.yr3)]].forEach(([k,lbl])=>{
       const d = j[k];
       we.put(r,4,lbl,S_YEAR)
         .put(r,5,N(d.base),S_MONEY).put(r,6,N(d.ot),S_MONEY).put(r,7,N(d.comm),S_MONEY)
@@ -7956,7 +8093,7 @@ function restoreAutosave(){
     Object.keys(S).forEach(k=>{ if(p.data[k]!==undefined) S[k]=p.data[k]; });
     normalise();
     $('b1Name').value=S.b1||''; $('b2Name').value=S.b2||'';
-    $('fileNumber').value=S.file||''; $('agency').value=S.agency||'FNMA';
+    $('fileNumber').value=S.file||''; $('agency').value=S.agencyAuto!==false?'AUTO':S.agency||'FNMA';
     if ($('autosaveTgl')) $('autosaveTgl').checked = !!S.settings.autosave;
     renderAll(); toast('Autosaved file restored');
   }catch(e){ toast('Could not read the autosaved file'); }
@@ -7970,7 +8107,7 @@ function initAutosave(){
       Object.keys(S).forEach(k=>{ if(p.data[k]!==undefined) S[k]=p.data[k]; });
       normalise();
       $('b1Name').value=S.b1||''; $('b2Name').value=S.b2||'';
-      $('fileNumber').value=S.file||''; $('agency').value=S.agency||'FNMA';
+      $('fileNumber').value=S.file||''; $('agency').value=S.agencyAuto!==false?'AUTO':S.agency||'FNMA';
       if ($('autosaveTgl')) $('autosaveTgl').checked = true;
       return true;
     }
@@ -8009,5 +8146,7 @@ window.__mtgcalcBridge = {
 <script src="income-enhancements.js"></script>
 <script src="sync-bridge.js?v=55.12"></script>
 <script src="workflow-ui.js?v=55.12"></script>
+<script src="income-features.js?v=55.16"></script>
+<script src="income-extras.js?v=55.22"></script>
 </body>
 </html>

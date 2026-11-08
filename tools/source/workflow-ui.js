@@ -4,13 +4,13 @@
   if (window.__mtgcalcWorkflowUi) return; window.__mtgcalcWorkflowUi = true;
   const pages = [
     ['home','Home','index.html','M3 10l9-7 9 7v11H3z M9 21v-8h6v8'],
-    ['quick','Quick','quick.html','M13 2L4 14h7l-1 8 10-13h-7z'],
+    ['pages','All pages','pages.html','M4 5h16 M4 12h16 M4 19h16'],
     ['docs','Doc Organizer','doc-organizer.html','M6 3h8l4 4v14H6z M14 3v5h5 M9 13h6 M9 17h6'],
     ['income','Income','income-calculator.html','M5 3h14v18H5z M8 7h8 M8 11h2 M14 11h2 M8 15h2 M14 15h2'],
     ['full','Full Suite','full-suite.html','M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z']
   ];
   const path = location.pathname;
-  const active = /income-calculator/.test(path) ? 'income' : /quick/.test(path) ? 'quick' : /doc-organizer/.test(path) ? 'docs' : /(?:full-suite|all-in-one|loan-suite|renovation-suite)/.test(path) ? 'full' : 'home';
+  const active = /income-calculator/.test(path) ? 'income' : /pages\.html/.test(path) ? 'pages' : (/quick/.test(path) || /\/(index\.html)?$/.test(path)) ? 'home' : /doc-organizer/.test(path) ? 'docs' : /(?:full-suite|all-in-one|loan-suite|renovation-suite)/.test(path) ? 'full' : 'home';
   const css = document.createElement('style');
   css.id = 'mtgcalc-5512-css';
   css.textContent =

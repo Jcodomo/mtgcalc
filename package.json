@@ -1,8 +1,8 @@
 {
   "name": "mtgcalc",
-  "version": "55.14.2",
+  "version": "55.13.1",
   "private": true,
-  "description": "Mortgage Suite 55.14b static GitHub Pages release.",
+  "description": "Mortgage Suite 55.13b static GitHub Pages release.",
   "scripts": {
     "test": "node test-static.mjs"
   }

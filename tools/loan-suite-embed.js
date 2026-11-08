@@ -60,17 +60,20 @@
     }
   })(0);
 
-  /* ---- the Income workspace inside the Loan Suite is the classic calculator: point to the up-to-date one ---- */
-  (function classicNote(t) {
-    if (E.persistCalc) return;                                        /* v54-era builds have no separate calculator */
-    var main = document.querySelector('#calc-root main') || document.getElementById('calc-root');
-    if (!main) { if (t < 100) setTimeout(function () { classicNote(t + 1); }, 150); return; }
-    if (document.getElementById('mtClassicNote')) return;
-    var n = document.createElement('div'); n.id = 'mtClassicNote'; n.className = 'no-print';
-    n.setAttribute('style', 'margin:10px auto 0;max-width:1480px;padding:10px 14px;border-radius:10px;background:#e4eefb;border:1px solid #cfe0f5;color:#17436f;font:600 13px/1.45 Inter,-apple-system,Segoe UI,Roboto,sans-serif');
-    n.innerHTML = 'This is the classic Income Calculator built into the Loan Suite. The up-to-date Income Calculator calculates exactly like the income worksheet and shares this loan file: <a href="income-calculator.html" style="color:#1d4ed8;text-decoration:underline">open it</a>.';
-    main.insertBefore(n, main.firstChild);
-  })(0);
+  /* ---- 55.16: the Income Calculator is no longer part of the Full Suite - it is its own page (income-calculator.html).
+     The built-in workspace stays loaded only for the Documents pages; anything that would open it opens the page instead. ---- */
+  if (!E.persistCalc) {
+    document.documentElement.classList.add('mt-nocalc');
+    var DOCS = {'documents-ocr':1, 'documents-worksheets':1};
+    var uIntent = 0, gone = false;
+    ['pointerdown', 'keydown'].forEach(function (n) { document.addEventListener(n, function (e) { if (e.isTrusted) uIntent = Date.now(); }, true); });
+    setInterval(function () {
+      if (gone || document.body.dataset.shellMode !== 'calc' || DOCS[E.page]) return;
+      if (Date.now() - uIntent < 1600) { gone = true; location.href = 'income-calculator.html'; }
+      else if (window.SHELL && SHELL.go) SHELL.go('suite');
+    }, 300);
+    if (!E.page && window.SHELL && SHELL.go) setTimeout(function () { if (document.body.dataset.shellMode === 'calc') SHELL.go('suite'); }, 600);
+  }
 
   if (!E.page) return;
 

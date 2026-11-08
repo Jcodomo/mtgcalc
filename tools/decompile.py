@@ -15,7 +15,8 @@ import sys, re, json, pathlib, shutil
 sys.path.insert(0, str(pathlib.Path(__file__).parent)); from split import scan
 
 SRC, OUT = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2])
-COMPANIONS = ['income-enhancements.js', 'loan-ux.js', 'sync-bridge.js', 'workflow-ui.js', 'quick-worksheet.js']
+MIG = "<script>/* 55.15: OLED dark blue by default (once for everyone; afterwards the Look menu / theme switch decides) */(function(){try{var L=localStorage,k='mt.oledDefault.v1';if(!L.getItem(k)){L.setItem('los.v25.surface','oled');L.setItem('uwTheme','dark');['los.v251.appearanceSeeded','los.v35.appearanceSeeded','v15ThemeSeeded'].forEach(function(f){L.setItem(f,'1')});L.setItem(k,'1');}document.documentElement.setAttribute('data-mt-mode',L.getItem('los.v25.surface')==='light'&&L.getItem('uwTheme')!=='dark'?'light':'oled');}catch(e){}})();</script>"
+COMPANIONS = ['income-enhancements.js', 'loan-ux.js', 'sync-bridge.js', 'workflow-ui.js', 'quick-worksheet.js', 'income-features.js', 'loan-docs-ai.js', 'loan-cards.js', 'income-extras.js', 'quick-engine.js']
 
 # page id, file, tab label as the app names it, group, short title
 PAGES = [
@@ -101,7 +102,7 @@ def main():
         cfg = {'page': page, 'title': title, 'pages': json.loads(pages_js), 'groups': [{'id': a, 'label': b} for a, b in GROUPS]}
         cfg['persistCalc'] = not (SRC / 'income-calculator.html').exists()   # no stand-alone calculator: keep the built-in one's state between pages
         cfg['legacy'] = cfg['persistCalc']                                       # v54-era app: also carries the name-field typing fix
-        return ('<script>window.LOS_PAGE="' + ('allinone' if page else 'full') + '";window.LOS_EMBED=' + json.dumps(cfg) + ';'
+        return ('<script>/* 55.15: OLED dark blue by default (once for everyone; afterwards the Look menu / theme switch decides) */(function(){try{var L=localStorage,k=\'mt.oledDefault.v1\';if(!L.getItem(k)){L.setItem(\'los.v25.surface\',\'oled\');L.setItem(\'uwTheme\',\'dark\');[\'los.v251.appearanceSeeded\',\'los.v35.appearanceSeeded\',\'v15ThemeSeeded\'].forEach(function(f){L.setItem(f,\'1\')});L.setItem(k,\'1\');}document.documentElement.setAttribute(\'data-mt-mode\',L.getItem(\'los.v25.surface\')===\'light\'&&L.getItem(\'uwTheme\')!==\'dark\'?\'light\':\'oled\');}catch(e){}})();</script>\n' + '<script>window.LOS_PAGE="' + ('allinone' if page else 'full') + '";window.LOS_EMBED=' + json.dumps(cfg) + ';'
                 'if(!/[?&]app=/.test(location.search)){try{history.replaceState(null,"",location.pathname+(location.search?location.search+"&":"?")+"app=' + app + '"+location.hash)}catch(e){}}</script>\n'
                 '<link rel="stylesheet" href="assets/loan-suite-embed.css">\n<link rel="stylesheet" href="assets/mtgcalc-theme.css">')
     tail = '<script src="assets/loan-suite-embed.js"></script>\n'
@@ -127,8 +128,17 @@ def main():
             t = comp.sub(r'src="assets/\1.js', t)
             tag = {'income-calculator.html': 'income', 'quick.html': 'quick', 'doc-organizer.html': 'docorg'}[f]
             t = re.sub(r'<html\b', f'<html data-mt-page="{tag}"', t, count=1)
+            t = re.sub(r'(<head[^>]*>)', lambda m: m.group(1) + '\n' + MIG, t, count=1)
             t = t.replace('</head>', '<link rel="stylesheet" href="assets/mtgcalc-theme.css">\n</head>', 1)
+            if f == 'quick.html':
+                # 55.23: Quick runs the Loan Suite engine for its estimates - the module loader and the engine bundle
+                eng = next(x for x in sorted((OUT / 'assets' / 'js').glob('*.js')) if 'define("src/core/calc/engine"' in x.read_text(encoding='utf-8'))
+                shim = next(m.group(1) for m in re.finditer(r'<script>([\s\S]*?)</script>', (OUT / 'loan-suite-quote.html').read_text(encoding='utf-8')) if 'window.define=function' in m.group(1))
+                t = t.replace('<script src="assets/quick-engine.js', '<script>' + shim + '</script>\n<script src="assets/js/' + eng.name + '"></script>\n<script src="assets/quick-engine.js', 1)
+                assert 'assets/js/' + eng.name in t
             (OUT / f).write_text(t, encoding='utf-8'); print(f'  {f}  (companion scripts -> assets/, shared theme)')
+    # 55.23: Quick is the home page; the page list moves to pages.html
+    (OUT / 'index.html').write_text((OUT / 'quick.html').read_text(encoding='utf-8'), encoding='utf-8'); print('  index.html  (home = Quick)')
     hub(OUT)
     # the Income Calculator as one self-contained file: companion scripts inlined (OCR libraries still load from their CDNs)
     t = (OUT / 'income-calculator.html').read_text(encoding='utf-8')
@@ -153,7 +163,7 @@ def hub(OUT):
     cards = [('quick.html', 'Quick', 'Quick income worksheet and fast mortgage calculator.'),
              ('income-calculator.html', 'Income Calculator', 'W-2, self-employment, rental and other income, document import with OCR, AUS findings, DTI.'),
              ('doc-organizer.html', 'Doc Organizer', 'Read, rename, split and combine borrower documents; send reviewed fields onward.'),
-             ('full-suite.html', 'Full Suite', 'The complete Loan Suite and Income Calculator in one page.')]
+             ('full-suite.html', 'Full Suite', 'The complete Loan Suite in one page. The Income Calculator is its own page.')]
     sec = []
     for gid, glabel in GROUPS:
         links = ''.join(f'<li><a href="loan-suite-{p}.html">{t}</a></li>' for p, l, g, t in PAGES if g == gid)
@@ -162,6 +172,7 @@ def hub(OUT):
     html = """<!DOCTYPE html>
 <html lang="en" data-mt-page="hub"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light dark">
 <link rel="stylesheet" href="assets/mtgcalc-theme.css">
+""" + MIG + """
 <title>Mortgage Suite</title>
 <style>
 :root{--bg:#eef2f7;--panel:#fff;--ink:#0f2a4a;--mute:#56677a;--line:#d5dee9;--acc:#1f6fd6;--nav:#0f2a4a}
@@ -188,7 +199,7 @@ a:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 </main>
 """ + ('<script src="assets/workflow-ui.js?v=55.12"></script>\n' if (OUT / 'assets' / 'workflow-ui.js').exists() else '') + """</body></html>
 """
-    (OUT / 'index.html').write_text(html, encoding='utf-8'); print('  index.html  (site hub)')
+    (OUT / 'pages.html').write_text(html, encoding='utf-8'); print('  pages.html  (every page)')
 
 if __name__ == '__main__':
     main()

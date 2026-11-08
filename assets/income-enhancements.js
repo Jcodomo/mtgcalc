@@ -7,7 +7,8 @@
   const yearNow = new Date().getFullYear();
   const rentalKeys = ['rents', 'ins', 'mortInt', 'taxes', 'depr', 'otherAdd', 'totalExp', 'fairDays', 'personalDays', 'pitia', 'line21'];
   const n = (v) => {
-    const x = Number(String(v == null ? '' : v).replace(/[$,%\s,]/g, ''));
+    let t = String(v == null ? '' : v).trim(); const neg = /^\(.*\)$/.test(t) || /-$/.test(t);
+    t = t.replace(/[()$,%\s]/g, '').replace(/-$/, ''); let x = Number(t); if (neg && x > 0) x = -x;
     return Number.isFinite(x) ? x : 0;
   };
   const round = (v) => Math.round((Number(v) || 0) * 100) / 100;
@@ -219,7 +220,7 @@
             <div class="field"><label>Tax years used</label><div class="calc-cell" id="se-${p.id}-years">${r.yearsUsed}</div></div>
             <div class="field"><label>Prior tax year</label><input class="cell-input" type="text" inputmode="numeric" value="${escLocal(y1.yr)}" oninput="setRental('${p.id}','y1','yr',this.value,true)"></div>
             <div class="field"><label>Current tax year</label><input class="cell-input" type="text" inputmode="numeric" value="${escLocal(y2.yr)}" oninput="setRental('${p.id}','y2','yr',this.value,true)"></div>
-            <div class="field"><label>Date purchased</label><input class="cell-input" type="date" value="${escLocal(p.purchased || '')}" onchange="setRental('${p.id}','flat','purchased',this.value,false)"></div>
+            <div class="field"><label>Date purchased</label><input class="cell-input" type="text" inputmode="numeric" data-date="1" placeholder="MM/DD/YYYY" autocomplete="off" value="${escLocal(p.purchased || '')}" onchange="setRental('${p.id}','flat','purchased',this.value,false)"></div>
             <div class="field"><label>Years of returns the AUS requires</label><select class="cell-input" onchange="setRental('${p.id}','flat','ausYears',this.value,true)"><option value="2" ${n(p.ausYears) !== 1 ? 'selected' : ''}>2 years</option><option value="1" ${n(p.ausYears) === 1 ? 'selected' : ''}>1 year</option></select></div>
             <div class="field"><label>Method</label><select class="cell-input" onchange="setRental('${p.id}','flat','method',this.value,false)"><option value="sche" ${p.method === 'sche' ? 'selected' : ''}>Schedule E tax return</option><option value="lease" ${p.method === 'lease' ? 'selected' : ''}>Lease / 75% rule</option><option value="fha" ${p.method === 'fha' ? 'selected' : ''}>FHA non-owner / VA (line 21 + depreciation)</option><option value="fhaoo" ${p.method === 'fhaoo' ? 'selected' : ''}>FHA owner-occupied (2-4 units)</option></select></div>
             ${p.method === 'fha' ? `<div class="field"><label>Loan type for this sheet</label><select class="cell-input" onchange="setRental('${p.id}','flat','va',this.value === '1',false)"><option value="0" ${!p.va ? 'selected' : ''}>FHA non-owner</option><option value="1" ${p.va ? 'selected' : ''}>VA</option></select></div>` : ''}
@@ -286,7 +287,8 @@
     calcW2 = window.calcW2 = function(j) {
       const r = calculate(j);
       ['ot','comm','bonus','other'].forEach(k => {
-        if (j.mode === 'auto' && (!n(j.y1[k]) || !n(j.y2[k]) || !n(j.y3[k]))) {
+        const C = r.comp[k] || {};   /* 55.20: the calculated figures, which include differentials and swing time and are net of retro pay */
+        if (j.mode === 'auto' && C.rec !== 'annual' && (!n(C.y1) || !n(C.y2) || !n(C.y3))) {
           r.comp[k].rec = 'none'; r.comp[k].why = 'Two prior years and YTD are needed for the NMB variable-income method'; r.parts[k] = 0;
         }
       });
@@ -334,7 +336,10 @@
       <div class="field"><label>Variable months</label><input class="cell-input" data-q="variableMonths" inputmode="decimal" value="${escLocal(q.variableMonths)}" placeholder="24"></div>
       <div class="field"><label>Quick qualifying income</label><div class="calc-cell quick-w2-result" id="quickW2Result">$0.00 / mo</div></div>
     </div><div class="quick-w2-breakdown" id="quickW2Breakdown">Enter a rate, YTD, or prior-year figure. The lower supported base average is used; variable pay is averaged separately.</div></div>`;
-    panel.insertBefore(card, list);
+    /* 55.24: moved from the top of the tab to the bottom, folded - the full W-2 worksheet above is what qualifies */
+    const fold = document.createElement('details'); fold.id = 'quickW2Fold'; fold.className = 'quick-w2-fold';
+    fold.innerHTML = '<summary>Quick W-2 check (optional) - fast estimate; push it to a W-2 worksheet above to use it</summary>';
+    fold.appendChild(card); panel.appendChild(fold);
     const freq = card.querySelector('[data-q="freq"]'); freq.value = q.freq;
     const refresh = () => {
       const next = { ...q }; card.querySelectorAll('[data-q]').forEach(el => { next[el.dataset.q] = el.value; });

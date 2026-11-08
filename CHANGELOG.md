@@ -1,5 +1,75 @@
 # Changelog
 
+## Release 55.15 - OLED dark blue by default, asset depletion worksheet, editable W-2 years
+
+- **OLED dark blue is the default on every page** (Loan Suite, Income Calculator, Quick, Doc Organizer, hub): a deep navy-black palette with dark inputs and light input icons (date pickers, dropdown arrows, spinners). It is applied once for everyone; after that the Look menu or theme switch decides.
+- **Asset depletion by guideline:** a Guideline dropdown with Fannie Mae employment-related assets (B3-3.4-06, divided by the loan term), Freddie Mac 240 months (Guide 5307.1) and **Freddie Mac 180 months (Bulletin 2026-10)**, or a custom divisor. Each applies its own deductions (Fannie: down payment, closing and reserves; Freddie: funds to close, gift or borrowed funds and pledged assets), default eligibility by account type, and checks ($30,000 remaining under the 180-month rule, Fannie LTV limits, 12-month seasoning, FHA not allowed). Matches the guideline examples ($972.22 Fannie; $5,000 / $6,666.67 Freddie on $1.2M; $4,166.67 / $6,250 / $8,333.33 on $1.5M).
+- **Asset depletion worksheet:** step-by-step calculation with a plain-English explanation, on screen, as its own printout (Print worksheet), and attached to the Income Report whenever asset depletion is used.
+- **W-2 years:** each W-2 entry's prior-year and two-years-prior columns have an editable year, for when the latest W-2 on hand is not last year's; the worksheet rules, the report and the Excel export use it.
+
+## Release 55.16 - the Income Calculator is its own page with everything it had in the Full Suite
+
+- **Carried over from the Full Suite's built-in calculator** into the Income Calculator (income-features.js, the original modules): the **VA Income** tab (military base and special pay, BAH, BAS, clothing allowance, service-connected disability compensation, the twelve-month separation rule with re-enlistment, and the **VA residual income test** from VA Lenders Handbook M26-7, chapter 4, with VA / FHA / Conventional treatment); the **Stipulations** builder on the summary; the **asset statement OCR with large-deposit review** and the agency asset guidelines on the Assets tab.
+- **Also added:** an **Auto (best fit)** agency choice that uses the agency giving the strongest qualifying result; a **Variable / Other Pay** income type (treated like irregular hours by the income worksheet rules); an optional **job title** on each W-2 entry.
+- **The Income Calculator is no longer part of the Full Suite.** Full Suite and the Loan Suite pages have no Income Calculator / Loan Suite switch; anything that would open it opens income-calculator.html. The Documents pages keep their document tools without the calculator's header.
+
+## Release 55.17 - AI document import; OCR into the Loan Suite, Renovation and Income Calculator
+
+- **One AI document import** on the Documents pages (assets/loan-docs-ai.js): choose the document (1003 / URLA, fee sheet, Loan Estimate or Closing Disclosure, contractor estimate, purchase contract, appraisal, credit report, insurance, tax bill, bank statement, lease, income documents or any document), copy the prompt - it lists the exact fields that document can fill - and paste the returned JSON. Every item is listed with a **Place it in** dropdown (about 60 Loan Suite fields in six groups: file and property, loan and value, escrow, closing costs, renovation, assets and rent) and an include box; nothing is applied until you choose Apply. Percentages are converted (6.5% to 0.065). **Read figures from a document on this page** fills the same review table from OCR, without AI. Income documents go to the Income Calculator through the shared OCR handoff and are reviewed there.
+- **More OCR dropdown options:** the document reader's destination list grows from 12 to 49 fields, and it recognises fee-sheet, 1003 and contractor-estimate lines (origination, processing, appraisal, credit report, flood and tax service, title, settlement, attorney, survey, recording, inspections, flood insurance, permits, plans, consultant, contractor total, gift funds, rent).
+- The older prompt library and JSON quick import are kept, folded under **More prompts and JSON tools**. The Income Calculator's toolbar no longer shows on the Loan Suite Documents pages.
+
+## Release 55.18 - lighter Loan Suite header; draw fees and renovation amount
+
+- **Summary cards redone** (assets/loan-cards.js): one slim row - total loan, monthly payment, cash to close, back-end DTI - with the quote presets, program switch and compare beside it. It repaints only when the loan file changes, and only the figures that changed; the old cards were rebuilt on a one-second timer. Each card still opens the page that owns its figure.
+- **Draw fees:** the banner across the top of the page is gone. The same option is a checkbox inside the Renovation section - *Auto-calculate title and inspection draw fees from the draw plan* - always available; ticked, the fees follow the number of draws (5 draws = $1,875 / $375 at the default per-draw fees), unticked they use the amounts entered by hand.
+- **Renovation amount:** the setup box and *Contractor / base renovation* are one field and now mirror each other while typing.
+- **Less work on an idle page:** two older routines rebuilt the renovation setup card and the property equity card every cycle even when nothing had changed - which also replaced the setup box while you were typing in it. They now rebuild only when their figures change (sections rebuilt while idle: 3 every 5 seconds before, none now).
+
+## Release 55.19 - free-form entry everywhere; calculation checks against the guide and the Comprehensive calculator
+
+- **Every number box takes free-form entries** - $1,234.56, 1,234, 15%, (1,200) and 1,200- (both read as negative). The Income Calculator's number boxes were strict browser number boxes that rejected $ and commas (typing $1,234 stored 0); all 125+ are now free-form text boxes with a numeric keypad on phones, in every tab including loan setup, the pay stub generator and the VA tab. The VA and asset-statement modules also read 1,234 as 1 before; they now read it as 1,234.
+- **Every date box takes typed dates** - 9/15/2026, 9/15/26, 2026-09-15, 09152026, Sep 15 2026, 15 September 2026 - in the Income Calculator and on the Loan Suite pages (setup dates and the header As of / Closing boxes, which previously stored the typed text as is). An unreadable date is outlined and the previous value kept; the calendar buttons still work.
+- **Freddie Mac asset depletion subtracts required reserves**, as the Comprehensive calculator and the NMB guide do (matches the guide's example: $820,000 / 240 = $3,416.67).
+- **New files start on Fannie Mae again** (Auto (best fit) moved to the end of the agency list - as the first option it had become the default).
+- **Checked against the NMB guide's worked examples:** 35-hour salaried $4,853.33; MTA bus operator $7,193.33 base + $1,601.33 overtime and differential = $8,794.67; S-corp 50% owner $9,416.67; asset depletion $2,277.78 (Fannie) and $3,416.67 (Freddie). All 57 NMB workbook cases still match.
+
+## Release 55.20 - Auto agency by default, VA residual income on cash, darker theme
+
+- **Agency: Auto (best fit) by default** on every file - the agency giving the strongest qualifying result is used. You can still choose one by hand, and that choice is kept with the file. The Income Report names the agency actually used, never Auto.
+- **VA income:** non-taxable income (VA disability, BAH, BAS, clothing) is grossed up 25% for the debt-to-income ratio under VA, as in the NMB guide and the Comprehensive calculator; **residual income now uses the cash actually received** - every gross-up, including grossed-up Social Security on the Other Income tab, is taken back out. Corrected the residual table: the Northeast row for loans of $80,000 and up had the Midwest figures; it is now $450 / $755 / $909 / $1,025 / $1,062. Matches the guide's worked example: $10,500 for the ratio, 45.24% DTI, $1,025 table x 120% = $1,230 required, $3,288 residual.
+- **Darker theme:** every dark blue one step deeper (page, cards, inputs, header, lines) and a deeper button blue.
+- **Fixed:** the Loan Suite summary row (total loan, payment, cash to close, DTI and the presets) showed as grey boxes with dark text - the Loan Suite's own button styles were winning. It now shows as designed in both looks.
+
+## Release 55.21 - NYC municipal and MTA pay on the W-2 worksheet
+
+- **New lines in the W-2 Earnings table** (the NMB guide's municipal / MTA section and the Comprehensive calculator's W-2 tab), in the existing layout: **shift / night / weekend differentials** and **swing / report / travel time** (variable pay, averaged with Other Income - lowest of YTD, YTD + 1 year, YTD + 2 years); **Less: retro / back pay in YTD** (a lump-sum union settlement is taken out of YTD base so it does not inflate the run rate).
+- **Longevity / service increment ($ per year)** - a contractual step, added to the stated base as annual / 12.
+- **Bonus paid once a year?** - Yes averages the two prior years over 24 months, because a mid-year YTD overstates a once-a-year bonus.
+- Checked: the Comprehensive calculator's W-2 example ($7,443.33 base with longevity + $1,500 overtime + $294.67 differentials = $9,238.00) and the guide's MTA example with the $8,000 retro check entered separately ($8,794.67). All 57 NMB workbook cases still match.
+
+## Release 55.22 - Schedule L liquidity test, Non-QM tab, AUS guideline library
+
+- **Business liquidity test on Schedule L lines** (1065 / 1120-S): cash, receivables, inventory, government and tax-exempt securities and other current assets against payables, notes due in under a year and other current liabilities, for both years; quick ratio and current ratio. **Liquidity documented?** has a new **Auto - from the Schedule L test** choice (selected as soon as a Schedule L line is entered): a most-recent-year quick ratio of 1.00 or better uses the full K-1 ordinary income, otherwise it is limited to distributions (conventional). Files that used the old two totals keep them.
+- **New Non-QM tab** (from the Comprehensive calculator): 12 / 24-month **bank statement income** (deposit ledger, ineligible deposits, fixed or CPA expense factor or personal account, ownership); **DSCR** (amortizing or interest-only, short-term-rental haircut, taxes, insurance, HOA; ratio, pricing tier, net cash flow); the **DSCR prepayment penalty** (5/4/3/2/1, 3/2/1, flat %, six months interest; 1-5 years; penalty-free allowance). Each counts in qualifying income only when Use is ticked; a negative DSCR cash flow counts as a debt.
+- **VA residual income:** the 5% reduction for an active-duty or retired veteran or spouse near a military base.
+- **Schedule E personal-use test:** a warning when personal-use days exceed the greater of 14 days or 10% of fair rental days.
+- **AUS Findings:** a guideline library - how every income type is calculated, by agency (W-2 base and variable pay, NYC municipal / MTA, union, Freddie 1099, Schedules C / F / D, K-1 / 1120-S / 1065, 1120, liquidity, non-taxable gross-up, rental, asset depletion, VA residual income, Non-QM).
+- **Checked against the Comprehensive calculator** (recalculated in LibreOffice): quick ratio 4.72 / 5.25 and current ratio 5.28 / 5.85; S-corp $9,416.67; bank statement $15,666.67; DSCR 1.03 with $3,581.43 P&I and $133.57 cash flow; every prepayment-penalty year in every structure; non-taxable gross-up $5,410; VA residual $3,288. Schedule C differs by $8.33 a month because the calculator uses the NMB workbook's mileage rate for 2023 ($0.26) where the Comprehensive calculator uses the IRS figure ($0.28) - the workbook's mileage table needs updating.
+
+## Release 55.23 - Quick is the home page, with ZIP estimates and a renovation loan estimate
+
+- **Quick is the home page** (index.html). The page list moved to pages.html; the page switcher reads Home, All pages, Doc Organizer, Income, Full Suite.
+- **ZIP code -> estimates on Quick**, from the Loan Suite's own engine (now loaded on Quick): property taxes (the area's effective tax rate times the price), insurance (rate per $1,000 of value), closing costs from the state closing-cost profile (including New York mortgage recording tax) and cash to close. Taxes and insurance follow the estimate until you type your own figure.
+- **Construction / renovation on Quick:** FHA 203(k) or Fannie Mae HomeStyle - renovation amount, contingency (10% by default), mortgage payment reserves (0-6 months), optional after-repair value and an estimating cushion. The same rules as the Loan Suite give the renovation financed, base loan, upfront MIP and estimated loan amount, with and without the cushion (HomeStyle stops at 95% of the after-repair value); the mortgage calculator then prices that loan.
+- **Removed:** the fast wage-earner check at the top of the W-2 tab; the Full Suite workspace directory (the wide Open workspace buttons - Rule tables, Mortgage rates, Escrow, Contract & LE and the rest - which repeated the navigation and showed as a pale block in the dark theme); the Income Calculator's Mortgage Rates and Taxes & Escrow tabs (Loan Suite tools, still on the Loan Suite pages); the duplicate chip row on Full Suite. The Full Suite navigation band is dark in the dark theme.
+
+## Release 55.24 - features moved, not removed
+
+- **Mortgage rates (the daily survey and the suite baseline) and Taxes & escrow (tax proration and the escrow cushion)** stay in the Income Calculator: their tab buttons are gone and both open from the calculator's menu (top right). The same tools are on the Loan Suite's Mortgage Rates and Taxes & Proration pages.
+- **The quick W-2 check** moved from the top of the W-2 tab to the bottom, folded - it still calculates and pushes to a W-2 worksheet.
+- Only the Full Suite's wide Open workspace buttons were removed; every page they opened is in the navigation. The page list is at pages.html (All pages in the page switcher).
+
 ## Release 55.14b - self-employment, rental and more of the income worksheet; one look across the pages
 
 - **Self-employment follows the income worksheet** (sections A-E and Tables!J20:K31), proven against the workbook (16 of 16 cases). Fixed: K-1 amounts were multiplied by the ownership percentage a second time (a 10% partner's $10,748 K-1 counted as $1,075); with only one year of returns entered the income was halved; the 1120 net operating loss is added back and dividends are subtracted, as on the worksheet and Form 1084. Added: Schedule F (farm), Schedule D (recurring capital gains - the worksheet takes the larger year), Schedule C line 6 non-recurring income, 1065 line 4 income from other partnerships, business mileage decided on its own with the worksheet's rate table.

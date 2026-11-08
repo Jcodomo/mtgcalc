@@ -6,7 +6,7 @@
   --mt-bar:linear-gradient(135deg,#12263f,#1b3a5f); --mt-bar-solid:#16304f; --mt-bar-line:#26405f;
   --mt-bg:#f4f6fa; --mt-surface:#ffffff; --mt-surface-2:#f8fafd; --mt-surface-3:#eef2f8;
   --mt-line:#dde3ec; --mt-line-2:#c9d3e2; --mt-text:#344054; --mt-strong:#101828; --mt-muted:#667085;
-  --mt-accent:#1d4ed8; --mt-accent-soft:#e4eefb; --mt-accent-text:#17436f;
+  --mt-accent:#1e40af; --mt-accent-soft:#e4eefb; --mt-accent-text:#17436f;
   --mt-input:#fffbea; --mt-input-line:#e3d6a8; --mt-input-focus:#c99a1e;
   --mt-calc:#eef4fd; --mt-calc-line:#cfe0f5; --mt-calc-ink:#12446f;
   --mt-good:#059669; --mt-bad:#e11d48; --mt-radius:12px;
@@ -89,3 +89,196 @@ html.lse-renovation #screen-body .card.lvl-sub > h3{ font-weight:700; }
 html[data-mt-page="docorg"] #mtgcalcPageNav, html[data-mt-page="hub"] #mtgcalcPageNav{ background:#0f2a4a !important; border-color:#26405f !important; }
 html[data-mt-page="docorg"] #mtgcalcPageNav a, html[data-mt-page="hub"] #mtgcalcPageNav a{ color:#dbe6f5 !important; }
 @media print{ #lseNav{ display:none !important; } }
+
+/* ===================== Release 55.15: OLED dark blue by default ===================== */
+/* deep navy-black: the same palette on every page; light-coloured input icons (date pickers, dropdown arrows, spinners) */
+html[data-mt-mode="oled"]{
+  --mt-bar:linear-gradient(135deg,#000818,#03102a); --mt-bar-solid:#020c22; --mt-bar-line:#0c2447;
+  --mt-bg:#00050f; --mt-surface:#030c20; --mt-surface-2:#06142e; --mt-surface-3:#081a3a;
+  --mt-line:#0f264a; --mt-line-2:#163462; --mt-text:#c9d7ee; --mt-strong:#eef4fd; --mt-muted:#93a7c6;
+  --mt-accent:#3d86f0; --mt-accent-soft:#0a1f47; --mt-accent-text:#cfe1ff;
+  --mt-input:#061736; --mt-input-line:#1a3a69; --mt-input-focus:#3d86f0;
+  --mt-calc:#071b41; --mt-calc-line:#173a69; --mt-calc-ink:#cfe1ff; color-scheme:dark;
+}
+html[data-mt-mode="oled"] input::-webkit-calendar-picker-indicator{ filter:invert(1) brightness(1.6); opacity:.85; }
+html[data-mt-mode="oled"] input, html[data-mt-mode="oled"] select, html[data-mt-mode="oled"] textarea{ color-scheme:dark; }
+html[data-mt-mode="oled"] body{ background:var(--mt-bg); color:var(--mt-text); }
+
+/* Loan Suite pages: the OLED surface in dark blue (overrides the near-black page/card/header colours) */
+html[data-v25-surface="oled"][data-theme], html[data-v25-surface="oled"][data-theme] body #suite-root.v44-final{
+  --v24-page:#00050f; --v24-card:#030c20; --v24-text:#e6eefb; --v24-muted:#93a7c6; --v24-border:#0f264a;
+  --v24-header:#000818; --v24-header-text:#f4f7fb;
+}
+html[data-v25-surface="oled"][data-input-tone][data-theme][data-skin]{ --v23-field:#061736; --v23-field-line:#1a3a69; --v23-field-ink:#f2f6fd; --v23-field-focus:#0a1f47; }
+html[data-v25-surface="oled"] body #shellbar, html[data-v25-surface="oled"] body #suite-root .v25-topbar{ background:linear-gradient(135deg,#000818,#03102a) !important; }
+html[data-v25-surface="oled"] body #suite-root #v34Bar, html[data-v25-surface="oled"] #lseNav{ background:#020c22 !important; border-bottom:1px solid #0c2447 !important; }
+html[data-v25-surface="oled"] #lseNav a{ color:#c9d7ee; }
+html[data-v25-surface="oled"] #lseNav .lse-groups{ background:#06142e; }
+html[data-v25-surface="oled"] #lseNav a.on, html[data-v25-surface="oled"] #lseNav .lse-g.on{ color:#ffffff !important; background:#0a1f47 !important; box-shadow:none; }
+html[data-v25-surface="oled"] #lseNav .lse-pages{ border-left-color:#0f264a; }
+html[data-v25-surface="oled"] input::-webkit-calendar-picker-indicator{ filter:invert(1) brightness(1.6); opacity:.85; }
+
+/* Income Calculator: its dark mode in the same dark blue */
+html[data-mt-page="income"][data-theme="dark"]{
+  --bg:#00050f; --surface:#030c20; --surface-2:#06142e; --surface-3:#081a3a; --line:#0f264a; --line-2:#163462;
+  --text:#c9d7ee; --text-strong:#eef4fd; --text-muted:#93a7c6;
+  --input-bg:#061736; --input-line:#1a3a69; --input-ink:#f2f6fd; --input-focus:#3d86f0; --input-focus-bg:#0a1f47;
+  --bar-bg:linear-gradient(135deg,#000818,#03102a); --bar-line:#0c2447; --thead:#06142e; --thead-text:#e9f1fd;
+  --tag-bg:#081a3a; --tag-text:#b9d4f5; --total-bg:#071b41; --total-text:#cfe1ff; --total-line:#173a69;
+  --accent:#3d86f0; --accent-soft:#0a1f47; --accent-soft-text:#cfe1ff; --calc-bg:#071b41; --calc-line:#173a69; --calc-ink:#cfe1ff;
+  --slate-50:#030c20; --slate-100:#06142e; --slate-200:#0f264a; --navy-900:#00050f; --navy-800:#030c20; --opt-sel-bg:#0a1f47;
+}
+html[data-mt-page="income"][data-theme="dark"] input::-webkit-calendar-picker-indicator{ filter:invert(1) brightness(1.6); opacity:.85; }
+
+/* Quick: dark blue until it has the app's own palette */
+html[data-mt-page="quick"][data-mt-mode="oled"]:not([data-los55-theme]){ --bg:#00050f; --panel:#030c20; --ink:#eef4fd; --mute:#93a7c6; --line:#0f264a; --acc:#3d86f0; --nav:#000818; color-scheme:dark; }
+/* switcher pill on dark pages */
+html[data-mt-mode="oled"][data-mt-page] #mtgcalcPageNav{ background:#000818 !important; border-color:#0f264a !important; }
+
+/* OLED dark blue: Loan Suite components that carry their own light fills */
+html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root #root #v34Bar.v34-bar{ background:#020c22 !important; border-bottom:1px solid #0c2447 !important; }
+html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root .card, html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root .card.lvl-major,
+html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root .v50-card, html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root .v50-recent-panel,
+html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body .v50-recent-panel{ background:#030c20 !important; color:#e6eefb !important; border-color:#0f264a !important; }
+html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root .v50-card *:not(svg):not(path){ color:inherit; }
+html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root .v50-card .v50-k, html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root .v50-card small{ color:#93a7c6 !important; }
+html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root .v50-pill, html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root .v44-action:not(.primary),
+html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #shellbar#shellbar .v32-ctl, html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root .v32-ctl{ background:#06142e !important; color:#cfe1ff !important; border-color:#163462 !important; }
+html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root .v50-pill.on{ background:#0a1f47 !important; color:#ffffff !important; border-color:#3d86f0 !important; }
+html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root .v44-action.primary{ background:#1e40af !important; color:#fff !important; border-color:#1e40af !important; }
+html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root .v25-topbar select, html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root .v25-topbar input,
+html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root select.f.pick, html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root input.f.namebox{ background:#061736 !important; color:#f2f6fd !important; border-color:#1a3a69 !important; color-scheme:dark; }
+html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root .v35-live-row{ background:#06142e !important; color:#dbe6f7 !important; border-color:#0f264a !important; }
+html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root .v35-live-row.pass, html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root .v50-verdict{ background:#0c2e26 !important; color:#9fe3c4 !important; border-color:#1d6b52 !important; }
+html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root .v35-live-row.bad{ background:#2e2410 !important; color:#f0c66a !important; border-color:#7a5d15 !important; }
+html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root .v35-live-row.total{ background:#0a1f47 !important; }
+html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root table th{ background:#06142e; color:#cfe1ff; }
+/* the mortgage calculator panel (Quote and Quick) */
+html[data-mt-mode="oled"] body .los55-calc{ --lc-bg:#030c20; --lc-ink:#eef4fd; --lc-mute:#93a7c6; --lc-line:#0f264a; --lc-acc:#3d86f0; --lc-soft:#06142e; --lc-good:#5fd3a0; color-scheme:dark; }
+
+html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root{ background:#00050f !important; }
+html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root .mode-pane, html[data-v25-surface="oled"][data-theme] body #suite-root.mode-pane{ background:#00050f !important; }
+
+html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root #v44LiveSummary .v35-live-row, html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root .v39-rail .v35-live-row{ background:#06142e !important; color:#dbe6f7 !important; border-color:#0f264a !important; }
+html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root #v44LiveSummary .v35-live-row.pass{ background:#0c2e26 !important; color:#9fe3c4 !important; }
+html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root #v44LiveSummary .v35-live-row.bad{ background:#2e2410 !important; color:#f0c66a !important; }
+html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root #v44LiveSummary .v35-live-row.total{ background:#0a1f47 !important; color:#ffffff !important; }
+html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root #v5SyncBadge, html[data-v25-surface="oled"][data-theme] body #v5SyncBadge{ background:#2e2410 !important; color:#f0c66a !important; border-color:#7a5d15 !important; }
+
+html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root #v44LiveSummary .v35-live-row *:not(svg):not(path){ color:inherit !important; }
+html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root #v44LiveSummary .v35-live-row.total *{ color:#9cc7ff !important; }
+html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root .card > h3, html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root .card > header h3, html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root .card .card-title, html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root #v44LiveSummary h3, html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root .v39-rail h3, html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root .v39-rail .head, html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root .card.collapsible > h3{ color:#e6eefb !important; }
+html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root .card > h3 *:not(.badge):not([class*=chip]):not([class*=tag]){ color:inherit; }
+
+html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root label, html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root .lbl, html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root .label, html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root .v50-presets > span, html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root .v50-presets > b, html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root small:not(.v35-live-row small){ color:#93a7c6 !important; }
+html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root h1, html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root h2, html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root h3, html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root h4, html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root summary, html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root .card.collapsible > h3 > *{ color:#e6eefb !important; }
+html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root #v44LiveSummary{ color:#dbe6f7 !important; }
+html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root #v44LiveSummary > *:not(.v35-live-row), html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root #v44LiveSummary .v44-ls-group > span, html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root #v44LiveSummary [class*=head]{ color:#8fb8f5 !important; }
+
+html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root .v50-presets > em, html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root h3 > .ttl, html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root .card > h3 .ttl{ color:#e6eefb !important; }
+html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root .btn.btn-primary{ background:#1e40af !important; color:#ffffff !important; border-color:#1e40af !important; }
+html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root .btn.btn-light{ background:#06142e !important; color:#cfe1ff !important; border-color:#163462 !important; }
+
+html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root button:not(.btn-primary):not(.primary):not(.v50-pill):not(.v44-action){ color:#cfe1ff !important; }
+html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body footer, html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body [class*="-foot"], html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body [class*="foot "], html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body .v31-footer, html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root [class*="footer"]{ color:#93a7c6 !important; }
+html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body [class*="footer"] *, html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body [class*="-foot"] *{ color:inherit !important; }
+html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root .advtab, html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body .rpt-modal-bar, html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body .rpt-picker, html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body .dropzone, html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #v12Modal .rpt-modal-bar, html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #v12Modal .dropzone{ background:#06142e !important; color:#dbe6f7 !important; border-color:#0f264a !important; }
+html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root .advtab.on, html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root .advtab.active{ background:#0a1f47 !important; color:#ffffff !important; }
+html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #calc-root .v50-unified-docs, html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #calc-root .v50-shared-drop, html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #calc-root .no-print.v50-docs-panel{ background:#030c20 !important; color:#e6eefb !important; border-color:#0f264a !important; }
+
+html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #v50RecentScenarios#v50RecentScenarios .v50-recent-panel small, html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #v50RecentScenarios#v50RecentScenarios .v50-recent-panel header{ color:#93a7c6 !important; }
+html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #v12Modal#v12Modal .rpt-modal-bar, html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #v12Modal#v12Modal .rpt-picker, html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #v12Modal#v12Modal .dropzone, html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root #v12Modal .rpt-modal-bar, html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root #v12Modal .rpt-picker, html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #suite-root#suite-root #v12Modal .dropzone{ background:#06142e !important; color:#dbe6f7 !important; border-color:#0f264a !important; }
+html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #v12Modal#v12Modal .rpt-modal-bar *{ color:inherit !important; }
+
+/* 55.16: the Income Calculator is its own page - no workspace switch, and the Documents pages show only their documents */
+html.mt-nocalc #modeseg, html.mt-nocalc #mode-calc, html.mt-nocalc #mode-suite{ display:none !important; }
+html.mt-nocalc.lse-calcdocs #calc-root .appbar, html.mt-nocalc.lse-calcdocs #calc-root #mtClassicNote,
+html.mt-nocalc.lse-calcdocs #calc-root .kpi-row, html.mt-nocalc.lse-calcdocs #calc-root .tb-kpis{ display:none !important; }
+
+/* 55.17: AI document import (Documents pages) */
+.mt-ai{ margin:14px 0; padding:16px 18px; border:1px solid var(--mt-line,#dde3ec); border-radius:12px; background:var(--mt-surface,#fff); color:var(--mt-text,#101828); }
+.mt-ai header small{ text-transform:uppercase; letter-spacing:.08em; font-size:11px; color:var(--mt-muted,#667085); }
+.mt-ai h3{ margin:2px 0 4px; font-size:17px; color:var(--mt-strong,#101828); }
+.mt-ai p{ margin:0 0 10px; font-size:13px; color:var(--mt-muted,#667085); }
+.mt-ai-grid{ display:grid; grid-template-columns:minmax(220px,1fr) 2fr; gap:10px; margin-bottom:10px; }
+.mt-ai label{ display:flex; flex-direction:column; gap:4px; font-size:12px; font-weight:600; color:var(--mt-muted,#667085); }
+.mt-ai label em{ font-weight:400; font-style:normal; }
+.mt-ai-full{ margin:6px 0; }
+.mt-ai select, .mt-ai input, .mt-ai textarea{ font:13px/1.4 Inter,Segoe UI,Roboto,sans-serif; padding:7px 9px; border-radius:8px; border:1px solid var(--mt-input-line,#c9d3e0); background:var(--mt-input,#fffbea); color:var(--mt-strong,#101828); }
+.mt-ai textarea{ font-family:'JetBrains Mono',ui-monospace,monospace; font-size:12px; }
+.mt-ai-actions{ display:flex; gap:8px; flex-wrap:wrap; margin:6px 0 10px; }
+.mt-ai-actions button{ padding:7px 12px; border-radius:8px; border:1px solid var(--mt-line-2,#c9d3e0); background:var(--mt-surface-2,#f4f6fa); color:var(--mt-strong,#101828); font-weight:600; cursor:pointer; }
+.mt-ai-actions button.primary{ background:#1e40af; border-color:#1e40af; color:#fff; }
+#mtAiStatus{ display:block; margin:4px 0 10px; padding:8px 10px; border-radius:8px; font-size:13px; background:var(--mt-surface-2,#f4f6fa); }
+#mtAiStatus.good{ background:#e7f6ef; color:#0b5c3b; } #mtAiStatus.warn{ background:#fff7e6; color:#7a4b00; } #mtAiStatus.bad{ background:#fdecec; color:#8a1c1c; }
+html[data-mt-mode="oled"] #mtAiStatus.good{ background:#0c2e26; color:#9fe3c4; } html[data-mt-mode="oled"] #mtAiStatus.warn{ background:#2e2410; color:#f0c66a; } html[data-mt-mode="oled"] #mtAiStatus.bad{ background:#30161f; color:#f8a3b5; }
+.mt-ai-table{ width:100%; border-collapse:collapse; font-size:13px; }
+.mt-ai-table th{ text-align:left; padding:6px 8px; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--mt-muted,#667085); border-bottom:1px solid var(--mt-line,#dde3ec); }
+.mt-ai-table td{ padding:5px 8px; border-bottom:1px solid var(--mt-line,#eef2f8); vertical-align:middle; }
+.mt-ai-table select{ width:100%; } .mt-ai-val{ width:100%; }
+.mt-ai-empty{ font-size:13px; }
+.mt-ai-more{ margin:0 0 14px; } .mt-ai-more > summary{ cursor:pointer; font-weight:600; padding:8px 0; color:var(--mt-muted,#667085); }
+/* the Income Calculator's toolbar (income chips) does not belong on the Loan Suite Documents pages */
+html.mt-nocalc.lse-calcdocs #calc-root > .toolbar{ display:none !important; }
+
+/* 55.17: Credit workspace agency buttons - the selected agency must be visible */
+html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #v12Modal#v12Modal button.v12-ag{ background:#06142e !important; color:#cfe1ff !important; border:1px solid #163462 !important; border-radius:6px; padding:3px 10px; }
+html[data-v25-surface="oled"][data-theme][data-skin][data-v24-theme] body #v12Modal#v12Modal button.v12-ag.on{ background:#1e40af !important; color:#ffffff !important; border-color:#3d86f0 !important; }
+body #v12Modal button.v12-ag.on{ outline:2px solid #3d86f0; outline-offset:1px; }
+
+/* 55.18: slim summary row (loan-cards.js) - replaces the old cards; the draw-fee banner becomes a checkbox in Renovation */
+html.mt-fastcards #v50Top, html.mt-fastcards #v5SyncBadge{ display:none !important; }
+.mt-top{ display:flex; flex-wrap:wrap; align-items:stretch; gap:8px; margin:6px 0 12px; }
+.mt-kpis{ display:grid; grid-template-columns:repeat(4,minmax(130px,1fr)); gap:6px; flex:1 1 620px; }
+.mt-kpi{ display:flex; flex-direction:column; align-items:flex-start; gap:1px; padding:6px 10px; border-radius:9px; border:1px solid var(--mt-line,#dde3ec); background:var(--mt-surface,#fff); color:var(--mt-strong,#101828); text-align:left; cursor:pointer; font:inherit; min-width:0; }
+.mt-kpi:hover{ border-color:var(--mt-accent,#2f6fd6); }
+.mt-kpi span{ font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--mt-muted,#667085); }
+.mt-kpi b{ font-size:17px; line-height:1.15; font-variant-numeric:tabular-nums; }
+.mt-kpi small{ font-size:10.5px; color:var(--mt-muted,#667085); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+.mt-kpi.warn b{ color:#c2570c; }
+.mt-presets{ display:flex; flex-wrap:wrap; align-content:center; gap:5px; flex:1 1 360px; }
+.mt-pill{ padding:4px 10px; border-radius:999px; border:1px solid var(--mt-line-2,#c9d3e0); background:var(--mt-surface,#fff); color:var(--mt-strong,#101828); font:600 12px/1.4 inherit; cursor:pointer; }
+.mt-pill.on{ background:#1e40af; border-color:#1e40af; color:#fff; }
+.mt-pill.mt-act{ border-style:dashed; }
+.mt-drawfees{ display:flex; gap:8px; align-items:flex-start; margin:8px 14px 4px; padding:8px 10px; border:1px solid var(--mt-line,#dde3ec); border-radius:8px; font-size:12.5px; cursor:pointer; color:var(--mt-text,#344054); }
+.mt-drawfees em{ font-style:normal; color:var(--mt-muted,#667085); }
+.mt-drawfees input{ margin-top:2px; }
+@media(max-width:900px){ .mt-kpis{ grid-template-columns:repeat(2,minmax(130px,1fr)); } }
+html[data-mt-mode="oled"] .mt-kpi, html[data-mt-mode="oled"] .mt-pill:not(.on){ background:#030c20; border-color:#0f264a; color:#e6eefb; }
+html[data-mt-mode="oled"] .mt-kpi span, html[data-mt-mode="oled"] .mt-kpi small, html[data-mt-mode="oled"] .mt-drawfees em{ color:#93a7c6; }
+html[data-mt-mode="oled"] .mt-kpi.warn b{ color:#f0b04a; }
+html[data-mt-mode="oled"] .mt-drawfees{ border-color:#0f264a; color:#dbe6f7; background:#06142e; }
+
+/* 55.20: the summary row must win over the Loan Suite's own button styles (they target #suite-root buttons) */
+html body #suite-root#suite-root .mt-kpi{ background:var(--mt-surface,#fff) !important; color:var(--mt-strong,#101828) !important; border:1px solid var(--mt-line,#dde3ec) !important; box-shadow:none !important; }
+html body #suite-root#suite-root .mt-kpi span, html body #suite-root#suite-root .mt-kpi small{ color:var(--mt-muted,#667085) !important; }
+html body #suite-root#suite-root .mt-kpi b{ color:var(--mt-strong,#101828) !important; }
+html body #suite-root#suite-root .mt-kpi.warn b{ color:#c2570c !important; }
+html body #suite-root#suite-root .mt-pill{ background:var(--mt-surface,#fff) !important; color:var(--mt-strong,#101828) !important; border:1px solid var(--mt-line-2,#c9d3e0) !important; box-shadow:none !important; }
+html body #suite-root#suite-root .mt-pill.on{ background:#1e40af !important; color:#fff !important; border-color:#1e40af !important; }
+html[data-mt-mode="oled"] body #suite-root#suite-root .mt-kpi, html[data-mt-mode="oled"] body #suite-root#suite-root .mt-pill:not(.on){ background:#030c20 !important; color:#e6eefb !important; border-color:#0f264a !important; }
+html[data-mt-mode="oled"] body #suite-root#suite-root .mt-kpi b{ color:#ffffff !important; }
+html[data-mt-mode="oled"] body #suite-root#suite-root .mt-kpi span, html[data-mt-mode="oled"] body #suite-root#suite-root .mt-kpi small{ color:#93a7c6 !important; }
+html[data-mt-mode="oled"] body #suite-root#suite-root .mt-kpi.warn b{ color:#f0b04a !important; }
+html[data-mt-mode="oled"] body #suite-root#suite-root .mt-kpi:hover, html[data-mt-mode="oled"] body #suite-root#suite-root .mt-pill:hover{ border-color:#3d86f0 !important; }
+html[data-mt-mode="oled"] body #suite-root#suite-root .mt-drawfees{ background:#06142e !important; border-color:#0f264a !important; color:#dbe6f7 !important; }
+html body #suite-root#suite-root .mt-kpi{ display:flex !important; flex-direction:column !important; align-items:flex-start !important; justify-content:center !important; text-align:left !important; padding:6px 10px !important; border-radius:9px !important; min-height:0 !important; height:auto !important; gap:1px !important; text-transform:none !important; letter-spacing:normal !important; font-weight:400 !important; width:auto !important; }
+html body #suite-root#suite-root .mt-kpi > span, html body #suite-root#suite-root .mt-kpi > b, html body #suite-root#suite-root .mt-kpi > small{ display:block !important; width:100% !important; text-align:left !important; margin:0 !important; }
+html body #suite-root#suite-root .mt-kpi > span{ font-size:10px !important; font-weight:700 !important; letter-spacing:.06em !important; text-transform:uppercase !important; }
+html body #suite-root#suite-root .mt-kpi > b{ font-size:17px !important; line-height:1.15 !important; font-weight:800 !important; }
+html body #suite-root#suite-root .mt-kpi > small{ font-size:10.5px !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis !important; }
+html body #suite-root#suite-root .mt-pill{ border-radius:999px !important; padding:4px 11px !important; font-size:12px !important; font-weight:600 !important; line-height:1.4 !important; min-height:0 !important; height:auto !important; text-transform:none !important; }
+
+/* 55.23: removed - the Full Suite workspace directory (wide "Open workspace" buttons that repeat the page navigation),
+   and the Income Calculator's Mortgage Rates and Taxes & Escrow tabs (Loan Suite tools, on the Loan Suite pages) */
+#v50FullDirectory, .v50-full-directory{ display:none !important; }
+html[data-mt-page="income"] #tabbar [data-tab="rates"], html[data-mt-page="income"] #tabbar [data-tab="taxes"]{ display:none !important; }   /* 55.24: the tab buttons only - both pages open from the ⋮ menu */
+.quick-w2-fold{ margin:16px 0 4px; } .quick-w2-fold > summary{ cursor:pointer; font-weight:700; font-size:13px; color:var(--text-muted,#667085); padding:8px 2px; }
+.quick-w2-fold[open] > summary{ margin-bottom:8px; }
+/* 55.23: the Full Suite's primary navigation band and its context chip in the dark theme */
+html[data-v25-surface="oled"][data-theme] body #suite-root#suite-root nav#v23SuitePrimaryNav, html[data-v25-surface="oled"][data-theme] body nav#v23SuitePrimaryNav#v23SuitePrimaryNav{ background:#020c22 !important; border-color:#0c2447 !important; box-shadow:none !important; }
+html[data-v25-surface="oled"][data-theme] body nav#v23SuitePrimaryNav#v23SuitePrimaryNav button{ background:transparent !important; color:#c9d7ee !important; border-color:transparent !important; }
+html[data-v25-surface="oled"][data-theme] body nav#v23SuitePrimaryNav#v23SuitePrimaryNav button.active, html[data-v25-surface="oled"][data-theme] body nav#v23SuitePrimaryNav#v23SuitePrimaryNav button[aria-selected="true"], html[data-v25-surface="oled"][data-theme] body nav#v23SuitePrimaryNav#v23SuitePrimaryNav button.on{ background:#0a1f47 !important; color:#ffffff !important; }
+html[data-v25-surface="oled"][data-theme] body #suite-root#suite-root .v33-chip, html[data-v25-surface="oled"][data-theme] body .v33-chip.v33-chip{ background:#06142e !important; color:#cfe1ff !important; border-color:#163462 !important; }
+html.mt-fastcards #v251HeaderStats{ display:none !important; }
+html[data-v25-surface="oled"][data-theme] body *:has(> nav#v23SuitePrimaryNav){ background:#020c22 !important; }
