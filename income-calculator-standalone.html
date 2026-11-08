@@ -1308,7 +1308,7 @@ html[data-v25-surface="oled"][data-theme] body *:has(> nav#v23SuitePrimaryNav){ 
       Schedule E, K-1, 1120 / 1120-S / 1065.
       Text-based PDFs are read directly; scans and images fall back to OCR.</div>
     <div class="dz-s" style="margin-top:6px">or click to browse</div>
-    <input type="file" id="docFile" multiple accept=".pdf,.png,.jpg,.jpeg,.webp" style="display:none" onchange="handleFiles(this.files);this.value=''">
+    <input type="file" id="docFile" multiple accept=".pdf,.png,.jpg,.jpeg,.webp,.txt" style="display:none" onchange="handleFiles(this.files);this.value=''">
   </div>
   <div class="notice warn" style="margin-top:14px"><svg class="icon"><use href="#i-alert"/></svg>
     <span><b>Always verify before you qualify.</b> Extraction is a data-entry aid, not a substitute for reading the
@@ -1692,6 +1692,8 @@ function calcW2(j){
   const consistent = !['irregular','variable'].includes(j.incomeType), choiceYtd = j.baseChoice === 'ytd';   /* variable / other pay follows the irregular-hours rule */
   let baseRule, varsUsed = true, wsNote = '';
   if (daysOnJob < 31)               { baseRule = 'na'; varsUsed = false; wsNote = 'On the job 30 days or less - the worksheet does not calculate this income'; }
+  /* 56.0: earnings entered but no rate / salary - there is no base pay to use, so the year-to-date average governs */
+  else if (!(monthlyBase > 0) && comp.base.ytd > 0) { baseRule = 'ytd'; wsNote = 'No rate / salary entered - the year-to-date average is used'; if (daysOnJob < 730) varsUsed = false; }
   else if (daysIntoYear < 31)       { baseRule = 'current'; wsNote = 'Pay period ends in the first 30 days of the year - base pay plus qualifying variable income'; }
   else if (daysOnJob < 730)         { baseRule = 'current'; varsUsed = false; wsNote = 'On the job under 2 years - the worksheet uses the base pay only'; }
   else if (consistent && comp.base.ytd > monthlyBase) { baseRule = 'current'; wsNote = 'Consistent hours and YTD above the base rate - base pay'; }
@@ -1848,6 +1850,10 @@ function w2Card(j,i){
                 <td class="num" id="${P}-t1">$0.00</td><td class="num" id="${P}-t2">$0.00</td><td class="num" id="${P}-t3">$0.00</td>
                 <td class="num" id="${P}-ta12">$0.00</td><td class="num" id="${P}-ta24">$0.00</td>
               </tr>
+              <tr class="y1-only-row" id="${P}-y1only" style="display:none">
+                <td class="rowlabel">Year 1 only</td>
+                <td colspan="5"><span class="y1-only"><span>YTD earnings <b id="${P}-y1ytd">$0.00</b></span><span>over <b id="${P}-y1mo">0</b> months</span><span>Monthly average <b id="${P}-y1avg">$0.00</b></span></span></td>
+              </tr>
               <tr class="meta-row">
                 <td class="rowlabel">Income Change (%)</td>
                 <td id="${P}-chg1">—</td><td id="${P}-chg2">—</td><td class="mono">Baseline</td>
@@ -1915,6 +1921,8 @@ function paintW2(){
     setT(`${P}-var`, `${r.varAmt>=0?'+':''}${money(r.varAmt)} (${(r.varPct*100).toFixed(1)}%)`);
     const vb=$(`${P}-varband`);
     if(vb && !r.expectedYTD && !r.actualYTD){ vb.className='band'; vb.textContent='Awaiting paystub figures'; }
+    /* 56.0: YTD entered but no rate yet - there is nothing to compare against, so no variance verdict */
+    else if(vb && !r.expectedYTD){ vb.className='band'; vb.textContent='Enter the rate / salary to compare with YTD'; setT(`${P}-var`, '—'); }
     else if(vb){
       const ap=Math.abs(r.varPct);
       vb.className='band ' + (ap<=0.05?'ok':ap<=0.10?'warn':'bad');
@@ -1933,7 +1941,12 @@ function paintW2(){
       setT(`${P}-${k}-a24`, money(r.comp[k].a24));
     });
     setT(`${P}-t1`, money(r.t1)); setT(`${P}-t2`, money(r.t2)); setT(`${P}-t3`, money(r.t3));
-    setT(`${P}-ta12`, money((r.t1+r.t2)/(r.mo+12))); setT(`${P}-ta24`, money((r.t1+r.t2+r.t3)/(r.mo+24)));
+    /* 56.0: an average that includes a year with nothing entered is not an average - show '—' until that year has figures,
+       and with Year 1 alone show the YTD earnings and their monthly average */
+    setT(`${P}-ta12`, r.t2 ? money((r.t1+r.t2)/(r.mo+12)) : '—'); setT(`${P}-ta24`, (r.t2 && r.t3) ? money((r.t1+r.t2+r.t3)/(r.mo+24)) : '—');
+    { const only = r.t1 > 0 && !r.t2 && !r.t3, row = $(`${P}-y1only`);
+      if (row) row.style.display = only ? '' : 'none';
+      if (only){ setT(`${P}-y1ytd`, money(r.t1)); setT(`${P}-y1mo`, r.mo.toFixed(2)); setT(`${P}-y1avg`, money(r.mo > 0 ? r.t1 / r.mo : 0)); } }
     setT(`${P}-chg1`, r.t2 ? `${pct(r.chg1)} (annualized vs Yr 2)` : '—');
     setT(`${P}-chg2`, r.t3 ? `${pct(r.chg2)} (vs Yr 3)` : '—');
     const trend = (!r.t1 && !r.t2 && !r.t3) ? '—'
@@ -4798,6 +4811,9 @@ async function handleFiles(files){
           viaOCR = true;
         }
         }
+      } else if (/\.(txt|csv|text)$/i.test(f.name) || /^text\//.test(f.type || '')){
+        /* 56.0: a plain-text export (or text copied from a portal) is read as it is */
+        text = await f.text();
       } else {
         d.note = 'Running OCR on the image…'; renderDocs();
         const img = await new Promise((res,rej)=>{ const i=new Image();
@@ -9185,8 +9201,9 @@ window.__mtgcalcBridge = {
 </script>
 <script>/* income-extras.js (inlined) */
 /* Mortgage Suite 55.22 - Income Calculator extras, in the calculator's own card style.
-   - Non-QM tab: 12 / 24-month bank statement income, DSCR (amortizing or interest-only, short-term-rental haircut) and the
-     DSCR prepayment penalty schedules - the Comprehensive Agency Income Calculator's tabs 8 and 9.
+   - Non-QM (56.0: inside Other Income, added with "Add Non-QM"): 12 / 24-month bank statement income, profit-and-loss income,
+     DSCR (amortizing or interest-only, short-term-rental haircut) and the DSCR prepayment penalty schedules - the Comprehensive
+     Agency Income Calculator's tabs 8 and 9. Bank statements and P&Ls can be uploaded; OCR fills the matching fields.
    - VA residual income: the 5% reduction for an active-duty or retired borrower near a military base.
    - Schedule E: the personal-use test (personal days above the greater of 14 days or 10% of fair rental days).
    - AUS Findings: the NMB guide's explanation of every income type, by agency. */
@@ -9200,6 +9217,7 @@ window.__mtgcalcBridge = {
 
   /* ------------------------------------------------------------------ state */
   function blankDeposits() { var a = []; for (var i = 0; i < 24; i++) a.push({gross: 0, inel: 0}); return a; }
+  function blankPL() { return {use: false, b: 1, months: 12, revenue: 0, cogs: 0, expenses: 0, own: 100, prep: 'cpa', from: '', to: ''}; }
   function state() {
     var S = G('S'); if (!S) return null;
     if (!S.nonqm) S.nonqm = {
@@ -9208,6 +9226,9 @@ window.__mtgcalcBridge = {
       prepay: {type: 'step54321', years: 5, flat: 3, free: 20, payoff: 0}
     };
     var q = S.nonqm; if (!q.bank.deposits || q.bank.deposits.length < 24) q.bank.deposits = blankDeposits();
+    if (!q.pl) q.pl = blankPL();
+    /* 56.0: Non-QM lives in Other Income; a section shows once it is added (files that already used one keep it) */
+    if (!q.shown) q.shown = {bank: !!q.bank.use, dscr: !!q.dscr.use, pl: !!q.pl.use};
     return q;
   }
 
@@ -9244,12 +9265,126 @@ window.__mtgcalcBridge = {
     }
     return {subject: subject, rows: out};
   };
-  NQM.total = function () { var b = NQM.bank(), d = NQM.dscr(); return {bank: b ? b.used : 0, dscr: d ? d.used : 0}; };
+  /* 56.0: profit and loss statement only - net profit over the P&L period, times ownership */
+  NQM.PREP = {cpa: 'Prepared or signed by a CPA / EA / tax preparer', borrower: 'Borrower-prepared (most programs also need 2-3 months of bank statements)'};
+  NQM.pl = function () {
+    var q = state(); if (!q) return null; var P = q.pl, m = N(P.months) === 24 ? 24 : 12;
+    var gross = N(P.revenue) - N(P.cogs), net = gross - N(P.expenses), own = Math.max(0, Math.min(100, N(P.own))) / 100;
+    var monthly = net / m * own, margin = N(P.revenue) ? net / N(P.revenue) : 0;
+    return {months: m, gross: gross, net: net, own: own, avg: net / m, monthly: monthly, margin: margin, used: P.use ? monthly : 0};
+  };
+  NQM.total = function () { var b = NQM.bank(), d = NQM.dscr(), p = NQM.pl(); return {bank: b ? b.used : 0, dscr: d ? d.used : 0, pl: p ? p.used : 0}; };
   NQM.set = function (sec, key, val, num) {
     var q = state(); if (!q) return; q[sec][key] = num ? N(val) : val;
-    window.RECALC && window.RECALC(); if (sec !== 'bank' || key !== 'use') paint(); else NQM.render();
+    window.RECALC && window.RECALC(); if (key !== 'use' && key !== 'months' && key !== 'method') paint(); else NQM.render();
   };
+  NQM.add = function (sec) { var q = state(); if (!q || !q[sec]) return; q.shown[sec] = true; q[sec].use = true; closeMenu(); window.RECALC && window.RECALC(); NQM.render();
+    setTimeout(function () { var c = $('nqmCard-' + sec); if (c && c.scrollIntoView) c.scrollIntoView({behavior: 'smooth', block: 'start'}); }, 60); };
+  NQM.remove = function (sec) { var q = state(); if (!q || !q[sec]) return; q.shown[sec] = false; q[sec].use = false; window.RECALC && window.RECALC(); NQM.render(); };
+  NQM.menu = function () { var m = $('nqmMenu'); if (!m) return; var open = m.hasAttribute('hidden'); if (open) m.removeAttribute('hidden'); else m.setAttribute('hidden', ''); var b = $('nqmAddBtn'); if (b) b.setAttribute('aria-expanded', open ? 'true' : 'false'); };
+  function closeMenu() { var m = $('nqmMenu'); if (m) m.setAttribute('hidden', ''); var b = $('nqmAddBtn'); if (b) b.setAttribute('aria-expanded', 'false'); }
+  document.addEventListener('click', function (e) { if (!e.target.closest || e.target.closest('#nqmAdd')) return; closeMenu(); });
   NQM.dep = function (i, key, val) { var q = state(); if (!q) return; q.bank.deposits[i][key] = N(val); window.RECALC && window.RECALC(); paint(); };
+
+  /* ------------------------------------------- 56.0: read uploaded statements (OCR) */
+  var MONEY = /\(?-?\$?\s?\d{1,3}(?:,\d{3})+(?:\.\d{2})?\)?|\(?-?\$?\s?\d+\.\d{2}\)?/g;
+  function moneys(line) { return (String(line).match(MONEY) || []).map(N); }
+  var MON = {jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, sept: 8, oct: 9, nov: 10, dec: 11};
+  function pdate(s) {
+    s = String(s || '').trim(); var m;
+    if ((m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/))) { var y = +m[3]; if (y < 100) y += 2000; return new Date(y, +m[1] - 1, +m[2]); }
+    if ((m = s.match(/^([A-Za-z]{3,9})\.?\s+(\d{1,2}),?\s+(\d{4})$/))) { var k = MON[m[1].slice(0, 4).toLowerCase()]; if (k == null) k = MON[m[1].slice(0, 3).toLowerCase()]; if (k != null) return new Date(+m[3], k, +m[2]); }
+    if ((m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/))) return new Date(+m[1], +m[2] - 1, +m[3]);
+    return null;
+  }
+  var DT = '(\\d{1,2}[\\/\\-.]\\d{1,2}[\\/\\-.]\\d{2,4}|[A-Z][a-z]{2,8}\\.?\\s+\\d{1,2},?\\s+\\d{4})';
+  var RANGE = new RegExp(DT + '\\s*(?:-|–|—|to|through|thru)\\s*' + DT, 'g');
+  function monthsBetween(a, b) { if (!a || !b) return 0; return Math.max(1, Math.round(((b - a) / 86400000 + 1) / 30.4375)); }
+  function lineValue(lines, labels, avoid) {
+    for (var li = 0; li < labels.length; li++) {
+      for (var i = 0; i < lines.length; i++) {
+        var low = lines[i].toLowerCase(); if (low.indexOf(labels[li]) < 0) continue;
+        if (avoid && avoid.test(low)) continue;
+        var after = lines[i].slice(low.indexOf(labels[li]) + labels[li].length), v = moneys(after);
+        if (!v.length && lines[i + 1]) v = moneys(lines[i + 1]);
+        if (v.length) return {value: Math.abs(v[0]), label: labels[li], line: lines[i].trim()};
+      }
+    }
+    return null;
+  }
+  NQM.parseBank = function (text) {
+    var t = String(text || ''), marks = [], m; RANGE.lastIndex = 0;
+    while ((m = RANGE.exec(t))) { var a = pdate(m[1]), b = pdate(m[2]); if (a && b && b > a && (b - a) / 86400000 < 40) marks.push({i: m.index, a: a, b: b, key: +b}); }
+    var seen = {}, chunks = [];
+    marks.forEach(function (k, n) { if (seen[k.key]) return; seen[k.key] = 1; chunks.push(k); });
+    chunks.forEach(function (c, n) { c.text = t.slice(c.i, n + 1 < chunks.length ? chunks[n + 1].i : t.length); });
+    if (!chunks.length) chunks = [{a: null, b: null, text: t}];
+    var DEP = ['total deposits and other credits', 'deposits and other credits', 'total deposits and additions', 'deposits and additions', 'total deposits', 'deposits & other credits', 'deposits/credits', 'deposits & credits', 'deposits and credits', 'total credits', 'deposits'];
+    return chunks.map(function (c) {
+      var lines = c.text.split(/\r?\n/), dep = lineValue(lines, DEP, /\b(number|#|count|average|avg)\b/);
+      var tr = 0; lines.forEach(function (l) { if (/\b(transfer|xfer|trnsfr)\s*(from|in)\b|\bfrom\s+(savings|checking|sav|chk)\b/i.test(l) && !/\btotal\b/i.test(l)) { var v = moneys(l); if (v.length) tr += Math.abs(v[0]); } });
+      var end = c.b, label = end ? end.toLocaleString('en-US', {month: 'short', year: 'numeric'}) : '';
+      return {end: end, label: label, deposits: dep ? dep.value : 0, transfers: Math.round(tr * 100) / 100, found: dep ? dep.line : ''};
+    }).filter(function (s) { return s.deposits > 0; });
+  };
+  NQM.parsePL = function (text) {
+    var lines = String(text || '').split(/\r?\n/), out = {};
+    var rev = lineValue(lines, ['total income', 'total revenue', 'total revenues', 'gross receipts', 'total sales', 'gross revenue', 'gross sales', 'net sales', 'sales revenue', 'revenue', 'sales'], /\bnet (income|profit)|other income|cost of/);
+    var cogs = lineValue(lines, ['total cost of goods sold', 'cost of goods sold', 'total cost of sales', 'cost of sales', 'cogs']);
+    var exp = lineValue(lines, ['total operating expenses', 'total expenses', 'operating expenses', 'total expense']);
+    var net = lineValue(lines, ['net ordinary income', 'net income', 'net profit', 'net operating income', 'net earnings']);
+    if (rev) out.revenue = rev.value; if (cogs) out.cogs = cogs.value; if (exp) out.expenses = exp.value;
+    if (net) { var ln = net.line.toLowerCase(); out.net = /\(|-\$?\d|loss/.test(ln) ? -net.value : net.value; }
+    if (out.revenue != null && out.expenses == null && out.net != null) out.expenses = Math.max(0, out.revenue - (out.cogs || 0) - out.net);
+    var r; RANGE.lastIndex = 0; if ((r = RANGE.exec(text))) { var a = pdate(r[1]), b = pdate(r[2]); out.months = monthsBetween(a, b); out.from = r[1]; out.to = r[2]; }
+    if (!out.months) { var mm = String(text).match(/\b(twelve|12|twenty[- ]four|24)\s+months?\s+(ended|ending)/i); if (mm) out.months = /twelve|12/i.test(mm[1]) ? 12 : 24; }
+    return out;
+  };
+  async function readFile(file) {
+    if (window.MTDocs && MTDocs.readText) return MTDocs.readText(file);
+    var pdfText = G('pdfText'), ocr = G('ocrImages'), imgs = G('pdfPageImages'), lp = G('loadPdfJs');
+    if (/\.pdf$/i.test(file.name)) { if (typeof lp === 'function') await lp(); var r = await pdfText(file), t = r.text || ''; if (t.replace(/\s/g, '').length < 40 && ocr && imgs) t = await ocr(await imgs(r.pdf, 6)); return t; }
+    if (/^image\//.test(file.type)) return ocr([await new Promise(function (res, rej) { var i = new Image(); i.onload = function () { res(i); }; i.onerror = rej; i.src = URL.createObjectURL(file); })]);
+    return file.text();
+  }
+  function ocrNote(html, bad) { var o = $('nqmOcr'); if (!o) return; o.hidden = false; o.className = 'nqm-ocr' + (bad ? ' bad' : ''); o.innerHTML = html; }
+  NQM.upload = async function (sec, files) {
+    files = Array.prototype.slice.call(files || []); if (!files.length) return;
+    var q = state(); if (!q) return;
+    ocrNote('Reading ' + files.length + ' file(s)… scanned pages use OCR and can take a little while.');
+    try {
+      if (sec === 'bank') {
+        var stmts = [], misses = [];
+        for (var i = 0; i < files.length; i++) { var t = await readFile(files[i]), s = NQM.parseBank(t); if (!s.length) misses.push(files[i].name); s.forEach(function (x) { x.file = files[i].name; stmts.push(x); }); }
+        stmts.sort(function (a, b) { return (a.end ? +a.end : 0) - (b.end ? +b.end : 0); });
+        var dep = q.bank.deposits, filled = [];
+        stmts.forEach(function (s) {
+          var k = -1; for (var j = 0; j < 24; j++) { if (dep[j].label && dep[j].label === s.label && s.label) { k = j; break; } }
+          if (k < 0) for (var j2 = 0; j2 < 24; j2++) { if (!N(dep[j2].gross)) { k = j2; break; } }
+          if (k < 0) return;
+          dep[k].gross = s.deposits; dep[k].inel = s.transfers; dep[k].label = s.label; filled.push({k: k, s: s});
+        });
+        if (filled.length > 12 && N(q.bank.months) !== 24) q.bank.months = 24;
+        q.shown.bank = true; q.bank.use = true;
+        window.RECALC && window.RECALC(); NQM.render();
+        ocrNote(filled.length ? '<b>Filled ' + filled.length + ' month(s) from the statements.</b> Check each against the statement - transfers in were moved to "Less: transfers / ineligible".<ul>' +
+          filled.map(function (f) { return '<li>Month ' + (f.k + 1) + (f.s.label ? ' (' + esc(f.s.label) + ')' : '') + ': deposits ' + usd(f.s.deposits) + (f.s.transfers ? ', transfers ' + usd(f.s.transfers) : '') + ' <span class="muted small">' + esc(f.s.file) + '</span></li>'; }).join('') + '</ul>' +
+          (misses.length ? '<div>No deposit total found in: ' + esc(misses.join(', ')) + '. Enter those months by hand.</div>' : '')
+          : 'No deposit totals were found in ' + esc(files.map(function (f) { return f.name; }).join(', ')) + '. Enter the months by hand.', !filled.length);
+      } else if (sec === 'pl') {
+        var txt = await readFile(files[0]), p = NQM.parsePL(txt), L = q.pl, got = [];
+        if (p.revenue != null) { L.revenue = p.revenue; got.push('revenue ' + usd(p.revenue)); }
+        if (p.cogs != null) { L.cogs = p.cogs; got.push('cost of goods sold ' + usd(p.cogs)); }
+        if (p.expenses != null) { L.expenses = p.expenses; got.push('expenses ' + usd(p.expenses)); }
+        if (p.months) { L.months = p.months > 18 ? 24 : 12; got.push(p.months + '-month period' + (p.months !== 12 && p.months !== 24 ? ' (set to ' + L.months + ' - check the period)' : '')); }
+        if (p.from) { L.from = p.from; L.to = p.to; }
+        q.shown.pl = true; if (got.length) L.use = true;
+        window.RECALC && window.RECALC(); NQM.render();
+        var chk = NQM.pl(), diff = p.net != null && chk ? Math.abs(chk.net - p.net) : 0;
+        ocrNote(got.length ? '<b>Filled from ' + esc(files[0].name) + ':</b> ' + esc(got.join(', ')) + '.' + (p.net != null ? ' The P&amp;L prints net income of ' + usd(p.net) + (diff > 1 ? ' - <b>it differs from the calculated ' + usd(chk.net) + ' by ' + usd(diff) + '</b>; check the figures.' : ', which matches.') : '') : 'No revenue, expense or net income lines were found in ' + esc(files[0].name) + '. Enter them by hand.', !got.length);
+      }
+    } catch (e) { ocrNote('Could not read the file: ' + esc(e && e.message || e), true); }
+  };
 
   /* ------------------------------------------------------------------- render */
   function f(label, sec, key, val, opt) {
@@ -9260,14 +9395,23 @@ window.__mtgcalcBridge = {
   }
   function box(label, id, final) { return '<div class="calcbox' + (final ? ' final' : '') + '"><div class="muted small">' + label + '</div><div id="' + id + '" style="font-size:19px;font-weight:800;font-family:var(--font-num)">—</div></div>'; }
   function useSw(sec, on, text) { return '<label class="sw" style="gap:7px"><input type="checkbox" ' + (on ? 'checked' : '') + ' onchange="NQM.set(\'' + sec + '\',\'use\',this.checked)"><span class="muted small">' + text + '</span></label>'; }
+  function rmBtn(sec, what) { return '<button type="button" class="btn btn-light btn-sm nqm-x" onclick="NQM.remove(\'' + sec + '\')" title="Remove ' + what + ' from this file" aria-label="Remove ' + what + '">Remove</button>'; }
+  function upBtn(sec, label, multi) { return '<label class="btn btn-light btn-sm nqm-up" title="PDF, image or text - read with OCR, then the matching fields are filled"><input type="file" accept=".pdf,image/*,.txt,.csv" ' + (multi ? 'multiple ' : '') + 'onchange="NQM.upload(\'' + sec + '\',this.files);this.value=\'\'"><span>' + label + '</span></label>'; }
+  var ADD = [['bank', 'Bank statement', '12 or 24 months of deposits, less an expense factor'], ['dscr', 'DSCR', 'Investor property qualifies on its own rent'], ['pl', 'Profit and loss', 'Net profit from a P&L statement, times ownership']];
   NQM.render = function () {
     var body = $('nqmBody'), q = state(); if (!body || !q) return;
-    var B = q.bank, D = q.dscr, P = q.prepay, m = N(B.months) === 24 ? 24 : 12, bor = [[1, 'B1 — Borrower 1'], [2, 'B2 — Borrower 2']];
+    var B = q.bank, D = q.dscr, P = q.prepay, L = q.pl, sh = q.shown, m = N(B.months) === 24 ? 24 : 12, bor = [[1, 'B1 — Borrower 1'], [2, 'B2 — Borrower 2']];
     var ledger = function (from, to) { var h = ''; for (var i = from; i < to; i++) { var d = B.deposits[i];
-      h += '<tr><td class="rowlabel">Month ' + (i + 1) + '</td><td><input class="cell-input" type="text" inputmode="decimal" data-num="1" value="' + N(d.gross) + '" oninput="NQM.dep(' + i + ',\'gross\',this.value)"></td>' +
+      h += '<tr><td class="rowlabel">Month ' + (i + 1) + (d.label ? ' <span class="muted small">' + esc(d.label) + '</span>' : '') + '</td><td><input class="cell-input" type="text" inputmode="decimal" data-num="1" value="' + N(d.gross) + '" oninput="NQM.dep(' + i + ',\'gross\',this.value)"></td>' +
            '<td><input class="cell-input" type="text" inputmode="decimal" data-num="1" value="' + N(d.inel) + '" oninput="NQM.dep(' + i + ',\'inel\',this.value)"></td><td class="num" id="nqmNet' + i + '">—</td></tr>'; } return h; };
-    body.innerHTML =
-      '<div class="card"><div class="card-top"><span class="tag">Bank statements</span><span class="doc-name">12 / 24-month bank statement income</span><div class="spacer"></div>' + useSw('bank', B.use, 'Use in qualifying income') + '</div><div class="card-body">' +
+    var any = sh.bank || sh.dscr || sh.pl;
+    var head = '<div class="nqm-head"><div><h3>Non-QM income</h3><p class="muted small">Bank statement, DSCR and profit-and-loss income. Each counts toward qualifying income only when Use is ticked.</p></div>' +
+      '<div class="nqm-add" id="nqmAdd"><button type="button" class="btn btn-primary" id="nqmAddBtn" aria-haspopup="true" aria-expanded="false" onclick="NQM.menu()">+ Add Non-QM</button>' +
+      '<div class="nqm-menu" id="nqmMenu" role="menu" hidden>' + ADD.map(function (a) { return '<button type="button" role="menuitem" onclick="NQM.add(\'' + a[0] + '\')"' + (sh[a[0]] ? ' disabled' : '') + '><b>' + a[1] + (sh[a[0]] ? ' <span class="muted small">added</span>' : '') + '</b><span>' + a[2] + '</span></button>'; }).join('') + '</div></div></div>' +
+      (any ? '' : '<div class="nqm-empty muted small">No Non-QM income on this file. Choose <b>Add Non-QM</b> for bank statement, DSCR or profit-and-loss income.</div>') +
+      '<output id="nqmOcr" class="nqm-ocr" hidden></output>';
+    body.innerHTML = head + (!sh.bank ? '' :
+      '<div class="card" id="nqmCard-bank"><div class="card-top"><span class="tag">Bank statements</span><span class="doc-name">12 / 24-month bank statement income</span><div class="spacer"></div>' + upBtn('bank', 'Upload statements', 1) + useSw('bank', B.use, 'Use in qualifying income') + rmBtn('bank', 'bank statement income') + '</div><div class="card-body">' +
       '<div class="grid g4">' + f('Statement term', 'bank', 'months', m, {options: [[12, '12 months'], [24, '24 months']], num: 1}) +
       f('Account type and expense method', 'bank', 'method', B.method, {options: Object.keys(NQM.METHODS).map(function (k) { return [k, NQM.METHODS[k]]; })}) +
       (B.method === 'personal' ? '' : f('Expense ratio (% of deposits)', 'bank', 'expense', B.expense, {hint: B.method === 'fixed' ? 'Program fixed factor - commonly 50%' : 'From the CPA / EA letter or P&L'})) +
@@ -9275,9 +9419,16 @@ window.__mtgcalcBridge = {
       '<div class="' + (m === 24 ? 'grid g2' : '') + '" style="margin-top:12px;align-items:start"><div class="tbl-scroll"><table class="matrix" style="width:100%"><thead><tr><th>Month</th><th>Gross deposits</th><th>Less: transfers / ineligible</th><th class="num">Net eligible</th></tr></thead><tbody>' + ledger(0, 12) + '</tbody></table></div>' +
       (m === 24 ? '<div class="tbl-scroll"><table class="matrix" style="width:100%"><thead><tr><th>Month</th><th>Gross deposits</th><th>Less: transfers / ineligible</th><th class="num">Net eligible</th></tr></thead><tbody>' + ledger(12, 24) + '</tbody></table></div>' : '') + '</div>' + (m === 24 ? '' : '<div class="muted small" style="margin-top:6px">Choose 24 months to add months 13-24.</div>') +
       '<div class="grid g4" style="margin-top:12px">' + box('Net eligible deposits', 'nqmTot') + box('Average per month', 'nqmAvg') + box('Less: expense factor', 'nqmExp') + box('Qualifying monthly income', 'nqmInc', 1) + '</div>' +
-      '<div class="notice info" style="margin-top:10px"><span>Net eligible deposits / statement months, less the expense factor, times ownership. Exclude transfers between accounts, loan proceeds, refunds and other non-business deposits; large deposits need a source.</span></div></div></div>' +
+      '<div class="notice info" style="margin-top:10px"><span>Net eligible deposits / statement months, less the expense factor, times ownership. Exclude transfers between accounts, loan proceeds, refunds and other non-business deposits; large deposits need a source. Uploaded statements fill one month each, in date order, into the first empty months.</span></div></div></div>') + (!sh.pl ? '' :
 
-      '<div class="card"><div class="card-top"><span class="tag">DSCR</span><span class="doc-name">Investor DSCR - the property qualifies on its own rent</span><div class="spacer"></div>' + useSw('dscr', D.use, 'Add the net cash flow to qualifying income') + '</div><div class="card-body">' +
+      '<div class="card" id="nqmCard-pl"><div class="card-top"><span class="tag">P&amp;L</span><span class="doc-name">Profit and loss statement income</span><div class="spacer"></div>' + upBtn('pl', 'Upload P&amp;L', 0) + useSw('pl', L.use, 'Use in qualifying income') + rmBtn('pl', 'profit and loss income') + '</div><div class="card-body">' +
+      '<div class="grid g4">' + f('P&amp;L period', 'pl', 'months', N(L.months) === 24 ? 24 : 12, {options: [[12, '12 months'], [24, '24 months']], num: 1}) +
+      f('Gross revenue / sales ($)', 'pl', 'revenue', L.revenue) + f('Cost of goods sold ($)', 'pl', 'cogs', L.cogs, {hint: '0 if the P&L has none'}) + f('Total operating expenses ($)', 'pl', 'expenses', L.expenses) +
+      f('Ownership (%)', 'pl', 'own', L.own) + f('Prepared by', 'pl', 'prep', L.prep, {options: Object.keys(NQM.PREP).map(function (k) { return [k, NQM.PREP[k]]; })}) + f('Borrower', 'pl', 'b', L.b, {options: bor, num: 1}) + '</div>' +
+      '<div class="grid g4" style="margin-top:12px">' + box('Gross profit', 'nqmPlGross') + box('Net profit', 'nqmPlNet') + box('Net profit per month', 'nqmPlAvg') + box('Qualifying monthly income', 'nqmPlInc', 1) + '</div>' +
+      '<div class="note" id="nqmPlNote" style="margin-top:10px"></div></div></div>') + (!sh.dscr ? '' :
+
+      '<div class="card" id="nqmCard-dscr"><div class="card-top"><span class="tag">DSCR</span><span class="doc-name">Investor DSCR - the property qualifies on its own rent</span><div class="spacer"></div>' + useSw('dscr', D.use, 'Add the net cash flow to qualifying income') + rmBtn('dscr', 'DSCR') + '</div><div class="card-body">' +
       '<div class="grid g4">' + f('Loan amount ($)', 'dscr', 'loan', D.loan) + f('Note rate (%)', 'dscr', 'rate', D.rate) + f('Amortization (months)', 'dscr', 'term', D.term, {hint: '360 = 30 years; 480 = 40-year interest-only'}) +
       f('Payment used', 'dscr', 'io', D.io ? 1 : 0, {options: [[0, 'Amortizing P&I'], [1, 'Interest-only']], bool: 1}) +
       f('Rent - lower of lease or Form 1007 / 1025 ($/mo)', 'dscr', 'rent', D.rent) + f('Short-term rental haircut (%)', 'dscr', 'haircut', D.haircut, {hint: '0 for long-term leases; often 10-20% for short-term rentals'}) +
@@ -9290,41 +9441,56 @@ window.__mtgcalcBridge = {
       f('Penalty term (years, 1-5)', 'prepay', 'years', P.years) + (P.type === 'flat' ? f('Flat penalty (%)', 'prepay', 'flat', P.flat) : '') +
       f('Penalty-free prepayment per year (% of original loan)', 'prepay', 'free', P.free, {hint: 'Commonly 20%'}) + f('Payoff balance at prepayment ($)', 'prepay', 'payoff', P.payoff) + '</div>' +
       '<div class="tbl-scroll" style="margin-top:12px"><table class="matrix"><thead><tr><th>Year</th><th class="num">5/4/3/2/1</th><th class="num">3/2/1</th><th class="num">Flat %</th><th class="num">6 months interest</th><th class="num">Selected</th><th class="num">% of payoff</th></tr></thead><tbody id="nqmPrepay"></tbody></table></div>' +
-      '<div class="muted small" id="nqmSubject" style="margin-top:8px"></div></div></div>';
+      '<div class="muted small" id="nqmSubject" style="margin-top:8px"></div></div></div>');
     paint();
   };
   function setT(id, v) { var e = $(id); if (e && e.textContent !== v) e.textContent = v; }
   function paint() {
     if (!$('nqmBody')) return;
-    var b = NQM.bank(), d = NQM.dscr(), p = NQM.prepay(); if (!b) return;
+    var b = NQM.bank(), d = NQM.dscr(), p = NQM.prepay(), l = NQM.pl(); if (!b) return;
+    if (l) { setT('nqmPlGross', usd(l.gross)); setT('nqmPlNet', usd(l.net)); setT('nqmPlAvg', usd(l.avg)); setT('nqmPlInc', usd(l.monthly));
+      var pn = $('nqmPlNote'), Q = state();
+      if (pn) { var msg = !N(Q.pl.revenue) && !N(Q.pl.expenses) ? 'Enter the revenue and expenses from the P&L, or upload it.' :
+          'Net profit ' + usd(l.net) + ' over ' + l.months + ' months is ' + usd(l.avg) + ' a month' + (l.own < 1 ? '; times ' + Math.round(l.own * 100) + '% ownership' : '') + ' = ' + usd(l.monthly) + ' a month. Profit margin ' + (100 * l.margin).toFixed(1) + '%.' +
+          (l.net < 0 ? ' A loss cannot be used as income.' : '') + (Q.pl.prep === 'borrower' ? ' Borrower-prepared P&L: most programs also require recent business bank statements that support the revenue.' : '');
+        if (pn.textContent !== msg) pn.textContent = msg; pn.className = 'note ' + (l.net < 0 ? 'bad' : N(Q.pl.revenue) ? 'ok' : ''); } }
     b.rows.forEach(function (r, i) { setT('nqmNet' + i, usd(r.net)); });
     setT('nqmTot', usd(b.total)); setT('nqmAvg', usd(b.avg)); setT('nqmExp', '−' + usd(b.expense)); setT('nqmInc', usd(b.monthly));
     setT('nqmPI', usd(d.pi)); setT('nqmIO', usd(d.io)); setT('nqmPITIA', usd(d.pitia)); setT('nqmRatio', d.pitia ? d.ratio.toFixed(2) + 'x' : '—');
     var t = $('nqmTier'); if (t) { t.className = 'note ' + (!d.pitia ? '' : d.ratio >= 1 ? 'ok' : 'bad'); t.textContent = d.pitia ? d.tier + '. Net monthly cash flow ' + usd(d.net) + ' (rent ' + usd(d.rent) + ' less PITIA ' + usd(d.pitia) + ').' : 'Enter the loan, rate and rent to calculate the DSCR.'; }
     var tb = $('nqmPrepay'); if (tb) tb.innerHTML = p.rows.map(function (r) { return '<tr><td class="rowlabel">Year ' + r.year + '</td><td class="num">' + usd(r.s5) + '</td><td class="num">' + usd(r.s3) + '</td><td class="num">' + usd(r.flat) + '</td><td class="num">' + usd(r.sixmo) + '</td><td class="num"><b>' + usd(r.used) + '</b></td><td class="num">' + (100 * r.pct).toFixed(2) + '%</td></tr>'; }).join('');
     setT('nqmSubject', 'Balance subject to the penalty: ' + usd(p.subject) + ' (payoff balance less the penalty-free allowance on the original loan). The six-months-interest column is interest on the payoff less the allowance.');
-    var c = $('cnt-nqm'); if (c) c.textContent = String((state().bank.use ? 1 : 0) + (state().dscr.use ? 1 : 0));
   }
 
   /* -------------------------------------------------- the tab, totals, hooks */
+  /* 56.0: Non-QM is part of Other Income - the old Non-QM tab is gone; switchTab('nqm') still lands on it */
   function buildTab() {
-    if ($('panel-nqm')) return true;
-    var bar = $('tabbar'), wrap = document.querySelector('main .wrap'); if (!bar || !wrap) return false;
-    var after = bar.querySelector('[data-tab="assets"]'), btn = document.createElement('button');
-    btn.className = 'tab'; btn.setAttribute('data-tab', 'nqm'); btn.setAttribute('onclick', "switchTab('nqm')"); btn.title = 'Non-QM: bank statement income, DSCR and prepayment penalty';
-    btn.innerHTML = '<svg class="icon"><use href="#i-coins"/></svg><span>Non-QM</span><span class="cnt" id="cnt-nqm">0</span>';
-    after && after.nextSibling ? bar.insertBefore(btn, after.nextSibling) : bar.appendChild(btn);
-    var sec = document.createElement('section'); sec.className = 'panel'; sec.id = 'panel-nqm';
-    sec.innerHTML = '<div class="section-head"><div><h2><svg class="icon icon-lg"><use href="#i-coins"/></svg>Non-QM Income</h2><p>Bank statement income, DSCR property cash flow and the DSCR prepayment penalty. Each counts toward qualifying income only when Use is ticked.</p></div></div><div id="nqmBody"></div>';
-    var sum = $('panel-summary'); sum && sum.parentNode ? sum.parentNode.insertBefore(sec, sum) : wrap.appendChild(sec);
+    var old = document.querySelector('#tabbar [data-tab="nqm"]'); if (old) old.remove();
+    var oldP = $('panel-nqm'); if (oldP && !oldP.querySelector('#nqmBody')) oldP.remove();
+    if ($('nqmBody')) return true;
+    var panel = $('panel-other'); if (!panel) return false;
+    var sec = document.createElement('section'); sec.id = 'nqmSection'; sec.className = 'nqm-section';
+    sec.innerHTML = '<div id="nqmBody"></div>';
+    panel.appendChild(sec);
+    if (!$('nqmCss')) { var st = document.createElement('style'); st.id = 'nqmCss';
+      st.textContent = '.nqm-section{margin-top:18px}.nqm-head{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:flex-end;justify-content:space-between;margin:0 0 10px}' +
+        '.nqm-head h3{margin:0 0 2px;font-size:16px}.nqm-head p{margin:0}.nqm-add{position:relative}' +
+        '.nqm-menu{position:absolute;right:0;top:calc(100% + 6px);z-index:40;min-width:290px;display:grid;gap:2px;padding:6px;border-radius:12px;background:var(--surface,#fff);border:1px solid var(--line,#d9e2ec);box-shadow:0 12px 30px rgba(3,12,32,.28)}' +
+        '.nqm-menu[hidden]{display:none}.nqm-menu button{all:unset;box-sizing:border-box;display:grid;gap:2px;width:100%;padding:9px 11px;border-radius:8px;cursor:pointer;color:inherit}' +
+        '.nqm-menu button b{font-size:13.5px}.nqm-menu button span{font-size:12px;opacity:.72}.nqm-menu button:hover:not([disabled]),.nqm-menu button:focus-visible{background:var(--surface-2,rgba(90,162,255,.12))}' +
+        '.nqm-menu button[disabled]{opacity:.5;cursor:default}.nqm-empty{padding:14px 16px;border:1px dashed var(--line,#d9e2ec);border-radius:10px;margin-bottom:12px}' +
+        '.nqm-up{position:relative;overflow:hidden;cursor:pointer;margin-right:8px}.nqm-up input{position:absolute;inset:0;opacity:0;cursor:pointer}.nqm-x{margin-left:8px}' +
+        '.nqm-ocr{display:block;margin:0 0 12px;padding:10px 13px;border-radius:10px;font-size:13px;border:1px solid var(--line,#d9e2ec);background:var(--surface-2,rgba(90,162,255,.08))}.nqm-ocr[hidden]{display:none}.nqm-ocr.bad{border-color:#c0392b}.nqm-ocr ul{margin:6px 0 0 18px;padding:0}';
+      document.head.appendChild(st); }
     return true;
   }
   function wrapTotals() {
     if (typeof window.calcTotals !== 'function' || window.calcTotals.__nqm) return !!(window.calcTotals && window.calcTotals.__nqm);
     var base = window.calcTotals, w = function () {
       var t = base.apply(this, arguments), q = state(); if (!q) return t;
-      var b = NQM.bank(), d = NQM.dscr(), add = 0;
+      var b = NQM.bank(), d = NQM.dscr(), l = NQM.pl(), add = 0;
       if (b && b.used) { add += b.used; if ((q.bank.b || 1) === 2) t.b2 += b.used; else t.b1 += b.used; }
+      if (l && l.used > 0) { add += l.used; if ((q.pl.b || 1) === 2) t.b2 += l.used; else t.b1 += l.used; }
       if (d && d.used) { if (d.used > 0) { add += d.used; if ((q.dscr.b || 1) === 2) t.b2 += d.used; else t.b1 += d.used; } else t.debts += -d.used; }
       if (add) t.income += add; t.nqm = add;
       t.front = t.income ? t.pitia / t.income : 0; t.back = t.income ? (t.pitia + t.debts) / t.income : 0;
@@ -9336,12 +9502,12 @@ window.__mtgcalcBridge = {
     if (typeof window.switchTab !== 'function' || window.switchTab.__nqm) return !!(window.switchTab && window.switchTab.__nqm);
     var base = window.switchTab, w = function (t) {
       if (t === 'nqm') {
-        Array.prototype.forEach.call(document.querySelectorAll('.panel'), function (p) { p.classList.toggle('active', p.id === 'panel-nqm'); });
-        Array.prototype.forEach.call(document.querySelectorAll('#tabbar .tab'), function (b) { b.classList.toggle('active', b.dataset.tab === 'nqm'); });
-        NQM.render(); return;
+        var rr = base.call(this, 'other'); NQM.render();
+        setTimeout(function () { var s = $('nqmSection'); if (s && s.scrollIntoView) s.scrollIntoView({behavior: 'smooth', block: 'start'}); }, 80);
+        return rr;
       }
-      var r = base.apply(this, arguments); var p = $('panel-nqm'); if (p) p.classList.remove('active');
-      if (t === 'aus') guides(); if (t === 'sche') personalUse();
+      var r = base.apply(this, arguments);
+      if (t === 'aus') guides(); if (t === 'sche') personalUse(); if (t === 'other') NQM.render();
       return r;
     };
     w.__nqm = true; w.__va = base.__va; window.switchTab = w; return true;
@@ -9400,7 +9566,7 @@ window.__mtgcalcBridge = {
     ['Rental income', 'Schedule E: rents (3) less total expenses (20), plus insurance (9), mortgage interest (12), taxes (16), depreciation (18) and HOA or one-time repairs, over the months in service (fair rental days / 30.4167), less the full PITIA. FHA non-owner and VA: line 21 plus line 18. FHA owner-occupied 2-4 units: line 21 plus insurance, interest, taxes, depreciation and HOA, less the proposed PITIA. New or purchased rentals: 75% of the lease or Form 1007 / 1025 rent, less PITIA. Personal use above the greater of 14 days or 10% of fair rental days brings the vacation-home rules into play.', 'Fannie Mae B3-3.1-08 · Freddie Mac 5306 · HUD 4000.1 · VA 26-7'],
     ['Asset depletion', 'Fannie Mae (employment-related assets): retirement accounts, lump-sum distributions and business-sale proceeds; less a 10% penalty under age 59½, the down payment, closing costs and reserves; divided by the loan term in months. Purchase or limited cash-out, primary or second home, 70% LTV (80% if the owner is 62 or older). Freddie Mac 5307.1: depository, securities and retirement assets; less funds to close, reserves, gift or borrowed and pledged funds; divided by 240 months, or 180 under Bulletin 2026-10 with at least $30,000 remaining.', 'Fannie Mae B3-3.1-09 · Freddie Mac 5307.1'],
     ['VA residual income', 'Gross income (un-grossed) less federal, state and FICA taxes, the proposed PITIA, monthly debts and childcare, and maintenance and utilities at $0.14 per square foot of living area, compared with the regional table by family size and loan amount. Above a 41% ratio the residual must be at least 120% of the table. The table figure is reduced 5% for an active-duty or retired veteran or spouse living near a military base.', 'VA Pamphlet 26-7 ch. 4 · VA Form 26-6393'],
-    ['Non-QM: bank statements and DSCR', 'Bank statement programs: net eligible deposits over 12 or 24 months, less a fixed or CPA expense factor, times ownership; transfers and non-business deposits are excluded. DSCR: rent (lower of lease or Form 1007, with a haircut for short-term rentals) divided by PITIA or ITIA; 1.00x is standard, 1.20x and above prices best. Prepayment penalties run 1-5 years as a step-down, a flat percentage or six months of interest, usually with 20% a year penalty-free.', 'Investor guidelines - confirm against the program used']
+    ['Non-QM: bank statements, P&L and DSCR', 'Bank statement programs: net eligible deposits over 12 or 24 months, less a fixed or CPA expense factor, times ownership; transfers and non-business deposits are excluded. P&L-only programs: net profit over a 12 or 24-month P&L, times ownership; most want it prepared or signed by a CPA, EA or tax preparer, and a borrower-prepared P&L usually needs 2-3 months of business bank statements that support the revenue. DSCR: rent (lower of lease or Form 1007, with a haircut for short-term rentals) divided by PITIA or ITIA; 1.00x is standard, 1.20x and above prices best. Prepayment penalties run 1-5 years as a step-down, a flat percentage or six months of interest, usually with 20% a year penalty-free.', 'Investor guidelines - confirm against the program used']
   ];
   function guides() {
     var p = $('panel-aus'); if (!p || $('mtAusGuides')) return;
@@ -9430,6 +9596,12 @@ window.__mtgcalcBridge = {
       ['Average per month', usd(b.total) + ' ÷ ' + b.months, usd(b.avg)], ['Less: expense factor', NQM.METHODS[q.bank.method] + (q.bank.method === 'personal' ? '' : ' · ' + pct(b.ratio)), '− ' + usd(b.expense)],
       ['Ownership', pct(b.own), ''], ['Qualifying monthly income', '', usd(b.monthly)]],
       total: b.monthly, totalLabel: 'Bank Statement Qualifying Income', note: '<b>How this was calculated.</b> Net eligible deposits over the statement period are averaged, reduced by the expense factor and multiplied by the ownership percentage. Transfers between accounts, loan proceeds and other non-business deposits are excluded.'}));
+    var l = NQM.pl();
+    if (q.pl && q.pl.use && l && (N(q.pl.revenue) || N(q.pl.expenses))) out.push(dp({pageTitle: 'Profit and Loss Income — ' + l.months + ' months', title: 'Non-QM P&L Statement Income', rows: [
+      ['Gross revenue / sales', q.pl.from ? esc(q.pl.from) + ' – ' + esc(q.pl.to) : '', usd(q.pl.revenue)], ['Less: cost of goods sold', '', '− ' + usd(q.pl.cogs)], ['Gross profit', '', usd(l.gross)],
+      ['Less: operating expenses', '', '− ' + usd(q.pl.expenses)], ['Net profit', NQM.PREP[q.pl.prep] || '', usd(l.net)], ['Net profit per month', usd(l.net) + ' ÷ ' + l.months, usd(l.avg)],
+      ['Ownership', pct(l.own), ''], ['Qualifying monthly income', '', usd(l.monthly)]],
+      total: l.used, totalLabel: 'P&L Qualifying Income', note: '<b>How this was calculated.</b> Net profit (revenue less cost of goods sold and operating expenses) over the P&L period, times the ownership percentage. A loss is not used as income.'}));
     var d = NQM.dscr();
     if (q.dscr.use && d && d.pitia) out.push(dp({pageTitle: 'DSCR — Investor Property Cash Flow', title: 'Debt Service Coverage Ratio', rows: [
       ['Qualifying rent', 'lower of lease or Form 1007 / 1025' + (N(q.dscr.haircut) ? ' less ' + N(q.dscr.haircut) + '% short-term rental haircut' : ''), usd(d.rent)],
@@ -9462,9 +9634,933 @@ window.__mtgcalcBridge = {
   var tries = 0, t = setInterval(function () {
     var ok = buildTab() && wrapTotals() && wrapSwitch() && wrapRecalc() && wrapReport();
     vaBase();
-    if (ok && state()) { guides(); window.RECALC && window.RECALC(); clearInterval(t); }
+    if (ok && state()) { guides(); NQM.render(); window.RECALC && window.RECALC(); clearInterval(t); }
     else if (++tries > 200) clearInterval(t);
   }, 60);
+})();
+
+</script>
+<script>/* mt-live.js (inlined) */
+/* Mortgage Suite 56.0 - live sync between the Income Calculator and the Loan Suite, on by default.
+   - Income Calculator -> Loan Suite: every recalculation publishes the income handoff (sync-bridge.js), and an open Loan Suite
+     page imports it at once (storage event) - not only when a field loses focus or the page closes.
+   - Loan Suite -> Income Calculator: the loan the suite calculates (base loan, rate, term, program, MI rate, taxes, insurance,
+     HOA, price, value) is published on every change and fills the calculator's Loan / PITIA figures, so DTI uses the same
+     housing payment.
+   One switch for both directions: localStorage 'losSync.v1' (the Loan Suite's own Sync button). 56.0 turns it on once for
+   everyone; after that the button decides. */
+(function () {
+  'use strict';
+  if (window.MtLive) return;
+  var SYNC = 'losSync.v1', LOAN = 'mt.live.loan.v1', ONCE = 'mt.sync56.default';
+  try { if (!localStorage.getItem(ONCE)) { localStorage.setItem(SYNC, '1'); localStorage.setItem(ONCE, '1'); } } catch (e) {}
+  function on() { try { return localStorage.getItem(SYNC) !== '0'; } catch (e) { return true; } }
+  function setOn(v) { try { localStorage.setItem(SYNC, v ? '1' : '0'); } catch (e) {} paintChip(); if (v) kick(); }
+  function G(n) { try { return (0, eval)(n); } catch (e) { return undefined; } }
+  function num(v) { var n = +v; return isFinite(n) ? n : 0; }
+  function r2(v) { return Math.round(num(v) * 100) / 100; }
+  var page = /income-calculator/i.test(location.pathname) ? 'income' : 'suite';
+  if (window.LOS_EMBED && LOS_EMBED.page === 'income') page = 'income';
+
+  /* ------------------------------------------------------------ Loan Suite side */
+  function suiteStore() { try { return window.mortgageSuite && window.mortgageSuite.store; } catch (e) { return null; } }
+  function loanRecord() {
+    var st = suiteStore(); if (!st) return null;
+    var a = st.activeInputs || {}, o = null;
+    try { o = st.cachedOutputs || (st.outputsFor && st.outputsFor(a)); } catch (e) {}
+    if (!o || !o.payment || !o.loan) return null;
+    var p = o.payment, l = o.loan, prog = String(a.loanProgram || ''), fha = /fha/i.test(prog), va = /\bva\b/i.test(prog), usda = /usda/i.test(prog);
+    return {
+      program: fha ? 'FHA' : va ? 'VA' : usda ? 'USDA' : 'Conventional',
+      price: r2(a.basePurchasePrice), value: r2(a.asIsValue || a.basePurchasePrice), base: r2(l.maximumBaseLoan), total: r2(l.totalLoan),
+      rate: Math.round(num(a.interestRate) * 100000) / 1000, term: num(a.termYears) || 30,
+      miRate: Math.round(num(fha ? p.fhaMipRateUsed : p.pmiRateUsed) * 100000) / 1000, ufmipRate: Math.round(num(a.ufmipRate) * 100000) / 1000,
+      taxes: r2(p.monthlyTaxes), ins: r2(p.monthlyInsurance), hoa: r2(p.hoaMonthly), pi: r2(p.principalAndInterest),
+      mi: r2(fha ? p.monthlyFhaMip : p.monthlyPmi), housing: r2(p.totalMonthlyPayment),
+      units: num(a.units) || 1, fico: num(a.creditScore), address: String(a.propertyAddress || ''), txn: String(a.transactionType || ''), occ: String(a.occupancy || ''),
+      borrower: String(a.borrowerName || '')
+    };
+  }
+  var lastLoan = '';
+  function publishLoan(force) {
+    if (!on() && !force) return;
+    var rec = loanRecord(); if (!rec) return;
+    var sig = JSON.stringify(rec); if (sig === lastLoan && !force) return; lastLoan = sig;
+    try { localStorage.setItem(LOAN, JSON.stringify({updatedAt: Date.now(), source: location.pathname, loan: rec})); } catch (e) {}
+    try { window.MtgcalcSync && window.MtgcalcSync.syncNow(); } catch (e) {}
+  }
+  function bootSuite(t) {
+    var st = suiteStore(); if (!st || !st.subscribe) { if ((t || 0) < 200) setTimeout(function () { bootSuite((t || 0) + 1); }, 100); return; }
+    var timer = 0; st.subscribe(function () { clearTimeout(timer); timer = setTimeout(publishLoan, 350); });
+    setTimeout(publishLoan, 600);
+  }
+
+  /* ------------------------------------------------------- Income Calculator side */
+  var lastIncome = '', applying = false;
+  function publishIncome() {
+    if (!on() || applying) return;
+    var b = window.__mtgcalcBridge; if (!b || !b.getIncomePatch) return;
+    var sig = ''; try { sig = JSON.stringify(b.getIncomePatch()); } catch (e) { return; }
+    if (sig === lastIncome) return; lastIncome = sig;
+    try { window.MtgcalcSync && window.MtgcalcSync.syncNow(); } catch (e) {}
+    paintChip('Synced ' + new Date().toLocaleTimeString([], {hour: 'numeric', minute: '2-digit', second: '2-digit'}));
+  }
+  /* the suite's loan into the calculator's Loan / PITIA figures */
+  function applyLoan(rec) {
+    var S = G('S'); if (!S || !S.loan || !rec || !rec.loan) return false;
+    if (S.loan.sync === false || !on()) return false;
+    var L = S.loan, x = rec.loan, ch = false;
+    function set(k, v) { if (v === undefined || v === null || (typeof v === 'number' && !isFinite(v))) return; if (L[k] !== v) { L[k] = v; ch = true; } }
+    set('program', x.program); set('price', x.price); set('value', x.value); set('rate', x.rate); set('term', x.term);
+    if (x.base > 0) set('baseOverride', x.base);
+    set('miOverride', x.miRate > 0 ? x.miRate : 0); if (x.program === 'FHA' && x.ufmipRate > 0) set('ufmipRate', x.ufmipRate);
+    set('taxAnnual', r2(x.taxes * 12)); set('insAnnual', r2(x.ins * 12)); set('hoaMonthly', x.hoa);
+    set('units', x.units); if (x.fico) set('fico', x.fico); if (x.address) set('address', x.address);
+    if (x.txn) set('txn', /refi/i.test(x.txn) ? 'Refinance' : 'Purchase');
+    if (x.occ) set('occ', x.occ);
+    if (!ch) return false;
+    applying = true;
+    /* re-render the loan inputs (DTI tab) unless the user is typing in one of them */
+    try { var ae = document.activeElement, dti = document.getElementById('dtiBody'); if (!(ae && dti && dti.contains(ae))) { var RD = G('renderDTI'); if (typeof RD === 'function') RD(); } } catch (e) {}
+    try { window.RECALC && window.RECALC(); } catch (e) {}
+    applying = false;
+    paintChip('Loan synced from the Loan Suite');
+    return true;
+  }
+  function readLoan() { try { return JSON.parse(localStorage.getItem(LOAN) || 'null'); } catch (e) { return null; } }
+  function bootIncome(t) {
+    if (typeof window.RECALC !== 'function' || !G('S')) { if ((t || 0) < 200) setTimeout(function () { bootIncome((t || 0) + 1); }, 100); return; }
+    var timer = 0;
+    (function wrap() {
+      var base = window.RECALC; if (base.__live) return;
+      var w = function () { var r = base.apply(this, arguments); clearTimeout(timer); timer = setTimeout(publishIncome, 400); return r; };
+      Object.keys(base).forEach(function (k) { w[k] = base[k]; }); w.__live = true; window.RECALC = w;
+      try { (0, eval)('RECALC = window.RECALC'); } catch (e) {}
+    })();
+    /* other wrappers (income-extras, release56) re-wrap RECALC after us: keep ours outermost-safe by re-checking */
+    setInterval(function () { if (window.RECALC && !window.RECALC.__live) { var b = window.RECALC, w = function () { var r = b.apply(this, arguments); clearTimeout(timer); timer = setTimeout(publishIncome, 400); return r; }; Object.keys(b).forEach(function (k) { w[k] = b[k]; }); w.__live = true; window.RECALC = w; } }, 1500);
+    applyLoan(readLoan());
+    setTimeout(publishIncome, 800);
+    mountChip();
+  }
+  window.addEventListener('storage', function (e) {
+    if (e.key === LOAN && page === 'income' && e.newValue) { try { applyLoan(JSON.parse(e.newValue)); } catch (x) {} }
+    if (e.key === SYNC) paintChip();
+  });
+
+  /* ------------------------------------------- a Live sync switch on the calculator */
+  function mountChip() {
+    if (document.getElementById('mtLiveChip')) return;
+    var host = document.querySelector('.appbar .appbar-right, .appbar .right, .appbar') || document.body;
+    var b = document.createElement('button'); b.type = 'button'; b.id = 'mtLiveChip'; b.className = 'mt-live-chip no-print';
+    b.addEventListener('click', function () { setOn(!on()); });
+    host.appendChild(b);
+    if (!document.getElementById('mtLiveCss')) {
+      var s = document.createElement('style'); s.id = 'mtLiveCss';
+      s.textContent = '.mt-live-chip{display:inline-flex;align-items:center;gap:7px;margin-left:8px;padding:6px 12px;border-radius:999px;border:1px solid rgba(63,207,142,.55);background:rgba(63,207,142,.12);color:#3fcf8e;font:600 12.5px/1 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;cursor:pointer;white-space:nowrap}' +
+        '.mt-live-chip::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor;box-shadow:0 0 0 3px rgba(63,207,142,.18)}' +
+        '.mt-live-chip.off{border-color:rgba(157,176,200,.45);background:transparent;color:#9db0c8}.mt-live-chip.off::before{box-shadow:none}' +
+        '.mt-live-chip:focus-visible{outline:2px solid #5aa2ff;outline-offset:2px}';
+      document.head.appendChild(s);
+    }
+    paintChip();
+  }
+  var chipNote = '', chipTimer = 0;
+  function paintChip(note) {
+    var b = document.getElementById('mtLiveChip'); if (!b) return;
+    if (note) { chipNote = note; clearTimeout(chipTimer); chipTimer = setTimeout(function () { chipNote = ''; paintChip(); }, 4000); }
+    var v = on(); b.classList.toggle('off', !v);
+    b.textContent = v ? (chipNote || 'Live sync on') : 'Live sync off';
+    b.title = v ? 'Income and the Loan Suite update each other as you type. Click to stop.' : 'The Income Calculator and the Loan Suite are not updating each other. Click to turn live sync on.';
+  }
+  function kick() { if (page === 'income') { lastIncome = ''; publishIncome(); applyLoan(readLoan()); } else { publishLoan(true); } }
+
+  window.MtLive = {on: on, set: setOn, publishLoan: publishLoan, publishIncome: publishIncome, applyLoan: applyLoan, loanRecord: loanRecord, KEY: LOAN};
+  if (page === 'income') bootIncome(0); else bootSuite(0);
+})();
+
+</script>
+<script>/* release56-income.js (inlined) */
+/* Mortgage Suite 56.0 - Income Calculator.
+   - The "Agency asset guidelines" pop-up is gone (it opened unstyled); the planning summary it repeated stays on the Assets tab.
+   - Assets: the Planning summary and the Asset statement OCR & large-deposit review are calculator cards, like every other card.
+   - W-2 & Salary is the page the calculator opens on.
+   - Mortgage Rates pulls Mortgage News Daily's daily index when it is opened (mnd-rates in this file, shared with the Loan Suite). */
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  function G(n) { try { return (0, eval)(n); } catch (e) { return undefined; } }
+
+  /* --------------------------------------------------------------- styles */
+  var css = [
+    /* W-2: Year 1 only */
+    '.y1-only-row td{background:var(--surface-2,rgba(90,162,255,.07))}.y1-only{display:flex;flex-wrap:wrap;gap:6px 22px;font-size:13px}.y1-only b{font-family:var(--font-num,inherit);font-weight:800}',
+    /* asset cards */
+    '#mtAssetPlan .card-body,#mtAssetOcr .card-body{display:grid;gap:12px}',
+    '#v36AssetUseSummary{margin:0!important;padding:0!important;border:0!important;background:none!important}',
+    '#v36AssetUseSummary .v36-agency-tabs{display:inline-flex;flex-wrap:wrap;gap:3px;padding:3px;border-radius:10px;border:1px solid var(--line,#d9e2ec);background:var(--surface-2,rgba(90,162,255,.06));margin:0 0 12px}',
+    '#v36AssetUseSummary .v36-agency-tabs button{all:unset;cursor:pointer;padding:6px 12px;border-radius:7px;font-weight:600;font-size:12.5px;color:var(--muted,#9db0c8)}',
+    '#v36AssetUseSummary .v36-agency-tabs button.active{background:var(--accent,#1f6fd6);color:#fff}',
+    '#v36AssetUseSummary .v36-agency-tabs button:focus-visible{outline:2px solid var(--accent,#5aa2ff);outline-offset:1px}',
+    '#v36AssetUseSummary .v36-guide-lead{display:grid;gap:4px;padding:12px 14px;border-radius:10px;border:1px solid var(--line,#d9e2ec);margin-bottom:12px}',
+    '#v36AssetUseSummary .v36-guide-lead b{font-size:14px}#v36AssetUseSummary .v36-guide-lead span{font-size:12px;color:var(--muted,#9db0c8)}#v36AssetUseSummary .v36-guide-lead p{margin:2px 0;font-size:13px;line-height:1.5}',
+    '#v36AssetUseSummary .v36-account-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:10px}',
+    '#v36AssetUseSummary .v36-account-summary article{padding:12px 14px;border-radius:10px;border:1px solid var(--line,#d9e2ec);display:grid;gap:4px}',
+    '#v36AssetUseSummary .v36-account-summary article>div{display:grid;gap:2px}#v36AssetUseSummary .v36-account-summary article b{font-size:13.5px}#v36AssetUseSummary .v36-account-summary article span{font-size:12px;color:var(--muted,#9db0c8)}#v36AssetUseSummary .v36-account-summary article p{margin:2px 0;font-size:12.5px;line-height:1.45}',
+    '#v36AssetUseSummary .v36-empty,#v36AssetUseSummary .v36-guide-note{display:block;color:var(--muted,#9db0c8);font-size:12.5px;margin-top:8px}',
+    '#v36AssetOcr{margin:0!important;padding:0!important;border:0!important;background:none!important}',
+    '#v36AssetOcr .v36-asset-title{display:none}',
+    '#v36AssetOcr .v36-asset-controls{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:flex-end}',
+    '#v36AssetOcr .v36-asset-controls label{display:grid;gap:4px;font-size:11.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted,#9db0c8)}',
+    '#v36AssetOcr input[type=text],#v36AssetOcr select,#v36AssetOcr textarea{box-sizing:border-box;min-width:0;padding:8px 10px;border-radius:8px;border:1px solid var(--line,#d9e2ec);background:var(--surface,#fff);color:inherit;font:600 14px/1.3 inherit;text-transform:none;letter-spacing:0}',
+    '#v36AssetOcr button,#mtAssetOcr .mt-up{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;border:1px solid var(--line,#d9e2ec);background:var(--surface-2,rgba(90,162,255,.08));color:inherit;font:600 13px/1 inherit;cursor:pointer}',
+    '#v36AssetOcr button:hover,#mtAssetOcr .mt-up:hover{border-color:var(--accent,#1f6fd6)}',
+    '#mtAssetOcr .mt-up{position:relative;overflow:hidden;background:var(--accent,#1f6fd6);border-color:var(--accent,#1f6fd6);color:#fff}#mtAssetOcr .mt-up input{position:absolute;inset:0;opacity:0;cursor:pointer}',
+    '#v36AssetOcr .v36-asset-review{padding:12px 14px;border-radius:10px;border:1px dashed var(--line,#d9e2ec);font-size:13px}',
+    '#v36AssetOcr .v36-asset-review p{margin:0}#v36AssetOcr .v36-review-badges{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}',
+    '#v36AssetOcr .v36-review-badges span{padding:3px 9px;border-radius:999px;font-size:11.5px;font-weight:700;border:1px solid var(--line,#d9e2ec)}#v36AssetOcr .v36-review-badges .matched{color:#3fcf8e;border-color:rgba(63,207,142,.5)}#v36AssetOcr .v36-review-badges .review{color:#f0b357;border-color:rgba(240,179,87,.5)}',
+    '#v36AssetOcr .v36-review-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:10px}',
+    '#v36AssetOcr .v36-review-grid label{display:grid;gap:4px;font-size:11.5px;font-weight:600;color:var(--muted,#9db0c8);text-transform:uppercase;letter-spacing:.04em}',
+    '#v36AssetOcr table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:10px}#v36AssetOcr th,#v36AssetOcr td{padding:6px 8px;border-bottom:1px solid var(--line,#d9e2ec);text-align:left}',
+    '#v36AssetOcr .v36-working{color:var(--muted,#9db0c8)}#v36AssetOcr .v36-error{color:#ff7b6b}',
+    /* the large-deposit AI prompt dialog keeps working - give it the calculator look */
+    '#v36AssetAiModal{position:fixed;inset:0;z-index:2147483000;display:none;align-items:center;justify-content:center;padding:16px}#v36AssetAiModal.open{display:flex}',
+    '#v36AssetAiModal .v36-modal-backdrop{position:absolute;inset:0;border:0;background:rgba(3,12,32,.62);cursor:pointer}',
+    '#v36AssetAiModal section{position:relative;width:min(760px,100%);max-height:88vh;overflow:auto;border-radius:14px;border:1px solid var(--line,#d9e2ec);background:var(--surface,#fff);color:inherit;padding:16px 18px;box-shadow:0 20px 60px rgba(0,0,0,.4)}',
+    '#v36AssetAiModal header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:10px}#v36AssetAiModal header h2{margin:2px 0 0;font-size:18px}#v36AssetAiModal header span{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted,#9db0c8)}',
+    '#v36AssetAiModal header button{all:unset;cursor:pointer;width:32px;height:32px;display:grid;place-items:center;border-radius:8px;border:1px solid var(--line,#d9e2ec);font-size:16px}',
+    '#v36AssetAiModal textarea{width:100%;box-sizing:border-box;min-height:220px;padding:10px;border-radius:8px;border:1px solid var(--line,#d9e2ec);background:var(--surface-2,transparent);color:inherit;font:12.5px/1.45 ui-monospace,Menlo,Consolas,monospace}'
+  ].join('\n');
+  if (!$('mt56IncomeCss')) { var st = document.createElement('style'); st.id = 'mt56IncomeCss'; st.textContent = css; document.head.appendChild(st); }
+
+  /* ------------------------------------------------- Assets: remove the pop-up, card the two sections */
+  function card(id, tag, name, sub) {
+    var c = document.createElement('div'); c.className = 'card'; c.id = id;
+    c.innerHTML = '<div class="card-top"><span class="tag">' + tag + '</span><span class="doc-name">' + name + '</span><div class="spacer"></div><span class="mt-card-actions"></span></div><div class="card-body">' + (sub ? '<p class="muted small" style="margin:0">' + sub + '</p>' : '') + '</div>';
+    return c;
+  }
+  function assets() {
+    var panel = $('panel-assets'); if (!panel) return;
+    /* 1. the guidelines button and its pop-up */
+    Array.prototype.forEach.call(panel.querySelectorAll('.v36-guideline-button'), function (b) { b.remove(); });
+    var gm = $('v36AssetGuideModal'); if (gm) gm.remove();
+    if (window.V36 && !V36.__noGuide) { V36.__noGuide = true; V36.openAssetGuidelines = function () { var c = $('mtAssetPlan'); if (c && c.scrollIntoView) c.scrollIntoView({behavior: 'smooth', block: 'start'}); }; }
+    /* 2. planning summary card */
+    var sum = $('v36AssetUseSummary');
+    if (sum && !(sum.parentNode && sum.parentNode.closest && sum.parentNode.closest('#mtAssetPlan'))) {
+      var c1 = $('mtAssetPlan') || card('mtAssetPlan', 'Planning', 'Planning summary - how each account can be used', 'By agency: what each asset account can count toward - income, closing funds or reserves. Planning only; confirm against the current guide.');
+      if (!c1.parentNode) sum.parentNode.insertBefore(c1, sum);
+      c1.querySelector('.card-body').appendChild(sum);
+    }
+    /* 3. statement OCR card */
+    var ocr = $('v36AssetOcr');
+    if (ocr && !(ocr.parentNode && ocr.parentNode.closest && ocr.parentNode.closest('#mtAssetOcr'))) {
+      var c2 = $('mtAssetOcr') || card('mtAssetOcr', 'Statements', 'Asset statement OCR & large-deposit review', 'Read a statement (PDF, image or text), check the matched values, then choose whether to add the account. Deposits above the threshold are flagged for a source letter.');
+      if (!c2.parentNode) ocr.parentNode.insertBefore(c2, ocr);
+      c2.querySelector('.card-body').appendChild(ocr);
+      var inp = $('v36AssetFile'), act = c2.querySelector('.mt-card-actions');
+      if (inp && act && !act.querySelector('.mt-up')) {
+        var l = document.createElement('label'); l.className = 'mt-up'; l.innerHTML = '<span>Scan statement</span>';
+        l.insertBefore(inp, l.firstChild); act.appendChild(l);
+        var oldLabel = ocr.querySelector('.v36-upload'); if (oldLabel) oldLabel.remove();
+      }
+    }
+  }
+
+  /* -------------------------------------------------- W-2 & Salary first */
+  function openW2() {
+    var q = new URLSearchParams(location.search);
+    if (q.get('tab') || q.get('ocr') || q.get('mtdoc')) return;            /* a link asked for another tab */
+    if (typeof window.switchTab !== 'function') return;
+    var active = document.querySelector('#tabbar .tab.active');
+    if (!active || active.dataset.tab !== 'w2') window.switchTab('w2');
+    var bar = $('tabbar'), w2 = bar && bar.querySelector('[data-tab="w2"]');
+    if (bar && w2 && bar.firstElementChild !== w2) bar.insertBefore(w2, bar.firstElementChild);
+  }
+
+  /* ---------------------------------------------------------------- boot */
+  var n = 0, t = setInterval(function () {
+    assets();
+    if (n === 6) openW2();
+    if (++n > 80) clearInterval(t);
+  }, 150);
+  /* the assets tab is re-rendered on every recalculation: keep the cards */
+  (function wrap(tries) {
+    if (typeof window.RECALC !== 'function') { if (tries < 100) setTimeout(function () { wrap(tries + 1); }, 100); return; }
+    var mo = new MutationObserver(function () { if ($('v36AssetUseSummary') && !$('v36AssetUseSummary').closest('#mtAssetPlan')) assets(); if ($('v36AssetGuideModal') || document.querySelector('.v36-guideline-button')) assets(); });
+    var p = $('panel-assets'); if (p) mo.observe(p, {childList: true, subtree: true});
+    mo.observe(document.body, {childList: true});
+  })(0);
+})();
+
+</script>
+<script>/* mt-mnd.js (inlined) */
+/* ===================================================================================
+   Mortgage News Daily rates - shared by the Income Calculator and the Loan Suite (56.0).
+   Opening Mortgage Rates pulls MND's daily index (at most once every 4 hours; the button always pulls). Browsers cannot
+   read mortgagenewsdaily.com directly, so the page is read through public relays, first one that answers wins. The date
+   shown is MND's own "Updated" date. If no relay answers, the last rates stay and the paste box still works.
+   =================================================================================== */
+(function () {
+  'use strict';
+  if (window.MtMnd) return;
+  var URL_MND = 'https://www.mortgagenewsdaily.com/mortgage-rates/mnd', LAST = 'mt.mnd.lastPull';
+  var RELAYS = [
+    ['r.jina.ai', function (u) { return 'https://r.jina.ai/' + u; }],
+    ['corsfix', function (u) { return 'https://proxy.corsfix.com/?' + u; }],
+    ['allorigins', function (u) { return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u); }],
+    ['codetabs', function (u) { return 'https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent(u); }]
+  ];
+  function get(url, ms) {
+    return new Promise(function (res, rej) {
+      var ctl = window.AbortController ? new AbortController() : null, tm = setTimeout(function () { if (ctl) ctl.abort(); rej(new Error('timeout')); }, ms || 12000);
+      fetch(url, ctl ? {signal: ctl.signal} : {}).then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
+        .then(function (t) { clearTimeout(tm); res(t); }, function (e) { clearTimeout(tm); rej(e); });
+    });
+  }
+  function textOf(html) {
+    return String(html).replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<style[\s\S]*?<\/style>/gi, ' ')
+      .replace(/<\/(tr|p|div|h\d|li)>/gi, '\n').replace(/<\/t[hd]>/gi, ' | ').replace(/<[^>]+>/g, ' ')
+      .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&#x2B;/gi, '+').replace(/&#(\d+);/g, function (m, c) { return String.fromCharCode(+c); })
+      .replace(/[ \t]+/g, ' ').replace(/\n\s*\n+/g, '\n');
+  }
+  var ROWS = [['fixed30', /30\s*yr\.?\s*fixed/i], ['fixed15', /15\s*yr\.?\s*fixed/i], ['fha30', /30\s*yr\.?\s*fha/i], ['va30', /30\s*yr\.?\s*va\b/i], ['jumbo30', /30\s*yr\.?\s*jumbo/i], ['arm76', /7\s*\/\s*6\s*sofr\s*arm/i]];
+  function parse(raw) {
+    var t = /<\w+[^>]*>/.test(raw) ? textOf(raw) : String(raw), rows = {}, n = 0;
+    t.split(/\r?\n/).forEach(function (line) {
+      ROWS.forEach(function (r) {
+        if (rows[r[0]] || !r[1].test(line)) return;
+        var after = line.slice(line.search(r[1])), nums = after.match(/[+\-−]?\d+\.\d+(?=\s*%)/g);
+        if (!nums || !nums.length) return;
+        var rate = parseFloat(nums[0]), ch = nums.length > 1 ? parseFloat(nums[1].replace('−', '-')) : 0;
+        if (rate > 0 && rate < 25) { rows[r[0]] = {rate: rate, change: isFinite(ch) ? ch : 0}; n++; }
+      });
+    });
+    if (n < 2) return null;
+    var m = t.match(/Updated:?\s*(\d{1,2})\s*\/\s*(\d{1,2})\s*\/\s*(\d{2,4})/i), asOf;
+    if (m) asOf = (m[3].length === 2 ? '20' + m[3] : m[3]) + '-' + ('0' + m[1]).slice(-2) + '-' + ('0' + m[2]).slice(-2);
+    else { var u = String(raw).match(/"(?:dateModified|updated)"\s*content="(\d{4}-\d{2}-\d{2})/i) || String(raw).match(/(\d{4}-\d{2}-\d{2})T\d{2}:\d{2}/); asOf = u ? u[1] : new Date().toISOString().slice(0, 10); }
+    return {rows: rows, asOf: asOf, count: n};
+  }
+  var busy = null;
+  function pull(opts) {
+    opts = opts || {};
+    if (busy) return busy;
+    var btn = document.getElementById('mndFetch'); if (btn) { btn.disabled = true; btn.textContent = 'Pulling from MND…'; }
+    var i = 0;
+    busy = new Promise(function (resolve) {
+      (function next() {
+        if (i >= RELAYS.length) return resolve(null);
+        var r = RELAYS[i++];
+        get(r[1](URL_MND)).then(function (txt) { var p = parse(txt); if (!p) throw new Error('no table'); p.via = r[0]; resolve(p); }).catch(next);
+      })();
+    }).then(function (p) {
+      busy = null;
+      if (btn) { btn.disabled = false; btn.textContent = 'Pull rates from MND'; }
+      if (!p) { note('Mortgage News Daily did not answer through any relay just now. The last rates are kept; try again, or paste the table below.', 'warn'); return null; }
+      try { localStorage.setItem(LAST, String(Date.now())); } catch (e) {}
+      if (window.RATES && RATES.apply) { try { RATES.apply({rows: p.rows, asOf: p.asOf}, 'Mortgage News Daily (via ' + p.via + ')'); } catch (e) {} }
+      note('', '');
+      say('Rates from Mortgage News Daily', p.count + ' rates, updated ' + p.asOf + (p.rows.fixed30 ? '. 30-year fixed ' + p.rows.fixed30.rate.toFixed(2) + '%' : '') + '.');
+      try { document.dispatchEvent(new CustomEvent('mt:mnd', {detail: p})); } catch (e) {}
+      return p;
+    });
+    return busy;
+  }
+  function note(text, kind) { var n = document.getElementById('mndNote'); if (!n) return; n.style.display = text ? '' : 'none'; n.className = 'note ' + (kind || ''); n.textContent = text; }
+  function say(t, m) { try { if (window.LOS && LOS.say) LOS.say(t, m, 'good', 5000); else if (typeof window.toast === 'function') window.toast(t + ' - ' + m); } catch (e) {} }
+  function stale() { var t = 0; try { t = +localStorage.getItem(LAST) || 0; } catch (e) {} return Date.now() - t > 4 * 3600 * 1000; }
+  /* the existing "Pull rates online" button now reads MND only */
+  function hook() {
+    window.PULL = window.PULL || {};
+    if (!PULL.__mnd) { PULL.pullRates = function () { return pull({force: true}); }; PULL.__mnd = true; }
+    var b = document.getElementById('mndFetch'); if (b && b.textContent !== 'Pull rates from MND' && !busy) b.textContent = 'Pull rates from MND';
+  }
+  function visible(el) { return !!(el && el.offsetParent !== null && el.getBoundingClientRect().height > 0); }
+  var wasOpen = false;
+  setInterval(function () {
+    hook();
+    var open = visible(document.getElementById('panel-rates')) || visible(document.getElementById('mndFetch'));
+    if (open && !wasOpen && stale()) pull();
+    wasOpen = open;
+  }, 700);
+  window.MtMnd = {pull: pull, parse: parse, url: URL_MND, relays: RELAYS};
+})();
+
+</script>
+<script>/* doc-center.js (inlined) */
+/* Mortgage Suite 56.0 - Document Center.
+   One document library for the whole suite. A document uploaded on any page (Loan Suite, Income Calculator, Quick, Doc
+   Organizer) is kept in this browser (IndexedDB) and listed on every page, by section: Income, Assets, Property, Loan & costs,
+   Renovation, Credit, Non-QM.
+   Each document is read (PDF text, or OCR for scans and photos), its type is recognised, and the values it prints are listed
+   with the field each one goes to. Send puts the ticked values in those fields - straight away when that field is on the page,
+   otherwise the next time the page that owns it opens (Loan Suite or Income Calculator). Income documents (pay stubs, W-2s,
+   tax returns, benefit letters) go through the Income Calculator's own document reader. Nothing leaves the browser. */
+(function () {
+  'use strict';
+  if (window.MTDocs && window.MTDocs.__v56) return;
+  var $ = function (id) { return document.getElementById(id); };
+  function G(n) { try { return (0, eval)(n); } catch (e) { return undefined; } }
+  function esc(v) { return String(v == null ? '' : v).replace(/[&<>"]/g, function (c) { return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]; }); }
+  function N(v) { var t = String(v == null ? '' : v).trim(), neg = /^\(.*\)$/.test(t) || /^-/.test(t); t = t.replace(/[()$,\s%]/g, '').replace(/^-/, ''); var n = parseFloat(t); return isFinite(n) ? (neg ? -n : n) : 0; }
+  function usd(v) { var n = N(v); return (n < 0 ? '−' : '') + '$' + Math.abs(n).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}); }
+  function uid() { return 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+  function suiteStore() { try { return window.mortgageSuite && window.mortgageSuite.store; } catch (e) { return null; } }
+  function calcState() { var S = G('S'); return S && S.w2 && S.dti ? S : null; }
+  var PAGE = /income-calculator/i.test(location.pathname) ? 'income' : /loan-suite|full-suite|all-in-one/i.test(location.pathname) ? 'suite' : /quick|index/i.test(location.pathname) || location.pathname.slice(-1) === '/' ? 'quick' : /doc-organizer/i.test(location.pathname) ? 'docorg' : 'other';
+  if (window.LOS_EMBED && LOS_EMBED.page === 'income') PAGE = 'income';
+
+  /* ===================================================================== reading */
+  function loadScript(srcs) {
+    return new Promise(function (resolve) {
+      var i = 0; (function next() {
+        if (i >= srcs.length) return resolve(false);
+        var s = document.createElement('script'); s.src = srcs[i++]; s.async = true;
+        s.onload = function () { resolve(true); }; s.onerror = next; document.head.appendChild(s);
+      })();
+    });
+  }
+  var PDFJS = '3.11.174';
+  async function pdfLib() {
+    if (window.pdfjsLib && pdfjsLib.getDocument) return pdfjsLib;
+    var lp = G('loadPdfJs'); if (typeof lp === 'function') { try { await lp(); } catch (e) {} if (window.pdfjsLib) return pdfjsLib; }
+    await loadScript(['https://cdnjs.cloudflare.com/ajax/libs/pdf.js/' + PDFJS + '/pdf.min.js', 'https://cdn.jsdelivr.net/npm/pdfjs-dist@' + PDFJS + '/build/pdf.min.js']);
+    if (window.pdfjsLib && pdfjsLib.GlobalWorkerOptions && !pdfjsLib.GlobalWorkerOptions.workerSrc) pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/' + PDFJS + '/pdf.worker.min.js';
+    return window.pdfjsLib || null;
+  }
+  async function tess() {
+    if (window.Tesseract) return window.Tesseract;
+    var lt = G('loadTesseract'); if (typeof lt === 'function') { try { await lt(); } catch (e) {} if (window.Tesseract) return Tesseract; }
+    await loadScript(['https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.1.0/tesseract.min.js', 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.0/dist/tesseract.min.js']);
+    return window.Tesseract || null;
+  }
+  async function ocr(images, prog) {
+    var T = await tess(); if (!T) throw new Error('The OCR engine could not be loaded - an internet connection is needed the first time OCR runs.');
+    var out = '';
+    for (var i = 0; i < images.length; i++) {
+      var r = await T.recognize(images[i], 'eng', {logger: function (m) { if (prog && m.status === 'recognizing text') prog((i + m.progress) / images.length); }});
+      out += r.data.text + '\n';
+    }
+    return out;
+  }
+  async function pdfText(file, prog) {
+    var native = G('nativePdfText'), t = '';
+    if (typeof native === 'function') { try { t = await native(file); } catch (e) {} if (t && t.replace(/\s/g, '').length >= 40) return t; }
+    var L = await pdfLib(); if (!L) { if (t) return t; throw new Error('The PDF reader could not be loaded.'); }
+    var pdf = await L.getDocument({data: await file.arrayBuffer(), disableWorker: true}).promise, out = '';
+    for (var p = 1; p <= pdf.numPages; p++) {
+      var pg = await pdf.getPage(p), tc = await pg.getTextContent();
+      var items = (tc.items || []).map(function (it) { return {s: String(it.str || ''), x: +(it.transform && it.transform[4]) || 0, y: +(it.transform && it.transform[5]) || 0}; }).filter(function (it) { return it.s.trim(); });
+      items.sort(function (a, b) { return b.y - a.y || a.x - b.x; });
+      var rows = []; items.forEach(function (it) { var r = rows[rows.length - 1]; if (!r || Math.abs(r.y - it.y) > 2) { r = {y: it.y, items: []}; rows.push(r); } r.items.push(it); });
+      rows.forEach(function (r) { r.items.sort(function (a, b) { return a.x - b.x; }); out += r.items.map(function (i) { return i.s; }).join(' ').replace(/\s+/g, ' ').trim() + '\n'; });
+      if (prog) prog(p / pdf.numPages * 0.5);
+    }
+    if (out.replace(/\s/g, '').length >= 40) return out;
+    var imgs = [];
+    for (var k = 1; k <= Math.min(pdf.numPages, 6); k++) {
+      var page = await pdf.getPage(k), vp = page.getViewport({scale: 2}), c = document.createElement('canvas');
+      c.width = vp.width; c.height = vp.height; await page.render({canvasContext: c.getContext('2d'), viewport: vp}).promise; imgs.push(c);
+    }
+    return ocr(imgs, function (f) { if (prog) prog(0.5 + f / 2); });
+  }
+  async function readText(file, prog) {
+    var name = file.name || '', type = file.type || '';
+    if (/\.pdf$/i.test(name) || type === 'application/pdf') return pdfText(file, prog);
+    if (/^image\//.test(type) || /\.(png|jpe?g|webp|gif|bmp|tiff?)$/i.test(name)) {
+      var img = await new Promise(function (res, rej) { var i = new Image(); i.onload = function () { res(i); }; i.onerror = function () { rej(new Error('This image could not be opened.')); }; i.src = URL.createObjectURL(file); });
+      return ocr([img], prog);
+    }
+    return file.text();
+  }
+
+  /* ============================================================== shared storage */
+  var DB = 'mtgcalc-docs', VER = 1, OS = 'docs', mem = [], ready = null;
+  var bc = null; try { bc = new BroadcastChannel('mtgcalc-docs'); bc.onmessage = function () { load().then(paint); }; } catch (e) {}
+  function db() {
+    return new Promise(function (res, rej) {
+      if (!window.indexedDB) return rej(new Error('no indexedDB'));
+      var r = indexedDB.open(DB, VER);
+      r.onupgradeneeded = function () { var d = r.result; if (!d.objectStoreNames.contains(OS)) d.createObjectStore(OS, {keyPath: 'id'}); };
+      r.onsuccess = function () { res(r.result); }; r.onerror = function () { rej(r.error); };
+    });
+  }
+  function tx(mode, fn) { return db().then(function (d) { return new Promise(function (res, rej) { var t = d.transaction(OS, mode), s = t.objectStore(OS), out = fn(s); t.oncomplete = function () { res(out && out.result !== undefined ? out.result : out); }; t.onerror = function () { rej(t.error); }; }); }); }
+  function load() { ready = tx('readonly', function (s) { return s.getAll(); }).then(function (all) { mem = (all || []).sort(function (a, b) { return b.added - a.added; }); return mem; }).catch(function () { return mem; }); return ready; }
+  function save(doc) { var i = mem.findIndex(function (d) { return d.id === doc.id; }); if (i < 0) mem.unshift(doc); else mem[i] = doc; return tx('readwrite', function (s) { s.put(doc); }).catch(function () {}).then(function () { try { bc && bc.postMessage('x'); } catch (e) {} }); }
+  function drop(id) { mem = mem.filter(function (d) { return d.id !== id; }); return tx('readwrite', function (s) { s.delete(id); }).catch(function () {}).then(function () { try { bc && bc.postMessage('x'); } catch (e) {} }); }
+
+  /* ======================================================== types and extraction */
+  var SECTIONS = [['all', 'All'], ['income', 'Income'], ['assets', 'Assets'], ['property', 'Property'], ['loan', 'Loan & costs'], ['renovation', 'Renovation'], ['credit', 'Credit'], ['nqm', 'Non-QM']];
+  var TYPES = [
+    {id: 'paystub', label: 'Pay stub', sec: 'income', income: 1, kw: [/pay\s*(stub|statement|slip)/i, /earnings statement/i, /gross pay/i, /net pay/i, /pay period/i, /\bytd\b/i]},
+    {id: 'w2', label: 'W-2', sec: 'income', income: 1, kw: [/wage and tax statement/i, /form\s*w-?2\b/i, /\bw-2\b/i, /employer identification/i]},
+    {id: 'voe', label: 'Verification of employment', sec: 'income', income: 1, kw: [/verification of employment/i, /\bvoe\b/i, /work number/i]},
+    {id: 'taxreturn', label: 'Tax return (1040, Schedule C / E, K-1, 1120-S, 1065)', sec: 'income', income: 1, kw: [/form 1040/i, /schedule c\b/i, /schedule e\b/i, /schedule k-1/i, /1120-?s/i, /form 1065/i, /u\.s\. individual income tax/i]},
+    {id: 'benefits', label: 'Social Security / pension / 1099', sec: 'income', income: 1, kw: [/social security/i, /ssa-1099/i, /1099-r/i, /pension/i, /annuity/i, /award letter/i, /benefit statement/i]},
+    {id: 'bank', label: 'Bank statement', sec: 'assets', kw: [/statement period/i, /beginning balance/i, /ending balance/i, /deposits and (other )?(credits|additions)/i, /\bchecking\b/i, /\bsavings\b/i, /account summary/i]},
+    {id: 'retirement', label: 'Retirement / investment statement', sec: 'assets', kw: [/401\s*\(?k\)?/i, /403\s*\(?b\)?/i, /\bira\b/i, /vested (balance|value)/i, /brokerage/i, /investment account/i, /portfolio value/i, /total account value/i]},
+    {id: 'gift', label: 'Gift letter', sec: 'assets', kw: [/gift letter/i, /\bdonor\b/i, /gift of \$/i, /no repayment/i, /is a gift/i]},
+    {id: 'emd', label: 'Earnest money receipt', sec: 'assets', kw: [/earnest money/i, /deposit receipt/i, /good faith deposit/i, /escrow deposit/i]},
+    {id: 'contract', label: 'Purchase contract', sec: 'loan', kw: [/purchase (and sale )?(agreement|contract)/i, /contract of sale/i, /purchase price/i, /seller('s)? (concession|credit|contribution)/i, /\bpurchaser\b/i, /\bseller\b/i]},
+    {id: 'lecd', label: 'Loan Estimate / Closing Disclosure', sec: 'loan', kw: [/loan estimate/i, /closing disclosure/i, /projected payments/i, /loan costs/i, /origination charges/i]},
+    {id: 'fees', label: 'Fee sheet', sec: 'loan', kw: [/fee (sheet|worksheet)/i, /itemization/i, /origination fee/i, /settlement charges/i]},
+    {id: 'mortgage', label: 'Mortgage statement (another property)', sec: 'loan', kw: [/mortgage statement/i, /principal balance/i, /unpaid principal/i, /payment due/i, /escrow balance/i, /amount due/i]},
+    {id: 'appraisal', label: 'Appraisal', sec: 'property', kw: [/uniform residential appraisal/i, /appraised value/i, /opinion of market value/i, /form 10(04|25|73)/i, /\bas (is|completed|repaired)\b/i, /sales comparison/i]},
+    {id: 'tax', label: 'Property tax bill', sec: 'property', kw: [/tax bill/i, /property tax/i, /school tax/i, /(town|county|city) tax/i, /assessed value/i, /tax year/i, /tax receiver/i]},
+    {id: 'insurance', label: 'Homeowners / flood insurance', sec: 'property', kw: [/declarations?/i, /homeowners? (insurance|policy)/i, /dwelling coverage/i, /annual premium/i, /policy period/i, /flood insurance/i]},
+    {id: 'hoa', label: 'HOA / condo statement', sec: 'property', kw: [/homeowners association/i, /\bhoa\b/i, /condominium/i, /common charges/i, /association dues/i, /maintenance fee/i]},
+    {id: 'lease', label: 'Lease / rent schedule (Form 1007)', sec: 'property', kw: [/lease agreement/i, /monthly rent/i, /\btenant\b/i, /\blandlord\b/i, /rent schedule/i, /form 1007/i, /residential lease/i]},
+    {id: 'reno', label: 'Contractor bid / renovation estimate', sec: 'renovation', kw: [/contractor/i, /scope of work/i, /\bbid\b/i, /proposal/i, /renovation/i, /rehab/i, /\blabor\b/i, /materials/i]},
+    {id: 'credit', label: 'Credit report', sec: 'credit', kw: [/credit report/i, /\bfico\b/i, /equifax/i, /experian/i, /transunion/i, /credit score/i, /tradelines?/i]},
+    {id: 'nqmbank', label: 'Business bank statements (Non-QM)', sec: 'nqm', kw: [/business (checking|account)/i, /\bllc\b|\binc\.?\b|\bcorp\b/i]},
+    {id: 'pl', label: 'Profit and loss statement', sec: 'nqm', kw: [/profit\s*(and|&)\s*loss/i, /\bp\s*&\s*l\b/i, /income statement/i, /total expenses/i, /net (income|profit)/i, /gross profit/i]},
+    {id: 'other', label: 'Other document', sec: 'all', kw: []}
+  ];
+  var TYPE = {}; TYPES.forEach(function (t) { TYPE[t.id] = t; });
+  function detect(text, name) {
+    var head = String(text).slice(0, 8000), best = 'other', score = 0;
+    TYPES.forEach(function (t) {
+      var s = 0; t.kw.forEach(function (k) { if (k.test(head)) s++; if (k.test(name || '')) s += 2; });
+      if (s > score) { score = s; best = t.id; }
+    });
+    if (best === 'nqmbank' && TYPE.bank.kw.filter(function (k) { return k.test(head); }).length < 2) best = 'bank';
+    if (best === 'bank' && /profit\s*(and|&)\s*loss/i.test(head)) best = 'pl';
+    return score >= 1 ? best : 'other';
+  }
+
+  /* destinations: 'loan:<path>' Loan Suite field; 'calc:...' Income Calculator */
+  var DEST = [
+    ['Loan Suite - File & property', [['loan:borrowerName', 'Borrower name', 'text'], ['loan:propertyAddress', 'Property address', 'text'], ['loan:zipCode', 'ZIP code', 'text'], ['loan:units', 'Units', 'num'], ['loan:closingDate', 'Closing date', 'date']]],
+    ['Loan Suite - Loan & value', [['loan:basePurchasePrice', 'Purchase price', 'num'], ['loan:asIsValue', 'As-is / appraised value', 'num'], ['loan:afterRepairValue', 'After-repair value', 'num'], ['loan:interestRate', 'Note rate (%)', 'pct'], ['loan:termYears', 'Term (years)', 'num'], ['loan:creditScore', 'Credit score', 'num'], ['loan:sellerConcessionAmount', 'Seller concession ($)', 'num'], ['loan:closing.earnestMoneyDeposit', 'Earnest money deposit', 'num']]],
+    ['Loan Suite - Escrow', [['loan:propertyTaxAmount', 'Property tax (annual)', 'num'], ['loan:insuranceAmount', 'Homeowners insurance (annual)', 'num'], ['loan:escrow.annualFlood', 'Flood insurance (annual)', 'num'], ['loan:hoaMonthly', 'HOA (monthly)', 'num']]],
+    ['Loan Suite - Closing costs', [['loan:closing.overrides.lenderOrigination', 'Origination fee', 'num'], ['loan:closing.overrides.lenderProcessing', 'Processing / underwriting', 'num'], ['loan:closing.overrides.appraisal', 'Appraisal fee', 'num'], ['loan:closing.overrides.creditReport', 'Credit report fee', 'num'], ['loan:closing.overrides.floodTaxService', 'Flood cert / tax service', 'num'], ['loan:closing.overrides.titleInsurance', 'Title insurance', 'num'], ['loan:closing.overrides.titleSearchSettlement', 'Title search / settlement', 'num'], ['loan:closing.overrides.attorney', 'Attorney fee', 'num'], ['loan:closing.overrides.survey', 'Survey', 'num'], ['loan:closing.overrides.recording', 'Recording fees', 'num'], ['loan:closing.overrides.other', 'Other fees', 'num']]],
+    ['Loan Suite - Renovation', [['loan:reno.baseCost', 'Contractor / renovation cost', 'num'], ['loan:reno.permits', 'Permits', 'num'], ['loan:reno.architectural', 'Architectural / engineering', 'num'], ['loan:draws.manualDrawCount', 'Number of draws', 'num']]],
+    ['Loan Suite - Assets & rent', [['loan:assets.liquidAssets', 'Liquid assets', 'num'], ['loan:assets.retirementOtherAssets', 'Retirement / other assets', 'num'], ['loan:assets.giftFunds', 'Gift funds', 'num'], ['loan:rental.mainUnit.gross', 'Main unit gross rent', 'num'], ['loan:rental.unit2.gross', 'Unit 2 gross rent', 'num'], ['loan:rental.unit3.gross', 'Unit 3 gross rent', 'num'], ['loan:rental.unit4.gross', 'Unit 4 gross rent', 'num']]],
+    ['Income Calculator', [['calc:asset:checking', 'Asset account - checking / savings', 'num'], ['calc:asset:mm', 'Asset account - money market / CD', 'num'], ['calc:asset:stocks', 'Asset account - stocks / bonds', 'num'], ['calc:asset:ret59', 'Asset account - retirement 59½+', 'num'], ['calc:asset:ret', 'Asset account - retirement under 59½', 'num'], ['calc:debt', 'Monthly debt (PITIA & DTI)', 'num'], ['calc:nqm.bank', 'Non-QM bank statement month (deposits)', 'num'], ['calc:nqm.pl.revenue', 'Non-QM P&L revenue', 'num'], ['calc:nqm.pl.cogs', 'Non-QM P&L cost of goods sold', 'num'], ['calc:nqm.pl.expenses', 'Non-QM P&L expenses', 'num'], ['calc:nqm.dscr.rent', 'Non-QM DSCR rent (monthly)', 'num']]]
+  ];
+  var DESTBY = {}; DEST.forEach(function (g) { g[1].forEach(function (d) { DESTBY[d[0]] = {id: d[0], label: d[1], kind: d[2], group: g[0]}; }); });
+
+  var MONEY = /\(?-?\$?\s?\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?\)?|\(?-?\$?\s?\d+\.\d{2}\)?|\$\s?\d+(?:\.\d{1,2})?/g;
+  function moneys(s) { return (String(s).match(MONEY) || []).map(N); }
+  function lines(t) { return String(t || '').split(/\r?\n/).map(function (l) { return l.replace(/\s+/g, ' ').trim(); }).filter(Boolean); }
+  /* first amount printed after a label (same line, else the next line) */
+  function amt(L, labels, opt) {
+    opt = opt || {};
+    for (var a = 0; a < labels.length; a++) for (var i = 0; i < L.length; i++) {
+      var low = L[i].toLowerCase(), k = low.indexOf(labels[a]); if (k < 0) continue;
+      if (opt.avoid && opt.avoid.test(low)) continue;
+      var v = moneys(L[i].slice(k + labels[a].length)); if (!v.length && L[i + 1]) v = moneys(L[i + 1]);
+      v = v.filter(function (x) { return (opt.min == null || Math.abs(x) >= opt.min) && (opt.max == null || Math.abs(x) <= opt.max); });
+      if (v.length) return {v: Math.abs(opt.last ? v[v.length - 1] : v[0]), line: L[i]};
+    }
+    return null;
+  }
+  function pctAfter(L, labels) {
+    for (var a = 0; a < labels.length; a++) for (var i = 0; i < L.length; i++) { var low = L[i].toLowerCase(), k = low.indexOf(labels[a]); if (k < 0) continue;
+      var m = L[i].slice(k).match(/(\d{1,2}\.\d{1,4})\s*%/) || (L[i + 1] || '').match(/(\d{1,2}\.\d{1,4})\s*%/); if (m) return +m[1]; }
+    return null;
+  }
+  function intAfter(L, labels, lo, hi) {
+    for (var a = 0; a < labels.length; a++) for (var i = 0; i < L.length; i++) { var low = L[i].toLowerCase(), k = low.indexOf(labels[a]); if (k < 0) continue;
+      var m = (L[i].slice(k + labels[a].length) + ' ' + (L[i + 1] || '')).match(/\b(\d{1,4})\b/g) || []; for (var j = 0; j < m.length; j++) { var n = +m[j]; if (n >= lo && n <= hi) return n; } }
+    return null;
+  }
+  function dateAfter(L, labels) {
+    var re = /(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})|([A-Z][a-z]{2,8})\.?\s+(\d{1,2}),?\s+(\d{4})/;
+    var MO = {jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12};
+    for (var a = 0; a < labels.length; a++) for (var i = 0; i < L.length; i++) { var low = L[i].toLowerCase(), k = low.indexOf(labels[a]); if (k < 0) continue;
+      var m = (L[i].slice(k) + ' ' + (L[i + 1] || '')).match(re); if (!m) continue;
+      var y, mo, d; if (m[1]) { mo = +m[1]; d = +m[2]; y = +m[3]; if (y < 100) y += 2000; } else { mo = MO[m[4].slice(0, 3).toLowerCase()]; d = +m[5]; y = +m[6]; }
+      if (mo && d && y) return y + '-' + ('0' + mo).slice(-2) + '-' + ('0' + d).slice(-2); }
+    return null;
+  }
+  function textAfter(L, labels) {
+    for (var a = 0; a < labels.length; a++) for (var i = 0; i < L.length; i++) { var low = L[i].toLowerCase(), k = low.indexOf(labels[a]); if (k < 0) continue;
+      var rest = L[i].slice(k + labels[a].length).replace(/^[\s:#\-]+/, '').trim(); if (rest.length < 4 && L[i + 1]) rest = L[i + 1];
+      if (rest) return rest.slice(0, 90); }
+    return null;
+  }
+  function row(label, value, dest, on, note) { return {id: uid(), label: label, value: value, dest: dest || '', on: on !== false && !!dest, note: note || ''}; }
+  var EX = {
+    bank: function (L, t) {
+      var r = [], bal = amt(L, ['ending balance', 'closing balance', 'new balance', 'ending daily balance', 'balance as of', 'current balance'], {avoid: /average|minimum|beginning|previous/});
+      if (bal) { r.push(row('Ending balance', bal.v, 'loan:assets.liquidAssets')); r.push(row('Ending balance (asset account)', bal.v, 'calc:asset:checking')); }
+      var dep = amt(L, ['total deposits and other credits', 'deposits and other credits', 'deposits and additions', 'total deposits', 'total credits'], {avoid: /number|#|count/});
+      if (dep) r.push(row('Total deposits this period', dep.v, '', false, 'For the large-deposit review'));
+      var big = []; L.forEach(function (l) { if (/deposit|transfer|zelle|wire|credit/i.test(l) && !/total|balance|summary|deposits and|deposits &|other credits|withdrawals/i.test(l)) { var v = moneys(l); if (v.length && Math.abs(v[0]) >= 5000) big.push(Math.abs(v[0])); } });
+      if (big.length) r.push(row('Large deposits (' + big.length + ')', big.reduce(function (s, x) { return s + x; }, 0), '', false, big.slice(0, 6).map(usd).join(', ') + ' - each needs a source'));
+      return r;
+    },
+    nqmbank: function (L, t) {
+      var NQ = window.NQM, list = NQ && NQ.parseBank ? NQ.parseBank(t) : [];
+      if (!list.length) { var d = amt(L, ['total deposits and other credits', 'deposits and other credits', 'deposits and additions', 'total deposits', 'total credits'], {avoid: /number|#|count/}); if (d) list = [{label: '', deposits: d.v, transfers: 0}]; }
+      return list.map(function (s) { var x = row('Deposits' + (s.label ? ' - ' + s.label : ''), s.deposits, 'calc:nqm.bank', true, s.transfers ? 'Transfers in ' + usd(s.transfers) + ' go to Less: transfers / ineligible' : ''); x.meta = {label: s.label, transfers: s.transfers}; return x; });
+    },
+    retirement: function (L) {
+      var b = amt(L, ['vested balance', 'vested value', 'total account value', 'ending balance', 'total value', 'market value', 'account balance', 'closing balance'], {avoid: /beginning|previous|loan/});
+      return b ? [row('Vested / ending balance', b.v, 'loan:assets.retirementOtherAssets'), row('Balance (asset account)', b.v, 'calc:asset:ret')] : [];
+    },
+    gift: function (L) { var g = amt(L, ['gift in the amount of', 'gift amount', 'amount of gift', 'gift of', 'the sum of', 'amount']); return g ? [row('Gift amount', g.v, 'loan:assets.giftFunds')] : []; },
+    emd: function (L) { var e = amt(L, ['earnest money', 'deposit amount', 'amount received', 'the sum of', 'amount']); return e ? [row('Earnest money deposit', e.v, 'loan:closing.earnestMoneyDeposit')] : []; },
+    contract: function (L) {
+      var r = [], p = amt(L, ['purchase price', 'sales price', 'contract price', 'total price', 'price'], {min: 10000});
+      if (p) r.push(row('Purchase price', p.v, 'loan:basePurchasePrice'));
+      var e = amt(L, ['earnest money', 'down payment deposit', 'initial deposit', 'deposit'], {min: 100, max: 2e6}); if (e) r.push(row('Earnest money deposit', e.v, 'loan:closing.earnestMoneyDeposit'));
+      var s = amt(L, ['seller concession', 'seller credit', 'seller contribution', 'seller shall credit', 'seller to pay']); if (s) r.push(row('Seller concession', s.v, 'loan:sellerConcessionAmount'));
+      var d = dateAfter(L, ['closing date', 'settlement date', 'closing shall', 'on or before', 'closing on']); if (d) r.push(row('Closing date', d, 'loan:closingDate'));
+      var a = textAfter(L, ['property address', 'premises known as', 'property located at', 'premises']); if (a) r.push(row('Property address', a, 'loan:propertyAddress', false));
+      return r;
+    },
+    lecd: function (L) {
+      var r = [], rate = pctAfter(L, ['interest rate', 'note rate']); if (rate) r.push(row('Interest rate (%)', rate, 'loan:interestRate'));
+      var term = intAfter(L, ['loan term'], 5, 40); if (term) r.push(row('Loan term (years)', term, 'loan:termYears'));
+      var price = amt(L, ['sale price', 'purchase price', 'property value'], {min: 10000}); if (price) r.push(row('Sale price', price.v, 'loan:basePurchasePrice', false));
+      return r.concat(EX.fees(L)).concat((function () {
+        var o = [], tx = amt(L, ['property taxes'], {max: 50000}), ins = amt(L, ["homeowner's insurance", 'homeowners insurance'], {max: 50000});
+        if (tx) o.push(row('Property taxes (monthly x 12)', Math.round(tx.v * (tx.v < 3000 ? 12 : 1) * 100) / 100, 'loan:propertyTaxAmount', false, 'Check: an LE prints taxes per month'));
+        if (ins) o.push(row('Homeowners insurance (monthly x 12)', Math.round(ins.v * (ins.v < 1000 ? 12 : 1) * 100) / 100, 'loan:insuranceAmount', false));
+        return o; })());
+    },
+    fees: function (L) {
+      var r = [], F = [[['origination charges', 'origination fee', 'loan origination'], 'Origination', 'loan:closing.overrides.lenderOrigination'], [['processing fee', 'underwriting fee'], 'Processing / underwriting', 'loan:closing.overrides.lenderProcessing'],
+        [['appraisal fee', 'appraisal'], 'Appraisal fee', 'loan:closing.overrides.appraisal'], [['credit report'], 'Credit report fee', 'loan:closing.overrides.creditReport'], [['flood certification', 'flood determination', 'tax service'], 'Flood cert / tax service', 'loan:closing.overrides.floodTaxService'],
+        [["lender's title", 'lenders title', 'title insurance', "title - lender's"], 'Title insurance', 'loan:closing.overrides.titleInsurance'], [['settlement fee', 'title search', 'closing fee', 'settlement agent'], 'Title search / settlement', 'loan:closing.overrides.titleSearchSettlement'],
+        [['attorney fee', 'attorney'], 'Attorney fee', 'loan:closing.overrides.attorney'], [['survey'], 'Survey', 'loan:closing.overrides.survey'], [['recording fees', 'recording fee', 'recording'], 'Recording fees', 'loan:closing.overrides.recording']];
+      F.forEach(function (f) { var v = amt(L, f[0], {max: 100000}); if (v) r.push(row(f[1], v.v, f[2])); });
+      return r;
+    },
+    mortgage: function (L) {
+      var r = [], p = amt(L, ['regular monthly payment', 'monthly payment', 'total payment due', 'payment amount', 'amount due'], {max: 50000}); if (p) r.push(row('Monthly mortgage payment', p.v, 'calc:debt'));
+      var b = amt(L, ['unpaid principal balance', 'principal balance', 'outstanding principal'], {min: 1000}); if (b) r.push(row('Principal balance', b.v, '', false, 'For the REO schedule'));
+      var e = amt(L, ['escrow balance', 'escrow payment'], {max: 50000}); if (e) r.push(row('Escrow', e.v, '', false));
+      return r;
+    },
+    appraisal: function (L) {
+      var r = [], v = amt(L, ['appraised value', 'opinion of market value', 'indicated value by sales comparison', 'market value of the subject', 'indicated value', 'market value'], {min: 10000, avoid: /rent|land/});
+      if (v) r.push(row('Appraised value', v.v, 'loan:asIsValue'));
+      var arv = amt(L, ['as completed', 'as repaired', 'subject to completion', 'after repair', 'as-completed'], {min: 10000}); if (arv) r.push(row('As-completed value', arv.v, 'loan:afterRepairValue'));
+      var rent = amt(L, ['opinion of market rent', 'estimated monthly market rent', 'market rent', 'monthly rent'], {min: 100, max: 50000}); if (rent) { r.push(row('Market rent (monthly)', rent.v, 'loan:rental.mainUnit.gross')); r.push(row('Market rent for DSCR', rent.v, 'calc:nqm.dscr.rent', false)); }
+      var hoa = amt(L, ['hoa $', 'hoa dues', 'hoa'], {max: 5000}); if (hoa) r.push(row('HOA (monthly)', hoa.v, 'loan:hoaMonthly', false));
+      var u = intAfter(L, ['number of units', '# of units', 'units'], 1, 4); if (u) r.push(row('Units', u, 'loan:units'));
+      var a = textAfter(L, ['property address', 'subject property']); if (a) r.push(row('Property address', a, 'loan:propertyAddress', false));
+      return r;
+    },
+    tax: function (L, t) {
+      var x = amt(L, ['total annual tax', 'annual tax', 'total taxes', 'total tax', 'tax amount', 'total amount due', 'amount due'], {min: 50, max: 500000, avoid: /penalty|interest/});
+      if (!x) return [];
+      var m = /quarter/i.test(t) ? 4 : /semi-?annual|half/i.test(t) ? 2 : 1;
+      return [row('Property tax (annual)' + (m > 1 ? ' - bill x ' + m : ''), Math.round(x.v * m * 100) / 100, 'loan:propertyTaxAmount', true, m > 1 ? 'The bill reads as ' + (m === 4 ? 'quarterly' : 'semi-annual') + ' - check' : '')];
+    },
+    insurance: function (L, t) {
+      var p = amt(L, ['total annual premium', 'annual premium', 'total policy premium', 'total premium', 'policy premium', 'premium'], {min: 50, max: 100000});
+      if (!p) return [];
+      return /flood/i.test(t.slice(0, 3000)) && !/homeowner/i.test(t.slice(0, 3000)) ? [row('Flood premium (annual)', p.v, 'loan:escrow.annualFlood')] : [row('Homeowners premium (annual)', p.v, 'loan:insuranceAmount')];
+    },
+    hoa: function (L, t) {
+      var m = amt(L, ['monthly assessment', 'monthly dues', 'monthly common charges', 'monthly maintenance', 'per month', 'monthly'], {max: 20000});
+      if (m) return [row('HOA dues (monthly)', m.v, 'loan:hoaMonthly')];
+      var q = amt(L, ['quarterly assessment', 'quarterly dues', 'per quarter', 'quarterly'], {max: 60000}); if (q) return [row('HOA dues (quarterly / 3)', Math.round(q.v / 3 * 100) / 100, 'loan:hoaMonthly')];
+      var y = amt(L, ['annual assessment', 'annual dues', 'per year', 'annually'], {max: 240000}); if (y) return [row('HOA dues (annual / 12)', Math.round(y.v / 12 * 100) / 100, 'loan:hoaMonthly')];
+      return [];
+    },
+    lease: function (L) { var r = amt(L, ['monthly rent', 'rent of', 'base rent', 'rent:', 'per month', 'rent'], {min: 100, max: 50000}); return r ? [row('Monthly rent', r.v, 'loan:rental.mainUnit.gross'), row('Rent for DSCR', r.v, 'calc:nqm.dscr.rent', false)] : []; },
+    reno: function (L) {
+      var r = [], t = amt(L, ['grand total', 'contract total', 'total estimate', 'total cost', 'total bid', 'total price', 'total'], {min: 500, last: true, avoid: /sub-?total|tax/});
+      if (t) r.push(row('Renovation total', t.v, 'loan:reno.baseCost'));
+      var p = amt(L, ['permits', 'permit fees', 'permit'], {max: 100000}); if (p) r.push(row('Permits', p.v, 'loan:reno.permits', false, 'Only if not already in the total'));
+      var a = amt(L, ['architect', 'engineering', 'plans'], {max: 200000}); if (a) r.push(row('Architectural / engineering', a.v, 'loan:reno.architectural', false));
+      return r;
+    },
+    credit: function (L) {
+      var s = []; L.forEach(function (l) { if (/score|fico|equifax|experian|transunion|beacon|vantage/i.test(l)) (l.match(/\b([3-8]\d{2})\b/g) || []).forEach(function (x) { var n = +x; if (n >= 300 && n <= 850 && s.length < 6) s.push(n); }); });
+      if (!s.length) return [];
+      var three = s.slice(0, 3).sort(function (a, b) { return a - b; }), mid = three.length === 3 ? three[1] : three[0];
+      return [row('Representative (middle) score', mid, 'loan:creditScore', true, 'Scores read: ' + s.slice(0, 3).join(', '))];
+    },
+    pl: function (L, t) {
+      var NQ = window.NQM, p = NQ && NQ.parsePL ? NQ.parsePL(t) : {}, r = [];
+      if (p.revenue != null) r.push(row('Revenue', p.revenue, 'calc:nqm.pl.revenue')); if (p.cogs != null) r.push(row('Cost of goods sold', p.cogs, 'calc:nqm.pl.cogs'));
+      if (p.expenses != null) r.push(row('Total expenses', p.expenses, 'calc:nqm.pl.expenses')); if (p.net != null) r.push(row('Net income (as printed)', p.net, '', false, p.months ? p.months + '-month period' : ''));
+      return r;
+    }
+  };
+  function extract(doc) {
+    var f = EX[doc.docType]; doc.rows = f ? f(lines(doc.text), doc.text || '') : [];
+    return doc;
+  }
+
+  /* ============================================================ sending values */
+  var QKEY = 'mt.docs.queue.v1';
+  function queue() { try { return JSON.parse(localStorage.getItem(QKEY) || '[]'); } catch (e) { return []; } }
+  function setQueue(q) { try { localStorage.setItem(QKEY, JSON.stringify(q)); } catch (e) {} }
+  function coerce(dest, v) {
+    var d = DESTBY[dest]; if (!d) return null;
+    if (d.kind === 'num') { var n = N(v); return isFinite(n) ? n : null; }
+    if (d.kind === 'pct') { var p = N(v); return Math.abs(p) > 1 ? p / 100 : p; }
+    return String(v == null ? '' : v).trim();
+  }
+  function applyLoan(dest, value) {
+    var st = suiteStore(); if (!st || !st.setField) return false;
+    var path = dest.slice(5), v = coerce(dest, value); if (v === null || v === '') return false;
+    if (path === 'propertyTaxAmount') try { st.setField('propertyTaxBasis', 'Annual', 'Document'); } catch (e) {}
+    if (path === 'insuranceAmount') try { st.setField('insuranceBasis', 'Annual', 'Document'); } catch (e) {}
+    st.setField(path, v, 'Document Center'); return true;
+  }
+  function applyCalc(dest, value, meta, docName) {
+    var S = calcState(); if (!S) return false;
+    var v = N(value), up = G('uid'), id = typeof up === 'function' ? up() : uid();
+    if (dest.indexOf('calc:asset:') === 0) {
+      var type = dest.slice(11), T = (G('ASSET_TYPES') || []).filter(function (x) { return x.v === type; })[0];
+      S.assets.rows.push({id: id, name: (docName || 'Statement').replace(/\.[a-z0-9]+$/i, '').slice(0, 40), type: type, bal: v, elig: T ? T.e : 100});
+      try { G('renderAssets')(); } catch (e) {}
+    } else if (dest === 'calc:debt') {
+      S.dti.debts.push({id: id, name: (docName || 'Mortgage').replace(/\.[a-z0-9]+$/i, '').slice(0, 40), amt: v});
+      try { G('renderDTI')(); } catch (e) {}
+    } else if (dest.indexOf('calc:nqm.') === 0) {
+      var NQ = window.NQM; if (!S.nonqm) { try { NQ && NQ.render && NQ.render(); } catch (e) {} }
+      var q = S.nonqm; if (!q) return false;
+      if (dest === 'calc:nqm.bank') {
+        var dep = q.bank.deposits, k = -1, lab = meta && meta.label;
+        for (var j = 0; j < 24 && lab; j++) if (dep[j].label === lab) { k = j; break; }
+        if (k < 0) for (var j2 = 0; j2 < 24; j2++) if (!N(dep[j2].gross)) { k = j2; break; }
+        if (k < 0) return false;
+        dep[k].gross = v; dep[k].inel = meta && meta.transfers || 0; if (lab) dep[k].label = lab;
+        q.shown = q.shown || {}; q.shown.bank = true; q.bank.use = true;
+      } else {
+        var parts = dest.slice(9).split('.'); q[parts[0]][parts[1]] = v; q.shown = q.shown || {}; q.shown[parts[0]] = true; q[parts[0]].use = true;
+      }
+      try { NQ && NQ.render && NQ.render(); } catch (e) {}
+    } else return false;
+    try { window.RECALC && window.RECALC(); } catch (e) {}
+    return true;
+  }
+  function send(doc) {
+    var done = 0, later = 0, failed = 0;
+    var q = queue();
+    (doc.rows || []).forEach(function (r) {
+      if (!r.on || !r.dest) return;
+      var isLoan = r.dest.indexOf('loan:') === 0, ok = false;
+      try { ok = isLoan ? applyLoan(r.dest, r.value) : applyCalc(r.dest, r.value, r.meta, doc.name); } catch (e) { ok = false; }
+      if (ok) { done++; r.sent = Date.now(); return; }
+      if ((isLoan && PAGE !== 'suite') || (!isLoan && PAGE !== 'income')) { q.push({dest: r.dest, value: r.value, meta: r.meta || null, label: r.label, doc: doc.name, at: Date.now()}); later++; r.sent = -1; }
+      else failed++;
+    });
+    setQueue(q); save(doc);
+    var parts = [];
+    if (done) parts.push(done + ' value(s) placed');
+    if (later) parts.push(later + ' waiting for the ' + (PAGE === 'income' ? 'Loan Suite' : 'Income Calculator') + ' - they are placed when it opens' + (window.MtLive && MtLive.on() ? '' : ''));
+    if (failed) parts.push(failed + ' could not be placed');
+    return parts.join('; ') || 'Nothing ticked to send.';
+  }
+  function drainQueue() {
+    var q = queue(); if (!q.length) return;
+    var keep = [], n = 0;
+    q.forEach(function (it) {
+      var isLoan = it.dest.indexOf('loan:') === 0;
+      if ((isLoan && PAGE === 'suite') || (!isLoan && PAGE === 'income')) {
+        var ok = false; try { ok = isLoan ? applyLoan(it.dest, it.value) : applyCalc(it.dest, it.value, it.meta, it.doc); } catch (e) {}
+        if (ok) { n++; return; }
+      }
+      keep.push(it);
+    });
+    setQueue(keep);
+    if (n) toast(n + ' value(s) from your documents were placed on this page.');
+  }
+
+  /* ======================================================================== UI */
+  var CSS = [
+    '#mtDocsBtn{position:fixed;left:16px;bottom:16px;z-index:2147482000;display:inline-flex;align-items:center;gap:8px;padding:10px 15px;border-radius:999px;border:1px solid rgba(90,162,255,.5);background:#0b2350;color:#fff;font:600 13px/1 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.3)}',
+    '#mtDocsBtn:hover{background:#123a75}#mtDocsBtn:focus-visible{outline:2px solid #8cc0ff;outline-offset:2px}#mtDocsBtn em{font-style:normal;min-width:20px;padding:3px 6px;border-radius:999px;background:#5aa2ff;color:#04122b;text-align:center;font-size:11.5px}',
+    '@media print{#mtDocsBtn,#mtDocs{display:none!important}}',
+    '#mtDocs{position:fixed;inset:0;z-index:2147483100;display:none}#mtDocs.open{display:block}',
+    '#mtDocs .mtd-back{position:absolute;inset:0;border:0;background:rgba(3,12,32,.55);cursor:pointer}',
+    '#mtDocs .mtd-sheet{position:absolute;top:0;right:0;bottom:0;width:min(760px,100vw);overflow:auto;background:#06142e;color:#e6eefb;box-shadow:-20px 0 60px rgba(0,0,0,.45);border-left:1px solid #123058}',
+    '.mtd{font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:inherit;--mtd-line:rgba(127,160,210,.28);--mtd-soft:rgba(90,162,255,.1);--mtd-acc:#5aa2ff;--mtd-mute:#9db0c8}',
+    '.mtd-in{padding:18px 20px 28px}.mtd-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px}',
+    '.mtd-head h2{margin:0;font-size:19px;letter-spacing:-.01em}.mtd-head p{margin:4px 0 0;font-size:12.5px;color:var(--mtd-mute)}',
+    '.mtd-x{all:unset;cursor:pointer;width:34px;height:34px;display:grid;place-items:center;border-radius:9px;border:1px solid var(--mtd-line);font-size:17px}.mtd-x:focus-visible{outline:2px solid var(--mtd-acc)}',
+    '.mtd-tabs{display:flex;flex-wrap:wrap;gap:4px;margin:0 0 12px;padding:3px;border-radius:11px;border:1px solid var(--mtd-line);background:var(--mtd-soft)}',
+    '.mtd-tabs button{all:unset;cursor:pointer;padding:7px 11px;border-radius:8px;font-weight:600;font-size:12.5px;color:var(--mtd-mute);display:inline-flex;gap:6px;align-items:center}',
+    '.mtd-tabs button[aria-selected="true"]{background:var(--mtd-acc);color:#04122b}.mtd-tabs button:focus-visible{outline:2px solid var(--mtd-acc);outline-offset:1px}.mtd-tabs i{font-style:normal;font-size:11px;opacity:.8}',
+    '.mtd-drop{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;border:1.5px dashed var(--mtd-line);border-radius:12px;margin-bottom:14px}',
+    '.mtd-drop.over{border-color:var(--mtd-acc);background:var(--mtd-soft)}.mtd-drop b{display:block}.mtd-drop span{font-size:12.5px;color:var(--mtd-mute)}',
+    '.mtd-btn{all:unset;box-sizing:border-box;cursor:pointer;display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:9px;border:1px solid var(--mtd-line);font-weight:600;font-size:13px;position:relative;overflow:hidden}',
+    '.mtd-btn.pri{background:var(--mtd-acc);border-color:var(--mtd-acc);color:#04122b}.mtd-btn:hover{border-color:var(--mtd-acc)}.mtd-btn:focus-visible{outline:2px solid var(--mtd-acc);outline-offset:2px}.mtd-btn input{position:absolute;inset:0;opacity:0;cursor:pointer}',
+    '.mtd-list{display:grid;gap:12px}.mtd-empty{padding:18px;border-radius:12px;border:1px solid var(--mtd-line);color:var(--mtd-mute);font-size:13px}',
+    '.mtd-doc{border:1px solid var(--mtd-line);border-radius:12px;overflow:hidden}.mtd-dh{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;padding:11px 14px;background:var(--mtd-soft)}',
+    '.mtd-dh .nm{flex:1;min-width:160px;font-weight:700;word-break:break-word}.mtd-dh .nm small{display:block;font-weight:500;font-size:12px;color:var(--mtd-mute)}',
+    '.mtd select,.mtd input[type=text]{box-sizing:border-box;max-width:100%;padding:6px 8px;border-radius:7px;border:1px solid var(--mtd-line);background:rgba(4,18,43,.6);color:inherit;font:13px/1.3 inherit}',
+    '.mtd-db{padding:10px 14px 14px}.mtd-db table{width:100%;border-collapse:collapse;font-size:13px}.mtd-db th{text-align:left;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--mtd-mute);font-weight:600;padding:6px}',
+    '.mtd-db td{padding:6px;border-top:1px solid var(--mtd-line);vertical-align:top}.mtd-db td small{display:block;color:var(--mtd-mute);font-size:11.5px}.mtd-db input[type=text]{width:130px}.mtd-db select{width:100%}',
+    '.mtd-acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;align-items:center}.mtd-st{font-size:12.5px;color:var(--mtd-mute)}.mtd-st.ok{color:#3fcf8e}.mtd-st.bad{color:#ff7b6b}',
+    '.mtd-sent{color:#3fcf8e;font-size:11.5px;font-weight:700}.mtd-wait{color:#f0b357;font-size:11.5px;font-weight:700}',
+    '.mtd-prog{height:4px;border-radius:4px;background:var(--mtd-line);overflow:hidden;margin-top:6px}.mtd-prog i{display:block;height:100%;background:var(--mtd-acc);width:0;transition:width .2s}',
+    '@media (max-width:600px){.mtd-in{padding:14px 14px 24px}.mtd-db thead{display:none}.mtd-db tr{display:grid;grid-template-columns:28px 1fr;gap:4px 8px;padding:8px 0;border-top:1px solid var(--mtd-line)}.mtd-db td{border:0;padding:0}.mtd-db td:nth-child(n+3){grid-column:2}.mtd-db input[type=text]{width:100%}}',
+    /* inline panel on the Documents pages */
+    '.mtd.inline{border:1px solid var(--mtd-line);border-radius:14px;margin:0 0 16px;background:rgba(6,20,46,.55)}html[data-mt-mode="light"] .mtd.inline{background:#fff;color:#13263d;--mtd-mute:#5b6b7e;--mtd-line:#d9e2ec;--mtd-acc:#1f6fd6}html[data-mt-mode="light"] .mtd.inline select,html[data-mt-mode="light"] .mtd.inline input[type=text]{background:#fff}'
+  ].join('\n');
+  function toast(msg) {
+    try { if (window.LOS && LOS.say) return LOS.say('Documents', msg, 'good', 6000); } catch (e) {}
+    try { var T = G('toast'); if (typeof T === 'function') return T(msg); } catch (e) {}
+    var t = document.createElement('div'); t.setAttribute('role', 'status'); t.textContent = msg;
+    t.style.cssText = 'position:fixed;left:50%;bottom:76px;transform:translateX(-50%);z-index:2147483200;background:#0b2350;color:#fff;padding:10px 16px;border-radius:10px;font:600 13px system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.35)';
+    document.body.appendChild(t); setTimeout(function () { t.remove(); }, 5000);
+  }
+  var view = {sec: 'all'}, hosts = [], status = {}, progress = {};
+  function count(sec) { return mem.filter(function (d) { return sec === 'all' || TYPE[d.docType] && TYPE[d.docType].sec === sec; }).length; }
+  function destOptions(sel) {
+    return '<option value="">— do not send —</option>' + DEST.map(function (g) {
+      return '<optgroup label="' + esc(g[0]) + '">' + g[1].map(function (d) { return '<option value="' + d[0] + '"' + (d[0] === sel ? ' selected' : '') + '>' + esc(d[1]) + '</option>'; }).join('') + '</optgroup>';
+    }).join('');
+  }
+  function docHtml(d) {
+    var T = TYPE[d.docType] || TYPE.other, inc = !!T.income, rows = d.rows || [], st = status[d.id] || {};
+    var head = '<div class="mtd-dh"><div class="nm">' + esc(d.name) + '<small>' + new Date(d.added).toLocaleDateString() + ' · ' + Math.round((d.size || 0) / 1024) + ' KB' + (d.page ? ' · added on ' + esc(d.page) : '') + '</small></div>' +
+      '<label><span class="mtd-st">Type </span><select data-a="type" data-id="' + d.id + '">' + TYPES.map(function (t) { return '<option value="' + t.id + '"' + (t.id === d.docType ? ' selected' : '') + '>' + esc(t.label) + '</option>'; }).join('') + '</select></label>' +
+      '<button type="button" class="mtd-btn" data-a="del" data-id="' + d.id + '" aria-label="Remove ' + esc(d.name) + '">Remove</button></div>';
+    var body;
+    if (progress[d.id] != null) body = '<div class="mtd-db"><div class="mtd-st">Reading… scanned pages use OCR and can take a little while.</div><div class="mtd-prog"><i style="width:' + Math.round(progress[d.id] * 100) + '%"></i></div></div>';
+    else if (d.error) body = '<div class="mtd-db"><div class="mtd-st bad">' + esc(d.error) + '</div></div>';
+    else if (inc) body = '<div class="mtd-db"><p class="mtd-st" style="margin:0 0 8px">Income documents are read by the Income Calculator\'s own worksheet reader, where each figure is reviewed against its worksheet.</p>' +
+      '<div class="mtd-acts"><button type="button" class="mtd-btn pri" data-a="income" data-id="' + d.id + '">' + (PAGE === 'income' ? 'Read it on the Documents tab' : 'Open in the Income Calculator') + '</button></div></div>';
+    else if (!rows.length) body = '<div class="mtd-db"><p class="mtd-st" style="margin:0">No values recognised for a ' + esc(T.label.toLowerCase()) + '. Pick another type above if this is a different document' + (d.text && d.text.replace(/\s/g, '').length < 40 ? ' - very little text could be read from it' : '') + '.</p></div>';
+    else body = '<div class="mtd-db"><table><thead><tr><th style="width:28px"></th><th>On the document</th><th>Value</th><th>Send to</th></tr></thead><tbody>' + rows.map(function (r) {
+        return '<tr><td><input type="checkbox" data-a="on" data-id="' + d.id + '" data-r="' + r.id + '"' + (r.on ? ' checked' : '') + ' aria-label="Send ' + esc(r.label) + '"></td>' +
+          '<td>' + esc(r.label) + (r.note ? '<small>' + esc(r.note) + '</small>' : '') + (r.sent > 0 ? ' <span class="mtd-sent">sent</span>' : r.sent === -1 ? ' <span class="mtd-wait">waiting</span>' : '') + '</td>' +
+          '<td><input type="text" data-a="val" data-id="' + d.id + '" data-r="' + r.id + '" value="' + esc(r.value) + '" aria-label="' + esc(r.label) + ' value"></td>' +
+          '<td><select data-a="dest" data-id="' + d.id + '" data-r="' + r.id + '" aria-label="Where ' + esc(r.label) + ' goes">' + destOptions(r.dest) + '</select></td></tr>';
+      }).join('') + '</tbody></table><div class="mtd-acts"><button type="button" class="mtd-btn pri" data-a="send" data-id="' + d.id + '">Send ticked values</button><span class="mtd-st ' + (st.kind || '') + '">' + esc(st.text || 'Check each value against the document before sending.') + '</span></div></div>';
+    return '<article class="mtd-doc" data-doc="' + d.id + '">' + head + body + '</article>';
+  }
+  function panelHtml(inline) {
+    var list = mem.filter(function (d) { return view.sec === 'all' || (TYPE[d.docType] || TYPE.other).sec === view.sec; });
+    return '<div class="mtd-in"><div class="mtd-head"><div><h2>Documents</h2><p>Shared by every page of the suite and kept in this browser only. Upload once; send the values to the Loan Suite and the Income Calculator.</p></div>' +
+      (inline ? '' : '<button type="button" class="mtd-x" data-a="close" aria-label="Close documents">×</button>') + '</div>' +
+      '<div class="mtd-tabs" role="tablist" aria-label="Document sections">' + SECTIONS.map(function (s) { return '<button type="button" role="tab" data-a="sec" data-sec="' + s[0] + '" aria-selected="' + (view.sec === s[0]) + '">' + s[1] + ' <i>' + count(s[0]) + '</i></button>'; }).join('') + '</div>' +
+      '<div class="mtd-drop" data-drop="1"><div><b>Add documents</b><span>PDF, photo or scan. Pay stubs, W-2s, returns, bank and retirement statements, gift letters, contracts, appraisals, tax bills, insurance, HOA, leases, contractor bids, credit reports, LE / CD, mortgage statements, P&amp;Ls.</span></div>' +
+      '<label class="mtd-btn pri"><input type="file" multiple accept=".pdf,image/*,.txt,.csv" data-a="file">Upload</label></div>' +
+      '<div class="mtd-list">' + (list.length ? list.map(docHtml).join('') : '<div class="mtd-empty">' + (mem.length ? 'No documents in this section yet.' : 'No documents yet. Anything you upload here is available on every page of the suite.') + '</div>') + '</div></div>';
+  }
+  function paint() {
+    var b = $('mtDocsBtn'); if (b) b.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>Documents' + (mem.length ? ' <em>' + mem.length + '</em>' : '');
+    hosts.forEach(function (h) {
+      if (!h.el.isConnected) return;
+      var focus = document.activeElement && h.el.contains(document.activeElement) ? {a: document.activeElement.dataset.a, id: document.activeElement.dataset.id, r: document.activeElement.dataset.r, sec: document.activeElement.dataset.sec} : null;
+      var sc = h.scroller ? h.scroller.scrollTop : 0;
+      h.el.innerHTML = panelHtml(h.inline);
+      if (h.scroller) h.scroller.scrollTop = sc;
+      if (focus) { var sel = '[data-a="' + focus.a + '"]' + (focus.id ? '[data-id="' + focus.id + '"]' : '') + (focus.r ? '[data-r="' + focus.r + '"]' : '') + (focus.sec ? '[data-sec="' + focus.sec + '"]' : ''); var f = h.el.querySelector(sel); if (f) f.focus(); }
+    });
+  }
+  function find(id) { return mem.filter(function (d) { return d.id === id; })[0]; }
+  function rowOf(d, rid) { return (d.rows || []).filter(function (r) { return r.id === rid; })[0]; }
+  async function add(files) {
+    files = Array.prototype.slice.call(files || []); if (!files.length) return;
+    for (var i = 0; i < files.length; i++) {
+      var f = files[i], d = {id: uid(), name: f.name, mime: f.type, size: f.size, added: Date.now(), page: document.title.split('·')[0].trim().slice(0, 40), blob: f, docType: 'other', rows: [], text: ''};
+      mem.unshift(d); progress[d.id] = 0; paint();
+      try {
+        d.text = (await readText(f, function (p) { progress[d.id] = p; var bar = document.querySelector('[data-doc="' + d.id + '"] .mtd-prog i'); if (bar) bar.style.width = Math.round(p * 100) + '%'; })).slice(0, 60000);
+        d.docType = detect(d.text, d.name); extract(d);
+      } catch (e) { d.error = 'Could not read this file: ' + (e && e.message || e); }
+      delete progress[d.id];
+      var sec = (TYPE[d.docType] || TYPE.other).sec; if (view.sec !== 'all' && view.sec !== sec) view.sec = sec === 'all' ? 'all' : sec;
+      await save(d); paint();
+    }
+  }
+  function openIncome(d) {
+    if (PAGE === 'income') {
+      var hf = G('handleFiles'); if (typeof hf !== 'function') { toast('The Documents tab reader is not available on this page.'); return; }
+      try { window.switchTab && window.switchTab('docs'); } catch (e) {}
+      close();
+      var file = d.blob instanceof File ? d.blob : new File([d.blob], d.name, {type: d.mime || ''});
+      hf([file]); return;
+    }
+    location.href = 'income-calculator.html?mtdoc=' + encodeURIComponent(d.id);
+  }
+  function wire(el) {
+    el.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-a]'); if (!b || b.tagName === 'SELECT' || b.tagName === 'INPUT') return;
+      var a = b.dataset.a, d = b.dataset.id ? find(b.dataset.id) : null;
+      if (a === 'close') close();
+      else if (a === 'sec') { view.sec = b.dataset.sec; paint(); }
+      else if (a === 'del' && d) { if (confirm('Remove "' + d.name + '" from the document library in this browser?')) drop(d.id).then(paint); }
+      else if (a === 'send' && d) { var msg = send(d); status[d.id] = {text: msg, kind: /could not/.test(msg) ? 'bad' : 'ok'}; paint(); }
+      else if (a === 'income' && d) openIncome(d);
+    });
+    el.addEventListener('change', function (e) {
+      var t = e.target, a = t.dataset && t.dataset.a, d = t.dataset && t.dataset.id ? find(t.dataset.id) : null;
+      if (a === 'file') { add(t.files); t.value = ''; return; }
+      if (!d) return;
+      if (a === 'type') { d.docType = t.value; extract(d); save(d); paint(); return; }
+      var r = rowOf(d, t.dataset.r); if (!r) return;
+      if (a === 'on') r.on = t.checked; else if (a === 'dest') { r.dest = t.value; r.on = !!t.value; paint(); } else if (a === 'val') r.value = t.value;
+      save(d);
+    });
+    el.addEventListener('input', function (e) { var t = e.target; if (t.dataset && t.dataset.a === 'val') { var d = find(t.dataset.id), r = d && rowOf(d, t.dataset.r); if (r) r.value = t.value; } });
+    el.addEventListener('dragover', function (e) { var z = e.target.closest && e.target.closest('[data-drop]'); if (z) { e.preventDefault(); z.classList.add('over'); } });
+    el.addEventListener('dragleave', function (e) { var z = e.target.closest && e.target.closest('[data-drop]'); if (z) z.classList.remove('over'); });
+    el.addEventListener('drop', function (e) { var z = e.target.closest && e.target.closest('[data-drop]'); if (!z) return; e.preventDefault(); z.classList.remove('over'); add(e.dataTransfer.files); });
+  }
+  var lastFocus = null;
+  function open(sec) {
+    var w = $('mtDocs'); if (!w) return;
+    if (sec) view.sec = sec; lastFocus = document.activeElement;
+    w.classList.add('open'); document.documentElement.style.overflow = 'hidden'; paint();
+    var x = w.querySelector('.mtd-x'); if (x) x.focus();
+  }
+  function close() { var w = $('mtDocs'); if (!w || !w.classList.contains('open')) return; w.classList.remove('open'); document.documentElement.style.overflow = ''; if (lastFocus && lastFocus.focus) lastFocus.focus(); }
+  function mount() {
+    if (!$('mtDocsCss')) { var s = document.createElement('style'); s.id = 'mtDocsCss'; s.textContent = CSS; document.head.appendChild(s); }
+    if (!$('mtDocs')) {
+      var w = document.createElement('div'); w.id = 'mtDocs'; w.className = 'no-print';
+      w.innerHTML = '<button type="button" class="mtd-back" tabindex="-1" aria-label="Close documents"></button><aside class="mtd-sheet" role="dialog" aria-modal="true" aria-label="Documents"><div class="mtd"></div></aside>';
+      document.body.appendChild(w);
+      w.querySelector('.mtd-back').addEventListener('click', close);
+      var host = w.querySelector('.mtd'); hosts.push({el: host, inline: false, scroller: w.querySelector('.mtd-sheet')}); wire(host);
+      document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
+    }
+    if (!$('mtDocsBtn')) {
+      var b = document.createElement('button'); b.type = 'button'; b.id = 'mtDocsBtn'; b.className = 'no-print'; b.setAttribute('aria-haspopup', 'dialog');
+      b.addEventListener('click', function () { open(); }); document.body.appendChild(b);
+    }
+    inline(); paint();
+  }
+  /* inline on the Documents pages: Loan Suite Documents & OCR / Worksheets, the calculator's Documents tab, Doc Organizer */
+  function inline() {
+    var targets = [];
+    var E = window.LOS_EMBED || {};
+    if (E.page === 'documents-ocr' || E.page === 'documents-worksheets') targets.push($('v50UnifiedDocuments') || $('panel-docs'));
+    if (PAGE === 'income') targets.push($('panel-docs'));
+    targets.forEach(function (t) {
+      if (!t || t.querySelector(':scope > .mtd.inline')) return;
+      var el = document.createElement('section'); el.className = 'mtd inline no-print';
+      var head = t.querySelector(':scope > .section-head, :scope > header');
+      head && head.nextSibling ? t.insertBefore(el, head.nextSibling) : t.insertBefore(el, t.firstChild);
+      hosts.push({el: el, inline: true}); wire(el);
+    });
+  }
+
+  /* ====================================================================== boot */
+  function boot() {
+    mount();
+    load().then(function () {
+      paint();
+      /* a document sent from another page to the calculator's reader */
+      var q = new URLSearchParams(location.search), id = q.get('mtdoc');
+      if (id && PAGE === 'income') {
+        var d = find(id); var tries = 0;
+        (function go() { if (typeof G('handleFiles') === 'function' && window.switchTab) { if (d) openIncome(d); return; } if (tries++ < 60) setTimeout(go, 150); })();
+      }
+    });
+    /* place values that were waiting for this page */
+    var n = 0; (function drain() { if ((PAGE === 'suite' && suiteStore() && suiteStore().setField) || (PAGE === 'income' && calcState() && typeof window.RECALC === 'function')) { setTimeout(drainQueue, 900); return; } if (n++ < 120) setTimeout(drain, 150); })();
+    setInterval(inline, 1500);
+  }
+  window.MTDocs = {__v56: true, readText: readText, detect: detect, extract: extract, TYPES: TYPES, DEST: DEST, SECTIONS: SECTIONS, open: open, close: close, list: function () { return mem; }, add: add, send: send, queue: queue, EX: EX};
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
 })();
 
 </script>

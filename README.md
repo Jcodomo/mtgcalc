@@ -12,10 +12,10 @@ Every feature of the Loan Suite and the Income Calculator as its own HTML page, 
 | `income-calculator-standalone.html` | The same Income Calculator as one self-contained file (no `assets/` needed) |
 | `doc-organizer.html` | Read, rename, split and combine borrower documents; send reviewed values onward |
 | `full-suite.html` | The complete Loan Suite and Income Calculator in one page |
-| `loan-suite-quote.html` | Quote, Scenario Control, mortgage calculator |
-| `loan-suite-setup.html` | Setup |
-| `loan-suite-property.html` | Property |
-| `loan-suite-renovation.html` | Renovation |
+| `loan-suite-quote.html` | File: Quote, Scenario Control and mortgage calculator, then Setup and (renovation loans) Renovation on the same page |
+| `loan-suite-setup.html` | Setup on its own (kept for old links) |
+| `loan-suite-property.html` | Property (Loan group) |
+| `loan-suite-renovation.html` | Renovation on its own (kept for old links) |
 | `loan-suite-max-mortgage.html` | Max Mortgage |
 | `loan-suite-mortgage-rates.html` | Mortgage Rates |
 | `loan-suite-closing-costs.html` | Closing Costs |
@@ -63,4 +63,4 @@ The pages are generated, not hand-edited:
 python3 tools/decompile.py tools/source <output-folder>
 ```
 
-`tools/source/` holds the 55.13 source files the build reads. `tools/decompile.py` splits `full-suite.html` into the shared `assets/` (each script byte-for-byte, each stylesheet recreated as a real `<style>` element so the Loan Report and print views keep their styles), and writes one page per tab with `tools/loan-suite-embed.js` / `.css`. To change a feature, edit `tools/source/`, rebuild, and upload the output.
+`tools/source/` holds the source files the build reads (56.0 adds `mt-live.js` live sync, `mt-mnd.js` Mortgage News Daily rates, `doc-center.js` the shared document library, and `release56-income.js` / `release56-suite.js`). Change `VER` in `tools/decompile.py` with each release so browsers fetch the new scripts. `tools/decompile.py` splits `full-suite.html` into the shared `assets/` (each script byte-for-byte, each stylesheet recreated as a real `<style>` element so the Loan Report and print views keep their styles), and writes one page per tab with `tools/loan-suite-embed.js` / `.css`. To change a feature, edit `tools/source/`, rebuild, and upload the output.

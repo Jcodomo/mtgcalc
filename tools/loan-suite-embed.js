@@ -181,7 +181,8 @@
       var first = E.pages.filter(function (p) { return p.group === g.id; })[0];
       return '<a class="lse-g' + (g.id === me.group ? ' on' : '') + '" href="' + first.file + '"' + (g.id === me.group ? ' aria-current="true"' : '') + '>' + g.label + '</a>';
     }).join('') + '<a class="lse-g lse-all" href="index.html">Home</a><a class="lse-g" href="income-calculator.html">Income Calculator</a><a class="lse-g" href="full-suite.html">Full Suite</a>';
-    var pages = E.pages.filter(function (p) { return p.group === me.group; }).map(function (p) {
+    /* 56.0: pages folded into the File page (Setup, Renovation) are reached by scrolling it, not from the page row */
+    var pages = E.pages.filter(function (p) { return p.group === me.group && (p.nav !== false || p.id === me.id); }).map(function (p) {
       return '<a class="lse-p' + (p.id === me.id ? ' on' : '') + '" href="' + p.file + '"' + (p.id === me.id ? ' aria-current="page"' : '') + '>' + p.title + '</a>';
     }).join('');
     nav.innerHTML = '<div class="lse-row lse-groups">' + groups + '</div><div class="lse-row lse-pages">' + pages + '</div>';

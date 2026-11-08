@@ -31,6 +31,9 @@
       s.reno.baseCost = amt; s.reno.contingencyPct = Math.max(0, num(R.cont)) / 100; s.reno.paymentReserveMonths = Math.max(0, Math.min(6, Math.round(num(R.months))));
       s.afterRepairValue = num(R.arv) || (num(v.price) + amt);
       if (reno === 'hs') { s.reno.consultant = 0; }
+      /* 56.0: draw inspection fee per draw - Conventional HomeStyle $150, FHA 203(k) $375 */
+      s.draws.inspectionFeePerDraw = reno === 'hs' ? 150 : 375;
+      s.reno.syncDrawFees = true;                          /* the totals follow the draw plan: draws x fee per draw */
     } else { s.reno.baseCost = 0; s.afterRepairValue = num(v.price); }
     return s;
   }

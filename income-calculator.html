@@ -1024,7 +1024,7 @@ body,#calc-root,#suite-root{min-width:0}
       Schedule E, K-1, 1120 / 1120-S / 1065.
       Text-based PDFs are read directly; scans and images fall back to OCR.</div>
     <div class="dz-s" style="margin-top:6px">or click to browse</div>
-    <input type="file" id="docFile" multiple accept=".pdf,.png,.jpg,.jpeg,.webp" style="display:none" onchange="handleFiles(this.files);this.value=''">
+    <input type="file" id="docFile" multiple accept=".pdf,.png,.jpg,.jpeg,.webp,.txt" style="display:none" onchange="handleFiles(this.files);this.value=''">
   </div>
   <div class="notice warn" style="margin-top:14px"><svg class="icon"><use href="#i-alert"/></svg>
     <span><b>Always verify before you qualify.</b> Extraction is a data-entry aid, not a substitute for reading the
@@ -1408,6 +1408,8 @@ function calcW2(j){
   const consistent = !['irregular','variable'].includes(j.incomeType), choiceYtd = j.baseChoice === 'ytd';   /* variable / other pay follows the irregular-hours rule */
   let baseRule, varsUsed = true, wsNote = '';
   if (daysOnJob < 31)               { baseRule = 'na'; varsUsed = false; wsNote = 'On the job 30 days or less - the worksheet does not calculate this income'; }
+  /* 56.0: earnings entered but no rate / salary - there is no base pay to use, so the year-to-date average governs */
+  else if (!(monthlyBase > 0) && comp.base.ytd > 0) { baseRule = 'ytd'; wsNote = 'No rate / salary entered - the year-to-date average is used'; if (daysOnJob < 730) varsUsed = false; }
   else if (daysIntoYear < 31)       { baseRule = 'current'; wsNote = 'Pay period ends in the first 30 days of the year - base pay plus qualifying variable income'; }
   else if (daysOnJob < 730)         { baseRule = 'current'; varsUsed = false; wsNote = 'On the job under 2 years - the worksheet uses the base pay only'; }
   else if (consistent && comp.base.ytd > monthlyBase) { baseRule = 'current'; wsNote = 'Consistent hours and YTD above the base rate - base pay'; }
@@ -1564,6 +1566,10 @@ function w2Card(j,i){
                 <td class="num" id="${P}-t1">$0.00</td><td class="num" id="${P}-t2">$0.00</td><td class="num" id="${P}-t3">$0.00</td>
                 <td class="num" id="${P}-ta12">$0.00</td><td class="num" id="${P}-ta24">$0.00</td>
               </tr>
+              <tr class="y1-only-row" id="${P}-y1only" style="display:none">
+                <td class="rowlabel">Year 1 only</td>
+                <td colspan="5"><span class="y1-only"><span>YTD earnings <b id="${P}-y1ytd">$0.00</b></span><span>over <b id="${P}-y1mo">0</b> months</span><span>Monthly average <b id="${P}-y1avg">$0.00</b></span></span></td>
+              </tr>
               <tr class="meta-row">
                 <td class="rowlabel">Income Change (%)</td>
                 <td id="${P}-chg1">—</td><td id="${P}-chg2">—</td><td class="mono">Baseline</td>
@@ -1631,6 +1637,8 @@ function paintW2(){
     setT(`${P}-var`, `${r.varAmt>=0?'+':''}${money(r.varAmt)} (${(r.varPct*100).toFixed(1)}%)`);
     const vb=$(`${P}-varband`);
     if(vb && !r.expectedYTD && !r.actualYTD){ vb.className='band'; vb.textContent='Awaiting paystub figures'; }
+    /* 56.0: YTD entered but no rate yet - there is nothing to compare against, so no variance verdict */
+    else if(vb && !r.expectedYTD){ vb.className='band'; vb.textContent='Enter the rate / salary to compare with YTD'; setT(`${P}-var`, '—'); }
     else if(vb){
       const ap=Math.abs(r.varPct);
       vb.className='band ' + (ap<=0.05?'ok':ap<=0.10?'warn':'bad');
@@ -1649,7 +1657,12 @@ function paintW2(){
       setT(`${P}-${k}-a24`, money(r.comp[k].a24));
     });
     setT(`${P}-t1`, money(r.t1)); setT(`${P}-t2`, money(r.t2)); setT(`${P}-t3`, money(r.t3));
-    setT(`${P}-ta12`, money((r.t1+r.t2)/(r.mo+12))); setT(`${P}-ta24`, money((r.t1+r.t2+r.t3)/(r.mo+24)));
+    /* 56.0: an average that includes a year with nothing entered is not an average - show '—' until that year has figures,
+       and with Year 1 alone show the YTD earnings and their monthly average */
+    setT(`${P}-ta12`, r.t2 ? money((r.t1+r.t2)/(r.mo+12)) : '—'); setT(`${P}-ta24`, (r.t2 && r.t3) ? money((r.t1+r.t2+r.t3)/(r.mo+24)) : '—');
+    { const only = r.t1 > 0 && !r.t2 && !r.t3, row = $(`${P}-y1only`);
+      if (row) row.style.display = only ? '' : 'none';
+      if (only){ setT(`${P}-y1ytd`, money(r.t1)); setT(`${P}-y1mo`, r.mo.toFixed(2)); setT(`${P}-y1avg`, money(r.mo > 0 ? r.t1 / r.mo : 0)); } }
     setT(`${P}-chg1`, r.t2 ? `${pct(r.chg1)} (annualized vs Yr 2)` : '—');
     setT(`${P}-chg2`, r.t3 ? `${pct(r.chg2)} (vs Yr 3)` : '—');
     const trend = (!r.t1 && !r.t2 && !r.t3) ? '—'
@@ -4514,6 +4527,9 @@ async function handleFiles(files){
           viaOCR = true;
         }
         }
+      } else if (/\.(txt|csv|text)$/i.test(f.name) || /^text\//.test(f.type || '')){
+        /* 56.0: a plain-text export (or text copied from a portal) is read as it is */
+        text = await f.text();
       } else {
         d.note = 'Running OCR on the image…'; renderDocs();
         const img = await new Promise((res,rej)=>{ const i=new Image();
@@ -8149,6 +8165,10 @@ window.__mtgcalcBridge = {
 <script src="assets/sync-bridge.js?v=55.12"></script>
 <script src="assets/workflow-ui.js?v=55.12"></script>
 <script src="assets/income-features.js?v=55.16"></script>
-<script src="assets/income-extras.js?v=55.22"></script>
+<script src="assets/income-extras.js?v=56.0"></script>
+<script src="assets/mt-live.js?v=56.0"></script>
+<script src="assets/release56-income.js?v=56.0"></script>
+<script src="assets/mt-mnd.js?v=56.0"></script>
+<script src="assets/doc-center.js?v=56.0"></script>
 </body>
 </html>
