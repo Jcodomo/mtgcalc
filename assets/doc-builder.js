@@ -1,4 +1,4 @@
-/* Mortgage Suite 56.2 - Document Builder (Income Calculator, Full Suite and the Loan Suite pages).
+/* Mortgage Suite 56.3 - Document Builder (Income Calculator, Full Suite and the Loan Suite pages).
    Builds, previews, prints and saves as PDF: contract addenda (five styles, up to 4 buyers and 4 sellers, a seller-concession
    and transfer-tax calculator, 203(k) / HomeStyle / FHA / VA clauses, a contract dropped in to fill the parties), residential
    leases (four styles), contractor estimates, profit and loss statements, commitment letters (filled from a lender's
@@ -115,12 +115,13 @@
     '#mtB .sync{display:grid;grid-template-columns:1fr auto 1fr;gap:6px;align-items:end}#mtB .sync .eq{padding-bottom:9px;color:#8ea3c0;font-weight:700}#mtB .man{font-size:11.5px;color:#f0b357;font-weight:600}',
     '#mtB .wd .it textarea{min-height:52px;font-size:12.5px}#mtB .wd .it .hd b{font-size:12px}#mtB .wd .ed{color:#f0b357;font-size:11px;font-weight:600}',
     '#mtB .mb-top .btn[aria-pressed="true"]{background:#f0b357;border-color:#f0b357;color:#1d1300}#mtB .mb-prev .pe{padding:6px 12px;font-size:12px;background:#f0b357;color:#1d1300;font-weight:600}',
+    '#mtB .fitbar{display:flex;gap:12px;align-items:center;padding:6px 12px;font-size:12px;background:#0b2350;color:#cfe0f7;border-bottom:1px solid #123058}#mtB .fitbar label{display:flex;gap:6px;align-items:center;font-weight:600;white-space:nowrap;cursor:pointer}#mtB .fitbar input{accent-color:#5aa2ff}#mtB .fitbar.warn{background:#3a2a06;color:#f6d79a}',
     '@media print{#mtB{display:none!important}}'
   ].join('\n');
 
   function field(b, k, label, opt) {
     opt = opt || {}; var s = drafts[b], v = s[k] == null ? '' : s[k], t = opt.type || 'text', cls = 'f' + (opt.wide ? ' w' : '');
-    var a = ' data-b="' + b + '" data-k="' + k + '"';
+    var a = ' data-b="' + b + '" data-k="' + k + '"' + (opt.addr != null ? ' data-addr="' + opt.addr + '"' : '') + (opt.addrLine ? ' data-addr-line="1"' : '') + (opt.addrPair ? ' data-addr-pair="' + opt.addrPair + '"' : '');
     if (t === 'select') return '<label class="' + cls + '">' + label + '<select' + a + '>' + opt.options.map(function (o) { o = Array.isArray(o) ? o : [o, o]; return '<option value="' + esc(o[0]) + '"' + (String(o[0]) === String(v) ? ' selected' : '') + '>' + esc(o[1]) + '</option>'; }).join('') + '</select></label>';
     if (t === 'textarea') return '<label class="' + cls + '">' + label + '<textarea' + a + ' rows="' + (opt.rows || 3) + '" placeholder="' + esc(opt.ph || '') + '">' + esc(v) + '</textarea></label>';
     if (t === 'check') return '<label class="ck' + (opt.wide ? ' w' : '') + '"><input type="checkbox"' + a + (v ? ' checked' : '') + '><span>' + label + '</span></label>';
@@ -138,7 +139,7 @@
     arr.forEach(function (p, i) {
       var o = typeof p === 'object' ? p : {name: p};
       h += '<div class="g" style="margin-bottom:6px"><label class="f">' + label.replace(/s$|\(s\)$/, '') + ' ' + (i + 1) + '<input data-b="' + b + '" data-list="' + k + '" data-i="' + i + '" data-f="name" value="' + esc(o.name || '') + '"></label>' +
-        (opt.extra ? '<label class="f">' + opt.extra[1] + '<input data-b="' + b + '" data-list="' + k + '" data-i="' + i + '" data-f="' + opt.extra[0] + '" value="' + esc(o[opt.extra[0]] || '') + '" placeholder="' + esc(opt.extra[2] || '') + '"></label>' : '<div class="row" style="align-items:end">' + (arr.length > 1 ? '<button type="button" class="x" data-a="rm" data-b="' + b + '" data-list="' + k + '" data-i="' + i + '" aria-label="Remove">Remove</button>' : '') + '</div>') + '</div>';
+        (opt.extra ? '<label class="f">' + opt.extra[1] + '<input data-b="' + b + '" data-list="' + k + '" data-i="' + i + '" data-f="' + opt.extra[0] + '"' + (opt.extra[0] === 'mail' ? ' data-addr-line="1"' : '') + ' value="' + esc(o[opt.extra[0]] || '') + '" placeholder="' + esc(opt.extra[2] || '') + '"></label>' : '<div class="row" style="align-items:end">' + (arr.length > 1 ? '<button type="button" class="x" data-a="rm" data-b="' + b + '" data-list="' + k + '" data-i="' + i + '" aria-label="Remove">Remove</button>' : '') + '</div>') + '</div>';
       if (opt.extra && arr.length > 1) h += '<div class="row" style="justify-content:flex-end;margin:-4px 0 6px"><button type="button" class="x" data-a="rm" data-b="' + b + '" data-list="' + k + '" data-i="' + i + '">Remove</button></div>';
     });
     if (arr.length < max) h += '<button type="button" class="btn" data-a="add" data-b="' + b + '" data-list="' + k + '">+ Add ' + label.toLowerCase().replace(/s$|\(s\)$/, '') + '</button>';
@@ -149,12 +150,12 @@
   /* --------------------------------------------- property search (OSM + Google) */
   function propertyBlock(b, prefix) {
     prefix = prefix || ''; var s = drafts[b];
-    return '<fieldset><legend>Property</legend><div class="g">' + field(b, prefix + 'address', 'Street address', {wide: 1, ph: '106 Main St, Unit 2'}) + field(b, prefix + 'city', 'City / town') +
+    return '<fieldset><legend>Property</legend><div class="g">' + field(b, prefix + 'address', 'Street address - start typing for suggestions', {wide: 1, ph: '106 Main St, Unit 2', addr: prefix}) + field(b, prefix + 'city', 'City / town') +
       field(b, prefix + 'state', 'State', {list: STATE_NAMES, ph: 'NY or New York'}) + field(b, prefix + 'zip', 'ZIP') + field(b, prefix + 'county', 'County') +
       field(b, prefix + 'addrFree', 'Address exactly as it should print (optional - replaces the lines above in the document)', {type: 'textarea', wide: 1, rows: 2, ph: 'e.g. 106 Main Street a/k/a Section 12 Block 4 Lot 22, Town of Hempstead, NY 11550'}) + '</div>' +
       '<div class="row" style="margin-top:8px"><button type="button" class="btn" data-a="psearch" data-b="' + b + '" data-p="' + prefix + '">Search address</button>' +
       '<button type="button" class="btn" data-a="pgoogle" data-b="' + b + '" data-p="' + prefix + '">Check on Google</button><button type="button" class="btn" data-a="pfile" data-b="' + b + '" data-p="' + prefix + '">Use loan file address</button></div>' +
-      '<div class="sr" id="mtBsr-' + b + prefix + '" hidden></div><p class="note">Search looks the address up on OpenStreetMap and fills the city, state, ZIP and county; Google opens a search in a new tab so you can confirm it.</p></fieldset>';
+      '<div class="sr" id="mtBsr-' + b + prefix + '" hidden></div><p class="note">Type a street address and pick a suggestion to fill the city, state, ZIP and county (OpenStreetMap). Google opens a search in a new tab so you can confirm it. <button type="button" class="x" style="color:#9fc4ff" data-a="addrToggle">' + (window.MTAddr && MTAddr.isOff() ? 'Turn address suggestions on' : 'Turn address suggestions off') + '</button></p></fieldset>';
   }
   function psearch(b, p) {
     var s = drafts[b], q = [s[p + 'address'], s[p + 'city'], s[p + 'state'], s[p + 'zip']].filter(Boolean).join(', '), box = $('mtBsr-' + b + p);
@@ -348,14 +349,14 @@
           '<table class="hdr"><tr><td><u>DATE:</u></td><td>' + esc(caps(when(s.date, ordDate))) + '</td></tr><tr><td><u>SELLERS:</u></td><td>' + esc(caps(sellers.map(function (p) { return p.name + (p.by ? ' (by ' + p.by + ')' : ''); }).join(', '))) + '</td></tr>' +
           '<tr><td><u>BUYERS:</u></td><td>' + esc(caps(joinNames(buyers))) + '</td></tr><tr><td><u>PREMISES:</u></td><td>' + esc(caps(addr)) + '</td></tr>' + (s.contractDate ? '<tr><td><u>CONTRACT:</u></td><td>' + esc(caps('Dated ' + when(s.contractDate))) + '</td></tr>' : '') + '</table>' +
           '<p class="lead">' + esc(caps(s.leadText || 'THE CONTRACT OF SALE SHALL BE AMENDED AS FOLLOWS:')) + '</p>' + lines.map(function (l) { return '<p class="term">' + esc(caps(l)) + '</p>'; }).join('') +
-          '<div class="sigs">' + sigs('Purchaser', bl, Math.max(2, bl.length)) + sigs('Seller', sellers, Math.max(2, sellers.length)) + '</div>', CSS_ADD_MASTER);
+          (bl.length + sellers.length > 4 ? '<div class="sigs two"><div>' + sigs('Purchaser', bl, bl.length) + '</div><div>' + sigs('Seller', sellers, sellers.length) + '</div></div>' : '<div class="sigs">' + sigs('Purchaser', bl, Math.max(2, bl.length)) + sigs('Seller', sellers, Math.max(2, sellers.length)) + '</div>'), CSS_ADD_MASTER);
       }
       if (st === 'numbered') {
         var docs = [s.contractDate ? 'The Contract of Sale dated ' + when(s.contractDate) : 'The Contract of Sale'].concat((s.priorDocs || '').split(/;|\n/).map(function (x) { return x.trim(); }).filter(Boolean));
         var items = T.map(function (t) { return t.t; }); if (s.remain) items.push(s.remainText || 'Unless modified herein, all other provisions of ' + joinNames(docs).replace(/^The /, 'the ') + ' shall remain in full force and effect.');
         return page('tnr', '<h1 class="b">' + esc(s.title || 'ADDENDUM #' + (s.number || '1') + ' TO CONTRACT OF SALE') + '</h1><table class="hdr b"><tr><td>BUYER' + (buyers.length > 1 ? 'S' : '') + ':</td><td>' + esc(joinNames(buyers)) + '</td></tr><tr><td>SELLER' + (sellers.length > 1 ? 'S' : '') + ':</td><td>' + esc(sellers.map(function (p) { return p.name; }).join(', ')) + '</td></tr><tr><td>PROPERTY:</td><td>' + esc(addr) + '</td></tr></table>' +
           '<p>' + esc(s.leadText || joinNames(docs) + (docs.length > 1 ? ' are' : ' is') + ' hereby amended as follows:') + '</p><ol>' + items.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ol>' +
-          '<div class="sig2">' + bl.map(function (p) { return '<div class="r"><div><div class="sl"></div>' + esc(p.name) + '</div><div>Buyer</div></div>'; }).join('') + sellers.map(function (p) { return '<div class="r"><div><div class="sl"></div>' + esc(p.name) + (p.by ? '<br>By: ' + esc(p.by) : '') + '</div><div>Seller</div></div>'; }).join('') + '</div><p style="margin-top:28px">Dated: ' + esc(when(s.date)) + '</p>', CSS_ADD_NUM);
+          '<div class="sig2' + (bl.length + sellers.length > 3 ? ' two' : '') + '">' + bl.map(function (p) { return '<div class="r"><div><div class="sl"></div>' + esc(p.name) + '</div><div>Buyer</div></div>'; }).join('') + sellers.map(function (p) { return '<div class="r"><div><div class="sl"></div>' + esc(p.name) + (p.by ? '<br>By: ' + esc(p.by) : '') + '</div><div>Seller</div></div>'; }).join('') + '</div><p style="margin-top:28px">Dated: ' + esc(when(s.date)) + '</p>', CSS_ADD_NUM);
       }
       if (st === 'purchase') {
         var it = T.map(function (t) { return '<p><b>' + esc(t.h) + '.</b> ' + esc(t.t) + '</p>'; }); if (s.remain) it.push('<p><b>All Other Terms.</b> ' + esc(s.remainText || 'All other terms and conditions of the Agreement shall remain in full force and effect.') + '</p>');
@@ -369,7 +370,7 @@
       if (st === 'fillin') {
         var body = T.map(function (t) { return t.t; }).join('\n\n');
         return page('tnr', '<h1 class="bu">' + esc(s.title || 'ADDENDUM TO REAL ESTATE PURCHASE AND SALE AGREEMENT') + '</h1><p class="ind">The undersigned parties to a Purchase and Sale Agreement dated <span class="fl">' + esc(when(s.contractDate) || ' ') + '</span>, by and between <span class="fl">' + esc(joinNames(buyers)) + '</span> ("Purchaser"), and <span class="fl">' + esc(sellers.map(function (p) { return p.name; }).join(', ')) + '</span> ("Seller"), for the purchase and sale of that certain property municipally known as <span class="fl">' + esc(addr) + '</span> ("Property"), hereby mutually agree to amend said Agreement as follows:</p>' +
-          '<div class="big">' + esc(body).replace(/\n/g, '<br>') + '</div>' + (s.remain ? '<p class="ind">' + esc(s.remainText || 'All other terms and conditions of the Sales Contract to remain the same.') + '</p>' : '') +
+          '<div class="big"' + (body.length > 900 ? ' style="font-size:11pt;margin:.15in 0 .25in .3in;min-height:0"' : body.length > 450 ? ' style="font-size:13.5pt;margin:.2in 0 .3in .35in;min-height:1in"' : '') + '>' + esc(body).replace(/\n/g, '<br>') + '</div>' + (s.remain ? '<p class="ind">' + esc(s.remainText || 'All other terms and conditions of the Sales Contract to remain the same.') + '</p>' : '') +
           '<p><b>BUYER(S):</b></p>' + bl.concat(bl.length ? [] : [{}]).map(function (p) { return '<div class="r2"><span class="sl2">' + esc(p.name || '') + '</span>Date: <span class="sl3"></span></div>'; }).join('') +
           '<p><b>SELLER(S):</b></p>' + (sellers.length ? sellers : [{}]).map(function (p) { return '<div class="r2"><span class="sl2">' + esc(p.name || '') + '</span>Date: <span class="sl3"></span></div>'; }).join(''), CSS_ADD_FILL);
       }
@@ -383,14 +384,15 @@
   };
   var CSS_PAGE = '@page{size:letter;margin:0}*{box-sizing:border-box}html{background:#7b8394}body{margin:0;padding:18px 0}.pg{width:8.5in;min-height:11in;margin:0 auto 18px;background:#fff;color:#000;padding:1in 1in .8in;position:relative;box-shadow:0 4px 18px rgba(0,0,0,.35)}' +
     '@media print{html,body{background:#fff;padding:0}.pg{margin:0;box-shadow:none;page-break-after:always}.pg:last-child{page-break-after:auto}}.tnr{font-family:"Times New Roman",Times,serif;font-size:12pt}.ari{font-family:Arial,Helvetica,sans-serif;font-size:11pt}.geo{font-family:Georgia,"Times New Roman",serif;font-size:11.5pt}.cal{font-family:Calibri,"Segoe UI",Arial,sans-serif;font-size:11pt}';
-  var CSS_ADD_MASTER = 'h1.u{text-align:center;font-weight:400;font-size:12pt;text-decoration:underline;margin:.6in 0 .3in}.ari h1.u{text-decoration:none}table.hdr{border-collapse:collapse;margin:0 0 .25in .1in}table.hdr td{padding:5px 10px 9px 0;vertical-align:top}.ari table.hdr td:first-child u{text-decoration:none}' +
+  CSS_PAGE += '.fitw{transform-origin:0 0}.pg.fitted{height:11in;min-height:0;overflow:hidden}.pg.fitc{padding:.45in .55in!important}.pg.fitc .hd.m{margin:-.45in -.55in 14px}';
+  var CSS_ADD_MASTER = '.sigs.two{display:grid;grid-template-columns:1fr 1fr;gap:.35in;margin-top:.2in}.sigs.two .sig{width:auto;margin:0 0 .22in}.sigs.two .sig .sl{width:100%}.sigs.two .sig .dt{position:static;display:block;margin-top:2px}' + 'h1.u{text-align:center;font-weight:400;font-size:12pt;text-decoration:underline;margin:.6in 0 .3in}.ari h1.u{text-decoration:none}table.hdr{border-collapse:collapse;margin:0 0 .25in .1in}table.hdr td{padding:5px 10px 9px 0;vertical-align:top}.ari table.hdr td:first-child u{text-decoration:none}' +
     'p.lead{margin:.15in 0 .2in}p.term{margin:0 0 .15in}.ari p.lead,.ari p.term{text-align:center;font-size:9.5pt}.sigs{margin-top:.25in}.sig{position:relative;margin:0 0 .28in .1in;width:6.4in}.sig .sl{border-bottom:1px solid #000;width:4.1in;height:22px}.sig .dt{position:absolute;left:4.25in;top:4px}.sig .dt i{display:inline-block;width:1.1in;border-bottom:1px solid #000}.sig .sn{margin-top:2px}.sig .pn{font-size:9pt;color:#333}';
-  var CSS_ADD_NUM = 'h1.b{text-align:center;font-size:12.5pt;margin:.4in 0 .3in}table.hdr{border-collapse:collapse;margin-bottom:.25in}table.hdr td{padding:1px 10px 1px 0;vertical-align:top}table.hdr td:first-child{font-weight:700}p,li{line-height:1.35}ol{padding-left:.25in}li{margin:0 0 .12in;padding-left:4px}.sig2{margin-top:.7in}.sig2 .r{display:flex;justify-content:space-between;width:5.2in;margin-bottom:.45in}.sig2 .sl{border-bottom:1px solid #000;width:3.1in;height:18px;margin-bottom:2px}';
+  var CSS_ADD_NUM = '.sig2.two{display:grid;grid-template-columns:1fr 1fr;gap:.1in .35in;margin-top:.45in}.sig2.two .r{width:auto;margin-bottom:.3in}.sig2.two .sl{width:2.2in}' + 'h1.b{text-align:center;font-size:12.5pt;margin:.4in 0 .3in}table.hdr{border-collapse:collapse;margin-bottom:.25in}table.hdr td{padding:1px 10px 1px 0;vertical-align:top}table.hdr td:first-child{font-weight:700}p,li{line-height:1.35}ol{padding-left:.25in}li{margin:0 0 .12in;padding-left:4px}.sig2{margin-top:.7in}.sig2 .r{display:flex;justify-content:space-between;width:5.2in;margin-bottom:.45in}.sig2 .sl{border-bottom:1px solid #000;width:3.1in;height:18px;margin-bottom:2px}';
   var CSS_ADD_PURCHASE = 'h1.big{text-align:center;font-size:18pt;margin:.3in 0 .45in}p{line-height:1.35;margin:0 0 .13in}table.st{width:100%;border-collapse:collapse;margin-top:.45in}table.st th,table.st td{border:1px solid #000;text-align:left;font-weight:400;padding:4px 6px;vertical-align:bottom;width:50%}table.st .sl{border-bottom:1px solid #000;width:2.4in;height:22px;margin-bottom:2px}';
   var CSS_ADD_FILL = 'h1.bu{text-align:center;font-size:13pt;text-decoration:underline;margin:.2in 0 .35in}p.ind{text-indent:.6in;line-height:1.6}.fl{border-bottom:1px solid #000;padding:0 6px;font-family:Arial,sans-serif;font-size:10.5pt}.big{font-family:Arial,sans-serif;font-size:19pt;line-height:1.25;margin:.3in 0 .5in .45in;min-height:2in}.r2{display:flex;align-items:flex-end;gap:10px;margin:.18in 0}.sl2{display:inline-block;width:3in;border-bottom:1px solid #000;min-height:18px;font-family:Arial,sans-serif;font-size:10pt}.sl3{display:inline-block;width:2.1in;border-bottom:1px solid #000;margin-left:6px}';
   var CSS_ADD_LETTER = '.lh{text-align:right;font-size:9.5pt;color:#555;border-bottom:2px solid #1f3a5f;padding-bottom:6px;margin-bottom:.3in}h1{font-size:15pt;text-align:center;letter-spacing:.06em;color:#1f3a5f;margin:0 0 .3in}p,li{line-height:1.45;margin:0 0 .12in}ol{padding-left:.3in}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:.4in;margin-top:.5in}.grid2 .sl{border-bottom:1px solid #000;height:30px;margin:.12in 0 2px}.grid2 .d{font-size:9.5pt;color:#444}';
-  function page(font, body, css, extra) { return '<!doctype html><html><head><meta charset="utf-8"><title>Document</title><style>' + CSS_PAGE + (css || '') + (extra || '') + '</style></head><body><div class="pg ' + font + '">' + body + '</div></body></html>'; }
-  function pages(font, list, css) { return '<!doctype html><html><head><meta charset="utf-8"><title>Document</title><style>' + CSS_PAGE + (css || '') + '</style></head><body>' + list.map(function (b) { return '<div class="pg ' + font + '">' + b + '</div>'; }).join('') + '</body></html>'; }
+  function page(font, body, css, extra) { return '<!doctype html><html><head><meta charset="utf-8"><title>Document</title><style>' + CSS_PAGE + (css || '') + (extra || '') + '</style></head><body><div class="pg ' + font + '"><div class="fitw">' + body + '</div></div></body></html>'; }
+  function pages(font, list, css) { return '<!doctype html><html><head><meta charset="utf-8"><title>Document</title><style>' + CSS_PAGE + (css || '') + '</style></head><body>' + list.map(function (b) { return '<div class="pg ' + font + '"><div class="fitw">' + b + '</div></div>'; }).join('') + '</body></html>'; }
 
   /* ==================================================================== LEASE */
   var LEASE_STYLES = [['standard', 'Lease agreement - six sections (I-VI)'], ['detailed', 'Residential lease - detailed clauses'], ['monthly', 'Month-to-month rental agreement'], ['unit', 'Accessory unit / room rental agreement']];
@@ -488,7 +490,7 @@
         '<fieldset><legend>Version</legend><div class="g">' + field(b, 'style', 'Estimate version', {type: 'select', options: EST_STYLES, wide: 1}) +
         '<label class="f w">Start from a sample scope<span class="row" style="flex-wrap:nowrap"><select id="mtBpreset" aria-label="Sample scope" style="flex:1"><option value="">Choose a scope…</option>' + Object.keys(EST_PRESETS).map(function (k) { return '<option value="' + k + '">' + EST_PRESETS[k][0] + '</option>'; }).join('') + '</select><button type="button" class="btn" data-a="estPreset">Replace lines</button><button type="button" class="btn" data-a="estPresetAdd">Add lines</button></span></label>' +
         field(b, 'title', 'Heading (blank = the version\'s heading)', {wide: 1, ph: s.style === 'reno' ? 'RENOVATION BID / WORK WRITE-UP' : s.style === 'letter' ? 'PROPOSAL AND CONTRACT' : 'ESTIMATE'}) + '</div></fieldset>' +
-        '<fieldset><legend>Contractor</legend><div class="g">' + field(b, 'company', 'Company', {wide: 1}) + field(b, 'number', 'Estimate #') + field(b, 'license', 'License #') + field(b, 'phone', 'Phone') + field(b, 'email', 'Email') + field(b, 'companyAddr', 'Company address', {wide: 1}) + field(b, 'date', 'Date', {type: 'date'}) + field(b, 'validDays', 'Valid for (days)') + '</div></fieldset>' +
+        '<fieldset><legend>Contractor</legend><div class="g">' + field(b, 'company', 'Company', {wide: 1}) + field(b, 'number', 'Estimate #') + field(b, 'license', 'License #') + field(b, 'phone', 'Phone') + field(b, 'email', 'Email') + field(b, 'companyAddr', 'Company address', {wide: 1, addrLine: 1}) + field(b, 'date', 'Date', {type: 'date'}) + field(b, 'validDays', 'Valid for (days)') + '</div></fieldset>' +
         '<fieldset><legend>Customer</legend><div class="g">' + field(b, 'customer', 'Customer / bill to', {wide: 1}) + field(b, 'custPhone', 'Customer phone') + field(b, 'custEmail', 'Customer email') +
         (s.style === 'reno' ? field(b, 'program', 'Renovation program', {list: ['FHA 203(k)', 'FHA Limited 203(k)', 'Fannie Mae HomeStyle', 'Freddie Mac CHOICERenovation', 'VA Renovation']}) + field(b, 'lender', 'Lender') + field(b, 'loanNo', 'Loan / FHA case #') + field(b, 'consultant', '203(k) consultant') : '') + '</div></fieldset>' + propertyBlock(b) +
         '<fieldset><legend>Schedule</legend><div class="g">' + field(b, 'startDate', 'Start', {type: 'date', ph: 'Within 10 days of closing'}) + field(b, 'duration', 'Time to complete', {list: ['30 days', '60 days', '90 days', '6 months'], ph: '90 days'}) + '</div></fieldset>' +
@@ -559,7 +561,7 @@
       var b = 'pl', s = drafts[b], list = function (k, title, addLabel) { return '<fieldset><legend>' + title + '</legend><div class="list">' + (s[k] || []).map(function (r, i) { return '<div class="g" style="grid-template-columns:1fr 130px auto;margin-bottom:5px"><input data-b="pl" data-list="' + k + '" data-i="' + i + '" data-f="label" value="' + esc(r.label) + '" aria-label="Line"><input inputmode="decimal" data-b="pl" data-list="' + k + '" data-i="' + i + '" data-f="amt" value="' + esc(r.amt) + '" placeholder="0.00" aria-label="Amount"><button type="button" class="x" data-a="rm" data-b="pl" data-list="' + k + '" data-i="' + i + '" aria-label="Remove">×</button></div>'; }).join('') + '</div><button type="button" class="btn" data-a="add" data-b="pl" data-list="' + k + '">' + addLabel + '</button></fieldset>'; };
       return dropZone('plfile', 'Drop a profit and loss statement', 'Reads the business name, period and each income, cost and expense line with its amount.') +
         '<fieldset><legend>Business</legend><div class="g">' + field(b, 'style', 'Layout', {type: 'select', options: [['summary', 'Accountant summary'], ['detailed', 'Detailed statement (% of income)'], ['condensed', 'Condensed one-page']], wide: 1}) +
-        field(b, 'business', 'Business name', {wide: 1}) + field(b, 'owner', 'Owner(s)') + field(b, 'own', 'Ownership (%)', {type: 'pct'}) + field(b, 'bizAddr', 'Business address', {wide: 1}) + field(b, 'from', 'Period from', {type: 'date'}) + field(b, 'to', 'Period to', {type: 'date'}) +
+        field(b, 'business', 'Business name', {wide: 1}) + field(b, 'owner', 'Owner(s)') + field(b, 'own', 'Ownership (%)', {type: 'pct'}) + field(b, 'bizAddr', 'Business address', {wide: 1, addrLine: 1}) + field(b, 'from', 'Period from', {type: 'date'}) + field(b, 'to', 'Period to', {type: 'date'}) +
         field(b, 'basis', 'Accounting basis', {list: ['Cash', 'Accrual', 'Modified cash']}) + field(b, 'preparer', 'Prepared by') + field(b, 'prepTitle', 'Title', {list: ['Owner', 'Member', 'President', 'CPA', 'Bookkeeper', 'Tax preparer']}) + field(b, 'prepDate', 'Date prepared', {type: 'date'}) + '</div></fieldset>' +
         list('income', 'Income', '+ Add income line') + list('cogs', 'Cost of goods sold', '+ Add cost line') + list('expenses', 'Operating expenses', '+ Add expense') + '<div id="mtBpl"></div>' +
         '<div class="row" style="margin-top:8px"><button type="button" class="btn" data-a="plUse">Send to Non-QM profit and loss income</button></div>';
@@ -626,8 +628,8 @@
       };
       return dropZone('approval', 'Drop the lender\'s conditional approval', 'PDF or image. Fills the loan terms, borrowers and property, and lists every condition so you choose which stay.') +
         '<fieldset><legend>Issued by (your company)</legend><div class="g">' + field(b, 'company', 'Company name', {wide: 1}) + field(b, 'short', 'Short name used in the text', {ph: 'e.g. the Lender'}) + field(b, 'nmls', 'Company NMLS #') +
-        field(b, 'companyAddr1', 'Street address') + field(b, 'companyAddr2', 'City, state ZIP') + field(b, 'phone', 'Toll-free / main phone') + field(b, 'stateCode', 'Title prefix (state)', {ph: 'NY'}) + field(b, 'mortgagee', 'Mortgagee clause (blank = company, ISAOA/ATIMA and address)', {type: 'textarea', wide: 1, rows: 2}) + '</div></fieldset>' +
-        people(b, 'borrowers', 'Borrowers', 4) + '<fieldset><legend>Borrower mailing address</legend><div class="g">' + field(b, 'mail1', 'Street') + field(b, 'mail2', 'City, state ZIP') + '</div></fieldset>' + propertyBlock(b) +
+        field(b, 'companyAddr1', 'Street address', {addrPair: 'companyAddr2'}) + field(b, 'companyAddr2', 'City, state ZIP') + field(b, 'phone', 'Toll-free / main phone') + field(b, 'stateCode', 'Title prefix (state)', {ph: 'NY'}) + field(b, 'mortgagee', 'Mortgagee clause (blank = company, ISAOA/ATIMA and address)', {type: 'textarea', wide: 1, rows: 2}) + '</div></fieldset>' +
+        people(b, 'borrowers', 'Borrowers', 4) + '<fieldset><legend>Borrower mailing address</legend><div class="g">' + field(b, 'mail1', 'Street', {addrPair: 'mail2'}) + field(b, 'mail2', 'City, state ZIP') + '</div></fieldset>' + propertyBlock(b) +
         '<fieldset><legend>Loan terms</legend><div class="g">' + field(b, 'date', 'Commitment date', {type: 'date'}) + field(b, 'loanNumber', 'Loan number') + field(b, 'loanType', 'Loan type', {list: ['Fixed Rate', 'Adjustable Rate', 'FHA Fixed Rate', 'FHA 203(k) Fixed Rate', 'VA Fixed Rate', 'USDA Fixed Rate', 'Fannie Mae HomeStyle', 'Non-QM Fixed Rate', 'Jumbo Fixed Rate']}) + field(b, 'lien', 'Lien', {list: ['first mortgage', 'second mortgage']}) +
         field(b, 'amount', 'Loan amount', {type: 'money'}) + field(b, 'rate', 'Interest rate (%)', {type: 'pct'}) + field(b, 'apr', 'APR (%)', {type: 'pct'}) + field(b, 'term', 'Loan term (months)') + field(b, 'payment', 'Monthly payment (P&I)', {type: 'money'}) + field(b, 'purpose', 'Loan purpose', {list: ['Purchase', 'Refinance', 'Cash-Out Refinance', 'Rate/Term Refinance', 'Streamline Refinance', 'Construction']}) +
         field(b, 'occupancy', 'Occupancy', {list: ['Primary Residence', 'Second Home', 'Investment']}) + field(b, 'balloon', 'Balloon', {list: ['N', 'Y']}) + field(b, 'negAm', 'Negative amortization', {list: ['N', 'Y']}) + field(b, 'locked', 'Rate locked on', {type: 'date'}) + field(b, 'lockExpires', 'Lock expires', {type: 'date'}) +
@@ -796,7 +798,7 @@
     if (!$('mtBcss')) { var st = document.createElement('style'); st.id = 'mtBcss'; st.textContent = CSS; document.head.appendChild(st); }
     var w = document.createElement('div'); w.id = 'mtB'; w.className = 'no-print'; w.setAttribute('role', 'dialog'); w.setAttribute('aria-modal', 'true'); w.setAttribute('aria-label', 'Document builder');
     w.innerHTML = '<div class="mb"><div class="mb-top"><h2>Document builder<span class="sub" id="mtBsub"></span></h2><button type="button" class="btn" data-a="reset">Start over from the loan file</button><button type="button" class="btn" data-a="pageEdit" aria-pressed="false" title="Type straight onto the document before printing">Edit on page</button><button type="button" class="btn" data-a="print">Print</button><button type="button" class="btn pri" data-a="pdf">Download PDF</button><button type="button" class="btn" data-a="close" aria-label="Close the document builder">Close</button></div>' +
-      '<nav class="mb-nav" aria-label="Documents"></nav><div class="mb-form"></div><div class="mb-prev"><div class="pe" id="mtBpe" hidden>Editing on the page - click into the document and type. Print and Download PDF use your edits. Changing the form afterwards rebuilds the page.</div><iframe title="Document preview" id="mtBframe"></iframe></div></div>';
+      '<nav class="mb-nav" aria-label="Documents"></nav><div class="mb-form"></div><div class="mb-prev"><div class="fitbar" id="mtBfit"></div><div class="pe" id="mtBpe" hidden>Editing on the page - click into the document and type. Print and Download PDF use your edits. Changing the form afterwards rebuilds the page.</div><iframe title="Document preview" id="mtBframe"></iframe></div></div>';
     document.body.appendChild(w);
     wire(w);
   }
@@ -809,11 +811,45 @@
     if (key) { var el = Array.prototype.filter.call(f.querySelectorAll('input,select,textarea'), function (x) { return ['b', 'k', 'list', 'i', 'f', 'cond'].map(function (a) { return x.getAttribute('data-' + a) || ''; }).join('|') === key; })[0]; if (el) { el.focus(); try { if (el.setSelectionRange && el.type === 'text') el.setSelectionRange(el.value.length, el.value.length); } catch (e) {} } }
     if (B[cur].side) B[cur].side();
     restoreStatus();
+    if (window.MTAddr) [].forEach.call(f.querySelectorAll('[data-addr],[data-addr-line],[data-addr-pair]'), function (el) { MTAddr.attach(el, {onPick: function (a) { addrPick(el, a); }}); });
+  }
+  /* an address suggestion picked in a builder fills that builder's fields */
+  function addrPick(el, a) {
+    var b = el.getAttribute('data-b'), s = drafts[b]; if (!s) return;
+    if (el.hasAttribute('data-addr')) { var p = el.getAttribute('data-addr') || ''; s[p + 'address'] = a.street; s[p + 'city'] = a.city; s[p + 'state'] = a.state; s[p + 'zip'] = a.zip; s[p + 'county'] = a.county; if (b === 'addendum') B.addendum.sync(s); }
+    else { var v = el.hasAttribute('data-addr-pair') ? a.street : a.line;
+      if (el.hasAttribute('data-list')) { var arr = s[el.getAttribute('data-list')], i = +el.getAttribute('data-i'), f = el.getAttribute('data-f'); if (typeof arr[i] !== 'object') arr[i] = {name: arr[i] || ''}; arr[i][f] = v; } else s[el.getAttribute('data-k')] = v;
+      if (el.hasAttribute('data-addr-pair')) s[el.getAttribute('data-addr-pair')] = a.cityLine; }
+    persist(); renderForm(); refresh(true);
   }
   var rT = 0;
   function refresh(now) { clearTimeout(rT); rT = setTimeout(function () { var fr = $('mtBframe'); if (!fr) return; if (editing) { editDirty = true; if (B[cur].side) B[cur].side(); return; } var y = 0; try { y = fr.contentWindow.scrollY; } catch (e) {} fr.srcdoc = B[cur].doc(drafts[cur]); fr.onload = function () { fit(); try { fr.contentWindow.scrollTo(0, y); } catch (e) {} }; if (B[cur].side) B[cur].side(); }, now ? 0 : 180); }
   /* the preview fits the pane; printing and the PDF use the full page size */
-  function fit() { var fr = $('mtBframe'); if (!fr || !fr.contentDocument || !fr.contentDocument.body) return; var z = Math.min(1, (fr.clientWidth - 28) / 816); fr.contentDocument.body.style.zoom = z > 0 ? z : 1; }
+  function fit() { var fr = $('mtBframe'); if (!fr || !fr.contentDocument || !fr.contentDocument.body) return; fr.contentDocument.body.style.zoom = ''; onePage(fr.contentDocument); var z = Math.min(1, (fr.clientWidth - 28) / 816); fr.contentDocument.body.style.zoom = z > 0 ? z : 1; }
+  /* One page: a page that runs long first gets narrower margins, then its content is scaled down evenly until it fits.
+     Below MIN_SCALE the text would be too small to read, so the document keeps its natural length and the bar says so. */
+  var FIT_KEY = 'mt.builder.fit', MIN_SCALE = .66;
+  function fitOn() { try { return localStorage.getItem(FIT_KEY) !== '0'; } catch (e) { return true; } }
+  function onePage(doc) {
+    var res = {pages: 0, scaled: 1, over: 0};
+    [].forEach.call(doc.querySelectorAll('.pg'), function (pg) {
+      var w = pg.querySelector(':scope > .fitw'); res.pages++; if (!w) return;
+      pg.classList.remove('fitted', 'fitc'); w.style.transform = ''; w.style.width = '';
+      if (!fitOn()) { var nat = Math.ceil(pg.scrollHeight / 1056 - .02); if (nat > 1) res.over = Math.max(res.over, nat); return; }
+      var avail = function () { var cs = doc.defaultView.getComputedStyle(pg); return 1056 - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - 2; };
+      if (w.scrollHeight <= avail()) return;
+      pg.classList.add('fitc'); var a = avail(), h = w.scrollHeight;
+      if (h <= a) { pg.classList.add('fitted'); return; }
+      var z = a / h;
+      for (var k = 0; k < 8 && z >= MIN_SCALE - .05; k++) { w.style.width = (100 / z) + '%'; w.style.transform = 'scale(' + z + ')'; h = w.scrollHeight; if (h * z <= a) break; z = Math.min(z - .005, a / h); }
+      if (z < MIN_SCALE || w.scrollHeight * z > a + 1) { pg.classList.remove('fitc'); w.style.transform = ''; w.style.width = ''; res.over = Math.max(res.over, Math.ceil(pg.scrollHeight / 1056 - .02)); return; }
+      pg.classList.add('fitted'); res.scaled = Math.min(res.scaled, z);
+    });
+    var bar = $('mtBfit'); if (bar) { bar.className = 'fitbar' + (res.over ? ' warn' : '');
+      bar.innerHTML = '<label><input type="checkbox" data-a="fitToggle"' + (fitOn() ? ' checked' : '') + '> Fit on one page</label><span>' +
+        (res.over ? (fitOn() ? 'Too long to fit on one page at a readable size - runs ' + res.over + ' pages. Shorten or untick sections to bring it to one page.' : 'Runs ' + res.over + ' pages.') : !fitOn() ? 'One page.' : res.scaled < .999 ? 'Fits on one page (text at ' + Math.round(res.scaled * 100) + '%).' : 'Fits on one page.') + '</span>'; }
+    return res;
+  }
   function unfit(fn) { var fr = $('mtBframe'), b = fr && fr.contentDocument && fr.contentDocument.body, z = b ? b.style.zoom : ''; if (b) b.style.zoom = ''; var r = fn(); var done = function () { if (b) b.style.zoom = z; }; if (r && r.then) r.then(done, done); else setTimeout(done, 400); return r; }
   window.addEventListener('resize', function () { if ($('mtB') && $('mtB').classList.contains('open')) fit(); });
   function setVal(t, ev) {
@@ -842,6 +878,7 @@
       /* the calendar fills the typed date box next to it */
       if (t.classList.contains('pk')) { var box = t.parentNode.querySelector('input[data-fdate]'); if (box && t.value) { box.value = dateFromPicker(t.value); setVal(box); } return; }
       if (t.id === 'mtBpreset') return;
+      if (a === 'fitToggle') { try { localStorage.setItem(FIT_KEY, t.checked ? '1' : '0'); } catch (x) {} pageEdit(false); refresh(true); return; }
       if (t.matches('select,input[type=checkbox]')) setVal(t, e);
     });
     w.addEventListener('click', function (e) {
@@ -849,6 +886,7 @@
       if (a === 'close') return close();
       if (a === 'pick') { var pk = t.parentNode.querySelector('input.pk'), tx = t.parentNode.querySelector('input[data-fdate]'), d0 = parseDate(tx && tx.value); pk.value = d0 ? iso(d0) : ''; try { pk.showPicker(); } catch (x) { pk.style.pointerEvents = 'auto'; pk.focus(); pk.click(); } return; }
       if (a === 'pageEdit') return pageEdit(!editing);
+      if (a === 'addrToggle') { if (window.MTAddr) MTAddr.setOff(!MTAddr.isOff()); renderForm(); return; }
       if (a === 'nav') { pageEdit(false); cur = t.getAttribute('data-k'); ensure(cur); renderNav(); renderForm(); refresh(true); return; }
       if (a === 'classic') { close(); V14.__mtbOrig.call(V14, cur === 'addendum' ? 'v14AddModal' : 'v14LeaseModal'); return; }
       if (a === 'paystub') { close(); if (typeof window.switchTab === 'function' && document.getElementById('subpanel-docs-paystub')) { window.switchTab('paystub'); } else if (window.V15 && V15.openPay) V15.openPay(); else location.href = 'income-calculator.html?tab=paystub'; return; }
