@@ -9995,7 +9995,7 @@ window.__mtgcalcBridge = {
 
 </script>
 <script>/* mt-addr.js (inlined) */
-/* Mortgage Suite 56.3 - address autocomplete on every property and address box.
+/* Mortgage Suite 56.5 - address autocomplete on every property and address box.
    Suggestions come from Photon (photon.komoot.io), an OpenStreetMap search built for type-ahead, limited to the United States.
    What you type in an address box is sent to Photon after you pause; nothing else is sent. Suggestions can be turned off
    (the choice is kept in this browser). A pick fills the street and, where the page has them, the city, state, ZIP and county:
@@ -10071,7 +10071,7 @@ window.__mtgcalcBridge = {
   function css() {
     if (document.getElementById('mtAddrCss')) return; var s = document.createElement('style'); s.id = 'mtAddrCss';
     s.textContent = '.mtA-list{position:fixed;z-index:' + Z + ';min-width:300px;max-width:min(560px,calc(100vw - 16px));background:#0a1b38;color:#e6eefb;border:1px solid #2b5590;border-radius:10px;box-shadow:0 14px 34px rgba(0,0,0,.45);overflow:hidden;font:13px/1.35 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;text-align:left}' +
-      '.mtA-list [role=option]{padding:7px 11px;cursor:pointer;border-top:1px solid #142d52}.mtA-list [role=option]:first-child{border-top:0}.mtA-list [role=option] b{display:block;font-weight:600;color:#fff}.mtA-list [role=option] small{color:#9db0c8;font-size:11.5px}' +
+      '.mtA-list [role=option]{padding:7px 11px;cursor:pointer;border-top:1px solid #142d52}.mtA-list [role=option]:first-child{border-top:0}.mtA-list [role=option] b{display:block;font-weight:600;color:#fff}.mtA-list [role=option] small{color:#9db0c8;font-size:11.5px}.mtA-list [role=option] em{font-style:normal;font-weight:600;font-size:10.5px;color:#0b1c3a;background:#9fc4ff;border-radius:999px;padding:1px 7px;margin-left:6px;vertical-align:1px}' +
       '.mtA-list [role=option][aria-selected=true],.mtA-list [role=option]:hover{background:#123a75}.mtA-list .mtA-ft{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:5px 11px;font-size:11px;color:#8ea3c0;background:#071630;border-top:1px solid #142d52}' +
       '.mtA-list .mtA-ft button{all:unset;cursor:pointer;color:#9fc4ff;font-size:11px}.mtA-list .mtA-ft button:hover{text-decoration:underline}.mtA-list .mtA-ft button:focus-visible{outline:2px solid #5aa2ff}.mtA-list .mtA-msg{padding:8px 11px;color:#9db0c8}' +
       '@media print{.mtA-list{display:none!important}}';
@@ -10094,7 +10094,7 @@ window.__mtgcalcBridge = {
   function foot() { return '<div class="mtA-ft"><span>Address data &copy; OpenStreetMap contributors</span><span><button type="button" data-mta="google">Check on Google</button> &middot; <button type="button" data-mta="off">Turn off suggestions</button></span></div>'; }
   function render(list, msg) {
     ensureBox(); items = list || []; hi = -1;
-    box.innerHTML = (items.length ? items.map(function (a, i) { return '<div role="option" id="mtA-o' + i + '" data-i="' + i + '" aria-selected="false"><b>' + esc(a.street) + '</b><small>' + esc(a.cityLine) + (a.county ? ' &middot; ' + esc(a.county) + ' County' : '') + '</small></div>'; }).join('') : '<div class="mtA-msg">' + esc(msg || 'No US address matches yet - keep typing.') + '</div>') + foot();
+    box.innerHTML = (items.length ? items.map(function (a, i) { return '<div role="option" id="mtA-o' + i + '" data-i="' + i + '" aria-selected="false"><b>' + esc(a.street) + (a.src ? ' <em>' + esc(a.src) + '</em>' : '') + '</b><small>' + esc(a.cityLine) + (a.county ? ' &middot; ' + esc(a.county) + ' County' : '') + '</small></div>'; }).join('') : '<div class="mtA-msg">' + esc(msg || 'No US address matches yet - keep typing.') + '</div>') + foot();
     box.hidden = false; if (cur) { cur.setAttribute('aria-expanded', 'true'); cur.removeAttribute('aria-activedescendant'); } place();
   }
   function hide() { if (box) box.hidden = true; if (cur) { cur.setAttribute('aria-expanded', 'false'); cur.removeAttribute('aria-activedescendant'); } items = []; hi = -1; }
@@ -10102,7 +10102,7 @@ window.__mtgcalcBridge = {
   function choose(i) {
     var a = items[i], el = cur; if (!a || !el) return; hide();
     try { if (isFinite(a.lat)) localStorage.setItem(BIAS, JSON.stringify({lat: a.lat, lon: a.lon})); } catch (e) {}
-    el.__mtaPicked = a.street; var o = el.__mta || {};
+    el.__mtaPicked = a.street; remember(a, 'Used'); var o = el.__mta || {};
     if (o.onPick) o.onPick(a, el); else fill(el, a);
   }
   /* Some pages rebuild their inputs on every keystroke (the Income Calculator's panels). The list then follows the rebuilt
@@ -10120,13 +10120,46 @@ window.__mtgcalcBridge = {
     if (ae !== x) { if (ae && ae !== document.body && ae !== document.documentElement) return null; try { x.focus({preventScroll: true}); var n = x.value.length; x.setSelectionRange(n, n); } catch (e) {} }
     cur = x; return x;
   }
+  /* Known addresses - the loan file's, the document builders' drafts, ones picked before and full addresses typed into an
+     address box - are matched on every keystroke without the network; Photon's results join them a moment later. */
+  var RECENT = 'mt.addr.recent', ABBR2 = {}; Object.keys(STATES).forEach(function (k) { ABBR2[STATES[k]] = k; });
+  function mk(street, city, state, zip, county, src) {
+    street = String(street || '').trim(); if (!street) return null; state = String(state || '').trim(); city = String(city || '').trim();
+    var full = ABBR2[state.toUpperCase()] || state, abbr = STATES[full] || state; zip = String(zip || '').slice(0, 5);
+    return {street: street, city: city, state: full, stateAbbr: abbr, zip: zip, county: String(county || '').replace(/\s+County$/i, ''), src: src,
+      line: [street, city, [abbr, zip].filter(Boolean).join(' ')].filter(Boolean).join(', '), cityLine: [city, [abbr, zip].filter(Boolean).join(' ')].filter(Boolean).join(', '), exact: true};
+  }
+  function fromLine(line, src) { line = String(line || '').replace(/\s+/g, ' ').trim(); var m = line.match(/^(.*?),\s*([^,]+?),?\s+([A-Za-z]{2}|[A-Za-z .]{4,}?)\.?,?\s+(\d{5})(?:-\d{4})?$/); return m ? mk(m[1], m[2], m[3], m[4], '', src) : null; }
+  var knownAt = 0, knownList = [];
+  function known() {
+    if (Date.now() - knownAt < 1500) return knownList; var out = [], add = function (a) { if (a) out.push(a); };
+    try { (JSON.parse(localStorage.getItem(RECENT) || '[]') || []).forEach(function (a) { add(mk(a.street, a.city, a.state, a.zip, a.county, a.src === 'Typed' ? 'Typed before' : 'Used before')); }); } catch (e) {}
+    try { var st = window.mortgageSuite && mortgageSuite.store, ai = st && st.activeInputs; if (ai) add(mk(ai.propertyAddress, ai.city, ai.state, ai.zipCode, ai.nyCounty, 'Loan file')); } catch (e) {}
+    try { var wf = JSON.parse(localStorage.getItem('mtgcalc-shared-workflow-v1') || 'null'), si = wf && wf.suiteInputs; if (si) add(mk(si.propertyAddress, si.city, si.state, si.zipCode, si.nyCounty, 'Loan file')); } catch (e) {}
+    try { var S = (0, eval)('typeof S !== "undefined" ? S : null'); if (S && S.loan && S.loan.address) add(fromLine(S.loan.address, 'Loan file') || mk(S.loan.address, '', '', '', '', 'Loan file')); } catch (e) {}
+    try { var dr = JSON.parse(localStorage.getItem('mt.builder.v1') || '{}') || {}; Object.keys(dr).forEach(function (k) { var d = dr[k]; if (d && d.address) add(fromLine(d.address, 'Document builder') || mk(d.address, d.city, d.state, d.zip, d.county, 'Document builder')); }); } catch (e) {}
+    var seen = {}; knownList = out.filter(function (a) { var k = (a.street + '|' + a.zip).toLowerCase(); if (seen[k]) return false; seen[k] = 1; return true; }); knownAt = Date.now(); return knownList;
+  }
+  function localMatch(q) {
+    var t = words(q); if (!t.length) return [];
+    return known().filter(function (a) { var hay = words(a.line + ' ' + a.county); return t.every(function (w, i) { var last = i === t.length - 1; return hay.some(function (h) { return h === w || ((last || /^\d/.test(w) || w.length >= 3) && h.indexOf(w) === 0); }); }); }).slice(0, 4);
+  }
+  function remember(a, src) {
+    if (!a || !a.street) return; var list = []; try { list = JSON.parse(localStorage.getItem(RECENT) || '[]') || []; } catch (e) {}
+    var k = (a.street + '|' + a.zip).toLowerCase(); list = list.filter(function (x) { return (x.street + '|' + x.zip).toLowerCase() !== k; });
+    list.unshift({street: a.street, city: a.city, state: a.state, zip: a.zip, county: a.county, src: src || 'Used'}); try { localStorage.setItem(RECENT, JSON.stringify(list.slice(0, 40))); } catch (e) {} knownAt = 0;
+  }
+  function merge(loc, remote) { var seen = {}; return loc.concat(remote).filter(function (a) { var k = (a.street + '|' + (a.zip || a.city)).toLowerCase(); if (seen[k]) return false; seen[k] = 1; return true; }).slice(0, 7); }
   function query(el) {
     var q = String(el.value || '').trim(); clearTimeout(timer);
-    if (off() || q.length < 4 || !/[a-z]/i.test(q) || el.__mtaPicked === el.value) return hide();
-    var my = ++seq; timer = setTimeout(function () {
-      search(q).then(function (list) { if (my !== seq || (cur !== el && revive(el) !== cur)) return; if (!live(el)) return; render(list); })
-        .catch(function (e) { if (e && e.name === 'AbortError') return; if (my === seq && live(el)) render([], 'Address suggestions are not answering right now - type the address, or use Check on Google.'); });
-    }, 320);
+    if (off() || q.length < 2 || !/[a-z0-9]/i.test(q) || el.__mtaPicked === el.value) return hide();
+    var loc = localMatch(q), my = ++seq;
+    if (loc.length) { if (live(el)) render(loc); } else if (box && !box.hidden) hide();
+    if (q.length < 3 || !/[a-z]/i.test(q)) return;
+    timer = setTimeout(function () {
+      search(q).then(function (list) { if (my !== seq || (cur !== el && revive(el) !== cur)) return; if (!live(el)) return; render(merge(localMatch(q), list)); })
+        .catch(function (e) { if (e && e.name === 'AbortError') return; if (my === seq && live(el)) { var l2 = localMatch(q); render(l2, l2.length ? '' : 'Address suggestions are not answering right now - type the address, or use Check on Google.'); } });
+    }, 200);
   }
 
   /* ------------------------------------------------------ filling the page */
@@ -10169,6 +10202,7 @@ window.__mtgcalcBridge = {
     if (el.isConnected) { el.__sig = sig(el); el.__sigIdx = Math.max(0, same(el.__sig).indexOf(el)); }
     el.addEventListener('input', function (e) { if (!e.isTrusted && el.__mtaPicked !== undefined) return; cur = el; el.__mtaPicked = undefined; query(el); });
     el.addEventListener('focus', function () { cur = el; });
+    el.addEventListener('change', function () { if (el.__mtaPicked === undefined) { var a = fromLine(el.value, 'Typed'); if (a) remember(a, 'Typed'); } });
     el.addEventListener('blur', function () { setTimeout(function () { if (cur === el && document.activeElement !== el) hide(); }, 120); });
     el.addEventListener('keydown', function (e) {
       if (!box || box.hidden) { if (e.key === 'ArrowDown' && !off()) { el.__mtaPicked = undefined; cur = el; query(el); } return; }
@@ -10787,7 +10821,7 @@ window.MTData=M;})();
 
 </script>
 <script>/* doc-builder.js (inlined) */
-/* Mortgage Suite 56.4 - Document Builder (Income Calculator, Full Suite and the Loan Suite pages).
+/* Mortgage Suite 56.5 - Document Builder (Income Calculator, Full Suite and the Loan Suite pages).
    Builds, previews, prints and saves as PDF: contract addenda (five styles, up to 4 buyers and 4 sellers, a seller-concession
    and transfer-tax calculator, 203(k) / HomeStyle / FHA / VA clauses, a contract dropped in to fill the parties), residential
    leases (four styles), contractor estimates, profit and loss statements, commitment letters (filled from a lender's
@@ -10927,8 +10961,10 @@ window.MTData=M;})();
     opt = opt || {}; var arr = drafts[b][k] = drafts[b][k] || ['']; var h = '<fieldset><legend>' + label + ' (up to ' + max + ')</legend>';
     arr.forEach(function (p, i) {
       var o = typeof p === 'object' ? p : {name: p};
+      if (opt.checks && i > 0) h += '<div style="border-top:1px solid #142d52;margin:2px 0 8px"></div>';
       h += '<div class="g" style="margin-bottom:6px"><label class="f">' + label.replace(/s$|\(s\)$/, '') + ' ' + (i + 1) + '<input data-b="' + b + '" data-list="' + k + '" data-i="' + i + '" data-f="name" value="' + esc(o.name || '') + '"></label>' +
-        (opt.extra ? '<label class="f">' + opt.extra[1] + '<input data-b="' + b + '" data-list="' + k + '" data-i="' + i + '" data-f="' + opt.extra[0] + '"' + (opt.extra[0] === 'mail' ? ' data-addr-line="1"' : '') + ' value="' + esc(o[opt.extra[0]] || '') + '" placeholder="' + esc(opt.extra[2] || '') + '"></label>' : '<div class="row" style="align-items:end">' + (arr.length > 1 ? '<button type="button" class="x" data-a="rm" data-b="' + b + '" data-list="' + k + '" data-i="' + i + '" aria-label="Remove">Remove</button>' : '') + '</div>') + '</div>';
+        (opt.extra ? '<label class="f">' + opt.extra[1] + '<input data-b="' + b + '" data-list="' + k + '" data-i="' + i + '" data-f="' + opt.extra[0] + '"' + (opt.extra[0] === 'mail' ? ' data-addr-line="1"' : '') + (o.subj || o.noAddr ? ' disabled' : '') + ' value="' + esc(o.subj ? 'Same as the premises' : o.noAddr ? 'Left off the lease' : o[opt.extra[0]] || '') + '" placeholder="' + esc(opt.extra[2] || '') + '"></label>' : '<div class="row" style="align-items:end">' + (arr.length > 1 ? '<button type="button" class="x" data-a="rm" data-b="' + b + '" data-list="' + k + '" data-i="' + i + '" aria-label="Remove">Remove</button>' : '') + '</div>') + '</div>';
+      if (opt.checks) h += '<div class="row" style="margin:-2px 0 8px;gap:14px">' + opt.checks.map(function (c) { return '<label class="ck"><input type="checkbox" data-b="' + b + '" data-list="' + k + '" data-i="' + i + '" data-f="' + c[0] + '"' + (o[c[0]] ? ' checked' : '') + '><span>' + c[1] + '</span></label>'; }).join('') + '</div>';
       if (opt.extra && arr.length > 1) h += '<div class="row" style="justify-content:flex-end;margin:-4px 0 6px"><button type="button" class="x" data-a="rm" data-b="' + b + '" data-list="' + k + '" data-i="' + i + '">Remove</button></div>';
     });
     if (arr.length < max) h += '<button type="button" class="btn" data-a="add" data-b="' + b + '" data-list="' + k + '">+ Add ' + label.toLowerCase().replace(/s$|\(s\)$/, '') + '</button>';
@@ -11223,7 +11259,7 @@ window.MTData=M;})();
       var b = 'lease', s = drafts[b];
       return dropZone('leasefile', 'Drop an existing lease', 'Reads the landlord, tenants, address, term dates, rent and deposit.') +
         '<fieldset><legend>Document</legend><div class="g">' + field(b, 'style', 'Style', {type: 'select', options: LEASE_STYLES, wide: 1}) + field(b, 'date', 'Agreement date', {type: 'date'}) + '</div></fieldset>' +
-        people(b, 'landlords', 'Landlords', 2, {extra: ['mail', 'Mailing address', 'Street, city, state ZIP']}) + people(b, 'tenants', 'Tenants', 4, {extra: ['mail', 'Mailing address', 'Street, city, state ZIP']}) + propertyBlock(b) +
+        people(b, 'landlords', 'Landlords', 2, {extra: ['mail', 'Mailing address', 'Street, city, state ZIP']}) + people(b, 'tenants', 'Tenants', 4, {extra: ['mail', 'Mailing address', 'Street, city, state ZIP'], checks: [['subj', 'Address is the subject property'], ['noAddr', 'Leave the address off']]}) + propertyBlock(b) +
         '<fieldset><legend>Premises</legend><div class="g">' + field(b, 'unit', 'Unit / apartment') + field(b, 'residence', 'Residence type', {list: ['Apartment', 'House', 'Condo', 'Two-family house', 'Townhouse', 'Basement apartment', 'Room']}) +
         (s.residence === 'Other' ? field(b, 'residenceOther', 'Describe') : '') + field(b, 'beds', 'Bedrooms') + field(b, 'baths', 'Bathrooms') + '</div></fieldset>' +
         '<fieldset><legend>Term</legend><div class="g">' + field(b, 'leaseType', 'Lease type', {type: 'select', options: [['fixed', 'Fixed term'], ['monthly', 'Month-to-month']]}) +
@@ -11240,7 +11276,7 @@ window.MTData=M;})();
       var ll = (s.landlords || []).filter(function (p) { return p.name; }), tt = (s.tenants || []).filter(function (p) { return p.name; }), addr = addrOf(s) + (s.unit ? ', ' + s.unit : '');
       var monthly = s.style === 'monthly' || s.leaseType === 'monthly', title = s.style === 'monthly' ? 'MONTH-TO-MONTH RENTAL AGREEMENT' : s.style === 'unit' ? 'ACCESSORY UNIT RENTAL AGREEMENT' : s.style === 'detailed' ? 'RESIDENTIAL LEASE AGREEMENT' : 'LEASE AGREEMENT';
       var u = function (v, w) { return '<span class="fl" style="min-width:' + (w || 1.4) + 'in">' + esc(v || '') + '</span>'; };
-      var party = function (role, list, tag) { return (list.length ? list : [{}]).map(function (p) { return '<p class="ind2"><u>' + role + '</u>: ' + u(p.name, 1.8) + ' with a mailing address of ' + u(p.mail, 3.2) + ' (' + tag + ')' + '</p>'; }).join(''); };
+      var party = function (role, list, tag) { return (list.length ? list : [{}]).map(function (p) { return '<p class="ind2"><u>' + role + '</u>: ' + u(p.name, 1.8) + (p.noAddr ? '' : ' with a mailing address of ' + u(p.subj ? addrOf(s) : p.mail, 3.2)) + ' (' + tag + ')' + '</p>'; }).join(''); };
       var sec = [], n = 0, R = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'XIII', 'XIV'];
       var S = function (h, body) { sec.push('<p class="sh"><b>' + R[n++] + '. ' + h + '.</b> ' + body + '</p>'); };
       S('THE PARTIES', 'This ' + (s.style === 'monthly' ? 'Rental' : 'Lease') + ' Agreement ("Agreement") is made on ' + u(longDate(s.date), 1.8) + ' between:');
@@ -11294,7 +11330,7 @@ window.MTData=M;})();
     if (s.additional) C.push(['Additional terms', s.additional]);
     var sig = function (role, p) { return '<div class="sx"><div class="sxl"></div><div>' + role + (p && p.name ? ': ' + esc(p.name) : '') + '</div><div class="sxd">Date ________________</div></div>'; };
     var sigs = '<div class="sg2">' + (ll.length ? ll : [{}]).map(function (p) { return sig('Landlord', p); }).join('') + (tt.length ? tt : [{}]).map(function (p) { return sig('Tenant', p); }).join('') + '</div>';
-    var who = function (list) { return list.map(function (p) { return esc(p.name) + (p.mail ? ' <span class="ml">(' + esc(p.mail) + ')</span>' : ''); }).join('<br>') || '________________'; };
+    var who = function (list) { return list.map(function (p) { var m = p.noAddr ? '' : p.subj ? addrOf(s) : p.mail; return esc(p.name) + (m ? ' <span class="ml">(' + esc(m) + ')</span>' : ''); }).join('<br>') || '________________'; };
     if (s.style === 'short') return page('cal', '<h1 class="sh">' + (monthly ? 'MONTH-TO-MONTH RENTAL AGREEMENT' : 'RESIDENTIAL LEASE') + '</h1><p>This lease is made on ' + esc(when(s.date)) + ' between ' + (ll.map(function (p) { return esc(p.name); }).join(' and ') || '________________') + ' ("Landlord") and ' + (tt.map(function (p) { return esc(p.name); }).join(', ') || '________________') + ' ("Tenant").</p>' +
       '<ol class="sh">' + C.map(function (c) { return '<li><b>' + esc(c[0]) + '.</b> ' + esc(c[1]) + '</li>'; }).join('') + '</ol><p>Landlord and Tenant have signed this lease on the dates below.</p>' + sigs, CSS_LEASE2);
     return page('ari', '<div class="mh"><div class="mt">' + (monthly ? 'Month-to-Month Rental Agreement' : 'Residential Lease Agreement') + '</div><div class="md">' + esc(when(s.date)) + '</div></div>' +
@@ -11634,7 +11670,7 @@ window.MTData=M;})();
         draws: N(d.manualDrawCount) || 5, feePerDraw: N(d.inspectionFeePerDraw) || (/fha/i.test(f.program) ? 375 : 150), titlePerDraw: N(d.titleFeePerDraw) || 75, inspTotal: r.syncDrawFees === false && r.inspectionFees != null ? N(r.inspectionFees) : '', titleTotal: r.syncDrawFees === false && r.titleUpdateFees != null ? N(r.titleUpdateFees) : '', consultant: N(r.consultant) || '', permits: N(r.permits) || '', architect: N(r.architectural) || '', reserveMonths: N(r.paymentReserveMonths) || 0, payment: f.payment ? f.payment.toFixed(2) : ''};
     },
     calc: function (s) {
-      var price = N(s.price), value = N(s.value) || price, basis = N(s.ltvValue) || Math.min(price || value, value || price), base = N(s.base) || basis * (1 - N(s.downPct) / 100), ltv = basis ? base / basis : 0, n = N(s.termYears) * 12, fha = s.program === 'FHA', va = s.program === 'VA';
+      var price = N(s.price), value = N(s.value) || price, basis = N(s.ltvValue) || Math.min(price || value, value || price), base = N(s.base) || basis * (1 - N(s.downPct) / 100), ltv = basis ? base / basis : 0, n = N(s.termYears) * 12, fha = /fha|203/i.test(s.program || ''), va = /\bva\b/i.test(s.program || '');
       var up = fha ? base * N(s.ufmip) / 100 : 0, total = base + up, rate = N(s.miRate) / 100 || (fha ? fhaAnnual(base, ltv, n) : 0);
       var miBase = base * rate / 12, miTotal = total * rate / 12;
       var cost = N(s.renoCost), cont = cost * N(s.contingency) / 100, insp = s.inspTotal !== '' && s.inspTotal != null ? N(s.inspTotal) : N(s.draws) * N(s.feePerDraw), title = s.titleTotal !== '' && s.titleTotal != null ? N(s.titleTotal) : N(s.draws) * N(s.titlePerDraw);
@@ -11647,9 +11683,9 @@ window.MTData=M;})();
     form: function () {
       var b = 'mi', s = drafts[b];
       return dropZone('mifile', 'Drop an MI quote, Loan Estimate, fee sheet or renovation budget', 'Reads the price, value, loan amount, term, MI or MIP rate, UFMIP, renovation cost, contingency, draws and fees.') +
-        '<fieldset><legend>Loan</legend><div class="g">' + field(b, 'program', 'Program', {type: 'select', options: ['FHA', 'Conventional', 'VA']}) + field(b, 'termYears', 'Term (years)') + field(b, 'price', 'Purchase price', {type: 'money'}) + field(b, 'value', 'Appraised / as-is value', {type: 'money'}) + field(b, 'ltvValue', 'Value for LTV (renovation: value basis; blank = lower of price and value)', {type: 'money', wide: 1}) +
-        field(b, 'downPct', 'Down payment (%)', {type: 'pct'}) + field(b, 'base', 'Base loan (blank = price less down)', {type: 'money'}) + (s.program === 'FHA' ? field(b, 'ufmip', 'UFMIP (%)', {type: 'pct'}) : '') +
-        field(b, 'miRate', s.program === 'FHA' ? 'Annual MIP (%) - blank uses the HUD table' : 'Annual PMI (%) - from the MI quote', {type: 'pct'}) + field(b, 'payment', 'Monthly payment (for reserves)', {type: 'money'}) + '</div></fieldset>' +
+        '<fieldset><legend>Loan</legend><div class="g">' + field(b, 'program', 'Program', {list: ['FHA', 'FHA 203(k)', 'Conventional', 'HomeStyle', 'VA', 'USDA']}) + field(b, 'termYears', 'Term (years)') + field(b, 'price', 'Purchase price', {type: 'money'}) + field(b, 'value', 'Appraised / as-is value', {type: 'money'}) + field(b, 'ltvValue', 'Value for LTV (renovation: value basis; blank = lower of price and value)', {type: 'money', wide: 1}) +
+        field(b, 'downPct', 'Down payment (%)', {type: 'pct'}) + field(b, 'base', 'Base loan (blank = price less down)', {type: 'money'}) + field(b, 'ufmip', 'UFMIP (%) - FHA only', {type: 'pct'}) +
+        field(b, 'miRate', 'Annual MIP / PMI (%) - FHA blank uses the HUD table', {type: 'pct'}) + field(b, 'payment', 'Monthly payment (for reserves)', {type: 'money'}) + '</div></fieldset>' +
         '<fieldset><legend>Renovation</legend><div class="g">' + field(b, 'renoOn', 'Renovation loan', {type: 'check', wide: 1}) + field(b, 'renoProgram', 'Renovation program', {type: 'select', options: [['203k', 'FHA 203(k)'], ['homestyle', 'Fannie Mae HomeStyle']]}) + field(b, 'renoCost', 'Renovation / contractor cost', {type: 'money'}) +
         field(b, 'contingency', 'Contingency (%)', {type: 'pct'}) + field(b, 'draws', 'Number of draws') + field(b, 'feePerDraw', 'Inspection fee per draw', {type: 'money'}) + field(b, 'titlePerDraw', 'Title update per draw', {type: 'money'}) + field(b, 'inspTotal', 'Inspection fees total (blank = draws x fee)', {type: 'money'}) + field(b, 'titleTotal', 'Title updates total (blank = draws x fee)', {type: 'money'}) + field(b, 'consultant', 'Consultant fee', {type: 'money'}) +
         field(b, 'permits', 'Permits', {type: 'money'}) + field(b, 'architect', 'Architect / engineer', {type: 'money'}) + field(b, 'reserveMonths', 'Payment reserve (months)') + '</div><p class="note">Inspection fee per draw: HomeStyle $150, FHA 203(k) $375. Changing the program here does not change the Loan Suite.</p></fieldset><div id="mtBmi"></div>';
@@ -11862,6 +11898,22 @@ window.MTData=M;})();
   }
   /* on the Income Calculator, a stub sent from the Full Suite is applied once */
   setTimeout(function () { var p = null; try { p = JSON.parse(localStorage.getItem(PAY_PENDING) || 'null'); } catch (e) {} if (p && applyW2(p)) { try { localStorage.removeItem(PAY_PENDING); } catch (e) {} say('Pay statement from the Document Builder applied to the employment record.'); } }, 2500);
+  function parseGift(text) {
+    var T = String(text || '').replace(/\r/g, ''), o = {}, g = function (re) { return grab(T, re).replace(/_{2,}/g, '').trim(); };
+    o.type = /gift\s*of\s*equity/i.test(T) ? 'equity' : /source\s*of\s*funds|bank\s*name/i.test(T) ? 'full' : /up\s*to\s*\$/i.test(T) ? 'conv' : /gift\s*letter/i.test(T) ? 'gov' : '';
+    o.upTo = /up\s*to\s*\$/i.test(T);
+    var am = T.match(/(?:amount[^$]{0,25}?|gift(?:\s*of\s*equity)?[^$]{0,90}?)\$\s?([\d,]+(?:\.\d{1,2})?)/i); if (am) { var raw = am[1]; o.amount = /,\d{2}$/.test(raw) ? N(raw.replace(/,(\d{2})$/, '.$1')) : N(raw); }
+    var d = {name: g(/Donor[’'`]?s?\s*name\s*:?[ \t]*([^\n]+)/i), relationship: g(/Relationship\s*to\s*Borrower\s*:?[ \t]*([^\n]+)/i) || g(/gift\s*of\s*equity\s*to\s*our\s+([A-Za-z ]{3,30}?)\s*\(/i),
+      addr: g(/Street\s*address\s*:?[ \t]*([^\n]+)/i), phone: g(/Donor[’'`]?s?\s*Tele?phone\s*:?[ \t]*([\d() .\-]{7,})/i), email: ''};
+    var cz = T.match(/City\s*:?[ \t]*([A-Za-z .'-]{2,40}?)[ \t_]*State\s*:?[ \t]*([A-Z]{2})[ \t_]*Zip\s*:?[ \t]*(\d{5})/); if (cz) { d.city = cz[1].trim(); d.state = cz[2]; d.zip = cz[3]; }
+    if (d.name || d.relationship || d.addr) o.donor = d;
+    var pm = T.match(/property\s*located\s*at\s*:?\s*\n\s*([^\n]+)\n\s*([A-Za-z .'-]+,\s*[A-Z]{2}\s+\d{5})/i); if (pm) o.addr = splitAddr(pm[1].trim() + ', ' + pm[2].trim());
+    else { var pq = T.match(/for\s*the\s*purchase\s*of\s*([^\n]{6,120}?\d{5})/i); if (pq) o.addr = splitAddr(pq[1].replace(/,?\s+([A-Z]{2})\s+(\d{5})$/, ', $1 $2')); }
+    var bm = T.match(/recipient\.?\s*\n([\s\S]{2,160}?)\n\s*This\s*gift\s*is\s*to\s*be\s*applied/i); if (bm) o.borrowers = bm[1].split('\n').map(function (x) { return x.trim(); }).filter(function (x) { return /^[A-Z][A-Za-z.'-]+(?: [A-Za-z.'-]+){1,3}$/.test(x); }).slice(0, 4);
+    o.bankName = g(/Bank\s*Name\s*:?[ \t]*([^\n]+)/i); o.acctNo = g(/Account\s*No\.?\s*:?[ \t]*([0-9Xx*\-]{4,})/i); o.bankAddr = g(/Bank\s*Address\s*:?[ \t]*([^\n]+)/i); o.transferDate = g(/Date\s*Funds\s*Transferred\s*:?[ \t_]*([^\n]+)/i);
+    var ty = T.match(/\[\s*x\s*\]\s*(Checking|Savings|Other)/i); if (ty) o.acctType = ty[1].charAt(0).toUpperCase() + ty[1].slice(1).toLowerCase();
+    return o;
+  }
   function parsePay(text) {
     var T = String(text || '').replace(/\r/g, ''), o = {}, D = '(\\d{1,2}\\/\\d{1,2}\\/\\d{2,4}|[A-Z][a-z]{2,8}\\.?\\s+\\d{1,2},?\\s+\\d{4})', g = function (re) { return grab(T, re); };
     var top = T.split('\n').map(function (l) { return l.trim(); }).filter(Boolean);
@@ -11882,9 +11934,127 @@ window.MTData=M;})();
     return o;
   }
 
+  /* ============================================================== GIFT LETTER */
+  /* Four letters: Conventional ("up to" amount), Government (exact amount), Full (with the source of funds) and Gift of equity.
+     Up to 4 borrowers and 4 donors; every section can be turned off and every sentence reworded. */
+  var GIFT_TYPES = [['conv', 'Conventional gift letter - "in an amount of up to"'], ['gov', 'Government gift letter (FHA / VA / USDA) - exact amount'], ['full', 'Full gift letter - with the source of funds'], ['equity', 'Gift of equity letter - seller / owner to buyer']];
+  var GIFT_REL = ['Mother', 'Father', 'Parents', 'Son', 'Daughter', 'Brother', 'Sister', 'Grandmother', 'Grandfather', 'Grandparents', 'Aunt', 'Uncle', 'Spouse', 'Husband', 'Wife', 'Fiancé(e)', 'Domestic partner', 'Cousin', 'Godparent', 'Employer', 'Labor union', 'Close friend', 'Charitable organization', 'Government agency'];
+  var GIFT_OPT = [
+    ['oCertify', 'Opening line ("I/We do hereby certify to the following")', 1, 'all'],
+    ['oNoRepay', 'No repayment expected or implied', 1, 'all'],
+    ['oSource', 'Source of funds (bank, account, transfer date)', 0, 'full'],
+    ['oRel', 'Relationship to borrower', 1, 'all'],
+    ['oDonorAddr', 'Donor address', 1, 'all'],
+    ['oDonorPhone', 'Donor telephone', 1, 'all'],
+    ['oBorrInfo', 'Borrower address and telephone', 0, 'equity'],
+    ['oOwners', 'Donors are the legal owners (gift of equity)', 0, 'equity'],
+    ['oPrice', 'Sales price and gift of equity amounts', 0, 'equity'],
+    ['oNotLoan', 'The gift is not a loan and was not borrowed', 0, 'gov'],
+    ['oNoInterest', 'Donor is not a party with an interest in the sale', 0, 'none'],
+    ['oNote', 'Certification note (funds not from the seller, agent, builder or loan officer)', 1, 'all'],
+    ['oDonorSig', 'Donor signature lines', 1, 'all'],
+    ['oBorrSig', 'Borrower signature lines', 1, 'all'],
+    ['oFooter', 'Footer line', 1, 'all']];
+  function giftDefaults(type) { var o = {}; GIFT_OPT.forEach(function (x) { o[x[0]] = !!x[2] || x[3] === type; }); if (type === 'gov') o.oNotLoan = true; if (type === 'equity') { o.oOwners = true; o.oPrice = true; o.oBorrInfo = true; o.oNote = false; } return o; }
+  B.gift = {
+    label: 'Gift letter', sub: 'Conventional, government, full, equity',
+    init: function (type) {
+      var f = file(), t = type || 'conv', d = {type: t, logo: '', logoSize: '52', logoPos: 'center', title: '', date: dateFromPicker(iso()), amount: '', upTo: t === 'conv', purpose: 'purchase', price: f.price || '', loanProgram: f.program || '',
+        borrowers: f.borrowers.length ? f.borrowers.map(function (n) { return {name: n, addr: '', phone: ''}; }) : [{name: '', addr: '', phone: ''}],
+        donors: [{name: '', relationship: '', addr: '', city: '', state: '', zip: '', phone: '', email: ''}],
+        address: f.address, city: f.city, state: stateName(f.state), zip: f.zip, county: f.county, addrFree: '',
+        bankName: '', acctType: 'Checking', acctNo: '', bankAddr: '', transferDate: '', transferTo: 'Borrower', extra: [''], certText: '', giftText: '', noteText: '', footerLeft: '', footerRight: ''};
+      var o = giftDefaults(t); for (var k in o) d[k] = o[k];
+      return d;
+    },
+    fix: function (s) { if (!s.donors) s.donors = [{name: ''}]; if (!s.extra) s.extra = ['']; },
+    form: function () {
+      var b = 'gift', s = drafts[b], eq = s.type === 'equity';
+      var multi = function (k, title, max, cols, extra) {
+        var arr = s[k] = s[k] || [{}];
+        return '<fieldset><legend>' + title + ' (up to ' + max + ')</legend><div class="list">' + arr.map(function (p, i) {
+          var a = function (f) { return ' data-b="gift" data-list="' + k + '" data-i="' + i + '" data-f="' + f + '"'; };
+          return '<div class="it"><div class="hd"><b style="flex:1">' + title.replace(/s$/, '') + ' ' + (i + 1) + '</b>' + (arr.length > 1 ? '<button type="button" class="x" data-a="rm" data-b="gift" data-list="' + k + '" data-i="' + i + '">Remove</button>' : '') + '</div><div class="g" style="margin-top:6px">' +
+            cols.map(function (c) { var o = c[2] || {}, v = p[c[0]] == null ? '' : p[c[0]];
+              return '<label class="f' + (o.wide ? ' w' : '') + '">' + c[1] + '<input type="text"' + a(c[0]) + (o.list ? ' list="mtBgl-' + c[0] + '"' : '') + (o.addr ? ' data-addr-item="1"' : '') + (o.addrLine ? ' data-addr-line="1"' : '') + ' value="' + esc(v) + '" placeholder="' + esc(o.ph || (o.list ? 'Pick or type' : '')) + '" autocomplete="off"></label>'; }).join('') + '</div></div>';
+        }).join('') + '</div>' + (arr.length < max ? '<button type="button" class="btn" data-a="add" data-b="gift" data-list="' + k + '">+ Add ' + title.toLowerCase().replace(/s$/, '') + '</button>' : '') + (extra || '') + '</fieldset>';
+      };
+      var opts = GIFT_OPT.map(function (x) { return field(b, x[0], x[1], {type: 'check', wide: 1}); }).join('');
+      return dropZone('giftfile', 'Drop a gift letter', 'Reads the amount, borrowers, donor, relationship, addresses, phone and the bank, account and transfer date.') +
+        '<fieldset><legend>Letter</legend><div class="g">' + field(b, 'type', 'Type of gift letter', {type: 'select', options: GIFT_TYPES, wide: 1}) +
+        '<div class="w note" style="margin:-2px 0 2px">Changing the type turns on that type\'s usual sections; each one can still be turned on or off below.</div>' +
+        field(b, 'title', 'Title (blank = the type\'s title)', {wide: 1, ph: eq ? 'GIFT OF EQUITY LETTER' : 'Gift Letter'}) + field(b, 'date', 'Letter date (optional)', {type: 'date'}) + field(b, 'loanProgram', 'Loan program (optional)', {list: ['Conventional', 'FHA', 'FHA 203(k)', 'VA', 'USDA', 'HomeStyle', 'Jumbo']}) + '</div></fieldset>' + logoBlock(b) +
+        '<fieldset><legend>Gift</legend><div class="g">' + field(b, 'amount', eq ? 'Gift of equity ($)' : 'Gift amount ($)', {type: 'money', ph: 'Leave blank for a blank line'}) + (s.type === 'conv' ? field(b, 'upTo', 'Say "in an amount of up to"', {type: 'check'}) : '<span></span>') +
+        field(b, 'purpose', 'Applied toward the', {list: ['purchase', 'refinance', 'down payment and closing costs', 'down payment', 'closing costs', 'construction'], ph: 'purchase'}) + (eq || s.oPrice ? field(b, 'price', 'Sales price ($)', {type: 'money'}) : '') + '</div><div id="mtBgift"></div></fieldset>' +
+        multi('borrowers', 'Borrowers', 4, [['name', 'Name', {wide: 1}], ['addr', 'Address', {wide: 1, addrLine: 1}], ['phone', 'Telephone']]) +
+        multi('donors', 'Donors', 4, [['name', 'Name', {wide: 1}], ['relationship', 'Relationship to borrower', {list: 1}], ['phone', 'Telephone'], ['addr', 'Street address - start typing for suggestions', {wide: 1, addr: 1}], ['city', 'City'], ['state', 'State'], ['zip', 'ZIP'], ['email', 'Email (optional)']]) +
+        '<datalist id="mtBgl-relationship">' + GIFT_REL.map(function (r) { return '<option value="' + esc(r) + '">'; }).join('') + '</datalist>' + propertyBlock(b) +
+        '<fieldset><legend>Source of funds</legend><div class="g">' + field(b, 'bankName', 'Bank name') + field(b, 'acctType', 'Type of account', {list: ['Checking', 'Savings', 'Money market', 'Brokerage', 'Certificate of deposit', 'Retirement']}) + field(b, 'acctNo', 'Account number (or last 4)') + field(b, 'transferDate', 'Date funds transferred', {type: 'date', ph: 'or "at closing"'}) + field(b, 'bankAddr', 'Bank address', {wide: 1, addrLine: 1}) +
+        field(b, 'transferTo', 'Funds go to', {list: ['Borrower', 'Closing agent / title company', 'Escrow / attorney', 'At closing']}) + '</div><p class="note">Printed when "Source of funds" is on below.</p></fieldset>' +
+        '<fieldset><legend>Sections - turn each on or off</legend>' + opts + '</fieldset>' +
+        '<fieldset><legend>Other statements</legend><div class="list">' + s.extra.map(function (c, i) { return '<div class="it"><div class="hd"><b style="flex:1">Statement ' + (i + 1) + '</b>' + (s.extra.length > 1 ? '<button type="button" class="x" data-a="rm" data-b="gift" data-list="extra" data-i="' + i + '">Remove</button>' : '') + '</div><textarea data-b="gift" data-list="extra" data-i="' + i + '" rows="2" placeholder="Any other statement, in your words">' + esc(c) + '</textarea></div>'; }).join('') +
+        '</div><button type="button" class="btn" data-a="add" data-b="gift" data-list="extra">+ Add a statement</button></fieldset>' +
+        '<fieldset class="wd"><legend>Wording - blank keeps the standard text</legend><div class="g">' + field(b, 'certText', 'Opening line', {wide: 1, ph: 'I/We do hereby certify to the following:'}) + field(b, 'giftText', 'Gift statement', {type: 'textarea', wide: 1, rows: 3, ph: B.gift.stmt(s, true)}) +
+        field(b, 'noteText', 'Certification note', {type: 'textarea', wide: 1, rows: 3, ph: GIFT_NOTE}) + field(b, 'footerLeft', 'Footer, left', {ph: B.gift.foot(s)}) + field(b, 'footerRight', 'Footer, right', {ph: 'e.g. Rev. 01.2027'}) + '</div></fieldset>';
+    },
+    foot: function (s) { return {conv: 'Gift Letter - Conventional', gov: 'Gift Letter - Government', full: 'Gift Letter', equity: 'Gift of Equity Letter'}[s.type] || 'Gift Letter'; },
+    amt: function (s, blank) { return N(s.amount) ? usd(s.amount) : blank ? '$________________' : '$________________'; },
+    /* the main sentence, built from the type, the amount and the borrowers */
+    stmt: function (s, plain) {
+      var many = (s.donors || []).filter(function (d) { return d.name; }).length > 1, we = many ? 'We' : 'I/We', amt = N(s.amount) ? usd(s.amount) : '$____________';
+      if (s.type === 'equity') { var rel = (s.donors || []).map(function (d) { return d.relationship; }).filter(Boolean); return 'We have made a gift of equity to our ' + (rel.length ? joinNames(rel.filter(function (x, i) { return rel.indexOf(x) === i; })).toLowerCase() : '________________') + ' (relationship) in the amount of ' + amt + ' for the ' + (s.purpose || 'purchase') + ' of ' + (addrOf(s) || '________________') + '.'; }
+      var rep = s.oNoRepay ? (s.type === 'conv' ? ' No repayment of this gift is expected or implied, either in the form of cash or future services from the recipient.' : ', and no repayment of this gift is expected or implied either in the form of cash or future services of the recipient.') : '.';
+      if (s.type === 'conv') return we + ' (Donor) have made a gift to the Borrower(s) named below in an amount of ' + (s.upTo ? 'up to ' : '') + amt + '.' + (s.oNoRepay ? rep : '');
+      return we + ' (Donor) have made a gift of ' + amt + ' dollars to the Borrower(s) named below' + rep;
+    },
+    side: function () { var s = drafts.gift, el = $('mtBgift'); if (!el) return; var p = N(s.price), a = N(s.amount);
+      el.innerHTML = '<div class="kv"><span>Gift</span><b>' + (a ? usd(a) : '-') + '</b>' + (p ? '<span>Sales price</span><b>' + usd(p) + '</b><span>Gift as % of price</span><b>' + (a ? pct(a / p, 2) : '-') + '</b>' + (s.type === 'equity' ? '<span>Price less gift of equity</span><b>' + usd(p - a) + '</b>' : '') : '') + '<span>Borrowers / donors</span><b>' + names(s.borrowers).length + ' / ' + (s.donors || []).filter(function (d) { return d.name; }).length + '</b></div>'; },
+    doc: function (s) {
+      var eq = s.type === 'equity', bor = (s.borrowers || []).filter(function (p) { return p && p.name; }), don = (s.donors || []).filter(function (d) { return d && (d.name || d.relationship); });
+      if (!don.length) don = [{}]; var u = function (v, w) { return '<span class="ul" style="min-width:' + (w || 2) + 'in">' + esc(v || '') + '</span>'; };
+      var stmt = s.giftText || B.gift.stmt(s), extra = (s.extra || []).filter(function (x) { return x && x.trim(); });
+      var lines = [];
+      if (s.oNotLoan) lines.push('This gift is not a loan. No part of these funds was borrowed, and the gift will not be repaid in any form.');
+      if (s.oNoInterest) lines.push('The donor is not the seller, real estate agent, builder, developer or any other party with an interest in the sale of the property.');
+      if (eq && s.oOwners) lines.push('We further verify we are the legal owners of said property and are therefore able to give this gift of equity.' + (s.oNoRepay ? ' No repayment of this gift is expected or implied either in the form of cash or future services of the recipient.' : ''));
+      if (eq && s.oPrice && (N(s.price) || N(s.amount))) lines.push('The sales price of the property is ' + (N(s.price) ? usd(s.price) : '$____________') + ', and the gift of equity of ' + (N(s.amount) ? usd(s.amount) : '$____________') + ' is to be credited to the borrower(s) at closing' + (N(s.price) && N(s.amount) ? ', leaving ' + usd(N(s.price) - N(s.amount)) + ' as the balance of the price' : '') + '.');
+      lines = lines.concat(extra);
+      var lg = s.logo ? '<div class="glg glg-' + (s.logoPos || 'center') + '"><img class="lg" src="' + s.logo + '" alt="" style="height:' + (N(s.logoSize) || 52) + 'px"></div>' : '';
+      var note = s.oNote ? '<p class="nt">* Please Note: ' + esc(s.noteText || GIFT_NOTE) + '</p>' : '';
+      var foot = s.oFooter ? '<div class="gf"><span>' + esc(s.footerLeft || B.gift.foot(s)) + '</span><span>' + esc(s.footerRight || '') + '</span></div>' : '';
+      if (eq) {
+        var rows = Math.max(bor.length, don.length, 1), info = '';
+        for (var i = 0; i < rows; i++) { var bp = bor[i] || {}, dp = don[i] || {};
+          info += '<table class="eqt"><tr><td>' + (i < bor.length || i === 0 ? '<div class="lnv">' + esc(bp.name || '') + '</div>Borrower\'s Name' + (s.oBorrInfo ? '<div class="lnv">' + esc(bp.addr || '') + '</div>Borrower\'s Address' + '<div class="lnv">' + esc(bp.phone || '') + '</div>Borrower\'s Telephone' : '') : '') + '</td>' +
+            '<td>' + (i < don.length || i === 0 ? '<div class="lnv">' + esc(dp.name || '') + (dp.relationship && s.oRel ? ' <i>(' + esc(dp.relationship) + ')</i>' : '') + '</div>Donor\'s Name' + (s.oDonorAddr ? '<div class="lnv">' + esc(dp.addr || '') + '</div>Donor\'s Address<div class="lnv">' + esc([dp.city, [dp.state, dp.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ')) + '</div>Donor\'s City, State, ZIP' : '') + (s.oDonorPhone ? '<div class="lnv">' + esc(dp.phone || '') + '</div>Donor\'s Telephone' : '') : '') + '</td></tr></table>'; }
+        var sg = ''; for (var j = 0; j < rows; j++) sg += '<table class="eqs"><tr><td>' + (s.oBorrSig && (j < bor.length || j === 0) ? '<div class="lnv"></div><span>Signature of Borrower' + (bor[j] ? ' - ' + esc(bor[j].name) : '') + '</span><span>Date</span>' : '') + '</td><td>' + (s.oDonorSig && (j < don.length || j === 0) ? '<div class="lnv"></div><span>Signature of Donor' + (don[j] && don[j].name ? ' - ' + esc(don[j].name) : '') + '</span><span>Date</span>' : '') + '</td></tr></table>';
+        return page('tnr', lg + '<h1 class="eqh">' + esc(s.title || 'GIFT OF EQUITY LETTER') + '</h1>' + (s.oCertify && s.certText ? '<p>' + esc(s.certText) + '</p>' : '') + '<p class="eqp">' + esc(stmt) + '</p>' + lines.map(function (l) { return '<p class="eqp">' + esc(l) + '</p>'; }).join('') +
+          (s.oSource ? srcBlock(s, u) : '') + info + sg + note + (s.date ? '<p class="dt">Dated: ' + esc(when(s.date)) + '</p>' : '') + foot, CSS_GIFT);
+      }
+      var donors = don.map(function (d, i) { return (don.length > 1 ? '<p class="dh">Donor ' + (i + 1) + '</p>' : '') +
+        (s.oRel ? '<p class="rw">Relationship to Borrower: ' + u(d.relationship, 4.6) + '</p>' : '') +
+        '<p class="rw">Donor\'s name: ' + u(d.name, 5.3) + '</p>' + (s.oDonorAddr ? '<p class="rw">Street address: ' + u(d.addr, 5.1) + '</p><p class="rw">City: ' + u(d.city, 2.9) + ' State: ' + u(d.state, .8) + ' Zip: ' + u(d.zip, 1.1) + '</p>' : '') +
+        (s.oDonorPhone ? '<p class="rw">Donor Telephone: ' + u(d.phone, 2.4) + (d.email ? ' &nbsp; Email: ' + u(d.email, 2.2) : '') + '</p>' : ''); }).join('');
+      var sig = function (who, n) { return '<div class="sgr"><div><div class="ln"></div>* ' + who + (n ? ' - ' + esc(n) : '') + '</div><div><div class="ln"></div>Date</div></div>'; };
+      var sigs = (s.oDonorSig ? don.map(function (d) { return sig('Donor Signature', d.name); }).join('') : '') + (s.oBorrSig ? (bor.length ? bor : [{}, {}]).map(function (b2) { return sig('Borrower Signature (Recipient)', b2.name); }).join('') + (bor.length === 1 ? sig('Borrower Signature (Recipient)', '') : '') : '');
+      return page('ari', lg + '<h1 class="gh">' + esc(s.title || 'Gift Letter') + '</h1>' + (s.oCertify ? '<p>' + esc(s.certText || 'I/We do hereby certify to the following:') + '</p>' : '') + '<p>' + esc(stmt) + '</p>' +
+        '<p class="bn">' + (bor.map(function (p) { return esc(p.name); }).join('<br>') || '&nbsp;') + '</p>' + (s.oBorrInfo ? bor.map(function (p) { return p.addr || p.phone ? '<p class="sm">' + esc(p.name) + ': ' + esc([p.addr, p.phone].filter(Boolean).join(' - ')) + '</p>' : ''; }).join('') : '') +
+        '<p>This gift is to be applied toward the ' + esc(s.purpose || 'purchase') + ' of the property located at:</p><p class="pa">' + (String(s.addrFree || '').trim() ? esc(s.addrFree).replace(/\n/g, '<br>') : esc(s.address || '') + '<br>' + esc([s.city, [stateAbbr(s.state), s.zip].filter(Boolean).join('  ')].filter(Boolean).join(', '))) + '</p>' +
+        lines.map(function (l) { return '<p>' + esc(l) + '</p>'; }).join('') + (s.oSource ? srcBlock(s, u) : '') + donors + '<div class="sgs">' + sigs + '</div>' + note + (s.date ? '<p class="dt">Dated: ' + esc(when(s.date)) + '</p>' : '') + foot, CSS_GIFT);
+    }
+  };
+  var GIFT_NOTE = 'Upon the signature(s) of this gift letter, I/We hereby certify that any funds given to the homebuyer were not made available to the donor from any person or entity with an interest in the sale of the property including the seller, real estate agent, broker, builder, or loan officer, or any other entity associated with this transaction.';
+  function srcBlock(s, u) { var ty = String(s.acctType || ''), std = ['Checking', 'Savings'], other = ty && std.indexOf(ty) < 0;
+    return '<p class="sh">The source of funds for this gift is:</p><p class="rw">Bank Name: ' + u(s.bankName, 3.6) + '</p><p class="rw">Type of Account: [' + (ty === 'Checking' ? 'x' : '&nbsp;') + '] Checking &nbsp; [' + (ty === 'Savings' ? 'x' : '&nbsp;') + '] Savings &nbsp; [' + (other ? 'x' : '&nbsp;') + '] Other' + (other ? ': ' + esc(ty) : '') + '</p>' +
+      '<p class="rw">Account No.: ' + u(s.acctNo, 3) + '</p><p class="rw">Bank Address: ' + u(s.bankAddr, 4.6) + '</p><p class="rw">Date Funds Transferred: ' + u(s.transferDate ? when(s.transferDate) : '', 2.2) + (s.transferTo ? ' &nbsp; To: ' + u(s.transferTo, 2) : '') + '</p>'; }
+  var CSS_GIFT = '.pg{padding:.7in .85in .6in}h1.gh{text-align:center;font-size:17pt;margin:.1in 0 .3in}p{font-size:10pt;line-height:1.45;margin:0 0 .1in}p.bn{font-size:11.5pt;margin:.05in 0 .25in}p.pa{font-size:11.5pt;line-height:1.6;margin:0 0 .22in}p.sm{font-size:9.5pt;color:#333}p.rw{margin:0 0 .07in}p.sh{margin-top:.15in}p.dh{font-weight:700;margin:.15in 0 .05in}' +
+    '.ul{display:inline-block;border-bottom:1px solid #000;padding:0 4px;vertical-align:bottom;min-height:15px}.sgs{margin-top:.25in}.sgr{display:grid;grid-template-columns:4.6in 1.6in;gap:.55in;margin:0 0 .22in;font-size:9.5pt}.sgr .ln{border-bottom:1px solid #000;height:26px;margin-bottom:2px}p.nt{font-size:9.5pt;line-height:1.3;margin-top:.15in}p.dt{font-size:9.5pt}.gf{display:flex;justify-content:space-between;font-size:7.5pt;color:#555;margin-top:.35in}' +
+    'h1.eqh{text-align:center;font-size:13pt;letter-spacing:.06em;margin:.15in 0 .3in;font-variant:small-caps}p.eqp{font-size:12pt;line-height:1.9;text-align:justify;margin:0 0 .15in}table.eqt,table.eqs{width:100%;border-collapse:collapse;margin-top:.15in}table.eqt td,table.eqs td{width:50%;vertical-align:top;padding:0 .25in 0 0;font-size:11pt}table.eqt .lnv{border-bottom:1px solid #000;min-height:20px;margin-top:.18in;padding:0 2px;font-size:11pt}table.eqs .lnv{border-bottom:1px solid #000;height:30px;margin-top:.25in}table.eqs span{display:inline-block;font-size:11pt}table.eqs span+span{float:right}' +
+    '.glg{margin:0 0 6px}.glg-center{text-align:center}.glg-center .lg{margin:0 auto}.glg-right .lg{margin-left:auto}';
+
   /* ================================================================ shell / UI */
-  var ORDER = ['addendum', 'lease', 'estimate', 'pl', 'pay', 'commit', 'mi'];
-  var RERENDER = {style: 1, leaseType: 1, program: 1, concOnTop: 1, ttOn: 1, renoOn: 0, payType: 1, state: 1, locality: 1, ytdMode: 1, logoSize: 0};
+  var ORDER = ['addendum', 'lease', 'estimate', 'pl', 'pay', 'gift', 'commit', 'mi'];
+  var RERENDER = {style: 1, leaseType: 1, program: 1, concOnTop: 1, ttOn: 1, renoOn: 0, payType: 1, state: 1, locality: 1, ytdMode: 1, logoSize: 0, type: 1, oSource: 0, oPrice: 1};
   function mount() {
     if ($('mtB')) return;
     if (!$('mtBcss')) { var st = document.createElement('style'); st.id = 'mtBcss'; st.textContent = CSS; document.head.appendChild(st); }
@@ -11903,12 +12073,13 @@ window.MTData=M;})();
     if (key) { var el = Array.prototype.filter.call(f.querySelectorAll('input,select,textarea'), function (x) { return ['b', 'k', 'list', 'i', 'f', 'cond'].map(function (a) { return x.getAttribute('data-' + a) || ''; }).join('|') === key; })[0]; if (el) { el.focus(); try { if (el.setSelectionRange && el.type === 'text') el.setSelectionRange(el.value.length, el.value.length); } catch (e) {} } }
     if (B[cur].side) B[cur].side();
     restoreStatus();
-    if (window.MTAddr) [].forEach.call(f.querySelectorAll('[data-addr],[data-addr-line],[data-addr-pair]'), function (el) { MTAddr.attach(el, {onPick: function (a) { addrPick(el, a); }}); });
+    if (window.MTAddr) [].forEach.call(f.querySelectorAll('[data-addr],[data-addr-line],[data-addr-pair],[data-addr-item]'), function (el) { MTAddr.attach(el, {onPick: function (a) { addrPick(el, a); }}); });
   }
   /* an address suggestion picked in a builder fills that builder's fields */
   function addrPick(el, a) {
     var b = el.getAttribute('data-b'), s = drafts[b]; if (!s) return;
-    if (el.hasAttribute('data-addr')) { var p = el.getAttribute('data-addr') || ''; s[p + 'address'] = a.street; s[p + 'city'] = a.city; s[p + 'state'] = a.state; s[p + 'zip'] = a.zip; s[p + 'county'] = a.county; if (b === 'addendum') B.addendum.sync(s); }
+    if (el.hasAttribute('data-addr-item')) { var it = s[el.getAttribute('data-list')][+el.getAttribute('data-i')]; it.addr = a.street; it.city = a.city; it.state = a.stateAbbr; it.zip = a.zip; }
+    else if (el.hasAttribute('data-addr')) { var p = el.getAttribute('data-addr') || ''; s[p + 'address'] = a.street; s[p + 'city'] = a.city; s[p + 'state'] = a.state; s[p + 'zip'] = a.zip; s[p + 'county'] = a.county; if (b === 'addendum') B.addendum.sync(s); }
     else { var v = el.hasAttribute('data-addr-pair') ? a.street : a.line;
       if (el.hasAttribute('data-list')) { var arr = s[el.getAttribute('data-list')], i = +el.getAttribute('data-i'), f = el.getAttribute('data-f'); if (typeof arr[i] !== 'object') arr[i] = {name: arr[i] || ''}; arr[i][f] = v; } else s[el.getAttribute('data-k')] = v;
       if (el.hasAttribute('data-addr-pair')) s[el.getAttribute('data-addr-pair')] = a.cityLine; }
@@ -11950,7 +12121,7 @@ window.MTData=M;})();
     if (!b || !drafts[b]) return;
     if (t.hasAttribute('data-over')) { var s0 = drafts[b]; s0.over = s0.over || {}; s0.over[t.getAttribute('data-over')] = v; persist(); refresh(); return; }
     if (t.hasAttribute('data-list')) { var arr = drafts[b][t.getAttribute('data-list')], i = +t.getAttribute('data-i'), f = t.getAttribute('data-f');
-      if (f) { if (typeof arr[i] !== 'object') arr[i] = {name: arr[i] || ''}; arr[i][f] = v; } else arr[i] = v; persist(); refresh(); if (B[b].side) B[b].side(); return; }
+      if (f) { if (typeof arr[i] !== 'object') arr[i] = {name: arr[i] || ''}; arr[i][f] = v; if (t.type === 'checkbox' && v) { if (f === 'subj') arr[i].noAddr = false; if (f === 'noAddr') arr[i].subj = false; } } else arr[i] = v; persist(); refresh(); if (t.type === 'checkbox') renderForm(); else if (B[b].side) B[b].side(); return; }
     var k = t.getAttribute('data-k'), s = drafts[b]; s[k] = v;
     if (b === 'addendum') {
       if (k === 'concPct') s.concDrv = 'pct'; else if (k === 'concAmt') s.concDrv = 'amt';
@@ -11958,6 +12129,7 @@ window.MTData=M;})();
       B.addendum.sync(s);
     }
     if (b === 'mi' && k === 'renoProgram') drafts.mi.feePerDraw = v === '203k' ? 375 : 150;
+    if (b === 'gift' && k === 'type') { var gd = giftDefaults(v); for (var gk in gd) s[gk] = gd[gk]; s.upTo = v === 'conv'; }
     persist();
     if (RERENDER[k] && (t.tagName === 'SELECT' || t.type === 'checkbox')) renderForm(); else if (B[b].side) B[b].side();
     refresh();
@@ -11984,7 +12156,7 @@ window.MTData=M;})();
       if (a === 'reset') { if (!confirm('Start this ' + B[cur].label.toLowerCase() + ' over from the loan file? Your changes to it are cleared.')) return; pageEdit(false); drafts[cur] = B[cur].init(); persist(); renderForm(); refresh(true); return; }
       if (a === 'print') { var fr = $('mtBframe'); unfit(function () { try { fr.contentWindow.focus(); fr.contentWindow.print(); } catch (x) {} }); return; }
       if (a === 'pdf') return unfit(pdf);
-      if (a === 'add') { var b = t.getAttribute('data-b'), L = t.getAttribute('data-list'), arr = drafts[b][L]; arr.push(L === 'items' ? {trade: '', desc: '', qty: '', unit: '', labor: '', materials: ''} : L === 'custom' ? '' : (L === 'earn' || L === 'post') ? {label: '', amt: ''} : (L === 'income' || L === 'cogs' || L === 'expenses') ? {label: L === 'expenses' ? (PL_EXP.filter(function (x) { return !arr.some(function (r) { return r.label === x; }); })[0] || 'Other') : '', amt: ''} : {name: ''}); persist(); renderForm(); refresh(); return; }
+      if (a === 'add') { var b = t.getAttribute('data-b'), L = t.getAttribute('data-list'), arr = drafts[b][L]; arr.push(L === 'items' ? {trade: '', desc: '', qty: '', unit: '', labor: '', materials: ''} : (L === 'custom' || L === 'extra') ? '' : L === 'donors' ? {name: '', relationship: '', addr: '', city: '', state: '', zip: '', phone: '', email: ''} : L === 'borrowers' && b === 'gift' ? {name: '', addr: '', phone: ''} : (L === 'earn' || L === 'post') ? {label: '', amt: ''} : (L === 'income' || L === 'cogs' || L === 'expenses') ? {label: L === 'expenses' ? (PL_EXP.filter(function (x) { return !arr.some(function (r) { return r.label === x; }); })[0] || 'Other') : '', amt: ''} : {name: ''}); persist(); renderForm(); refresh(); return; }
       if (a === 'rm') { var b2 = t.getAttribute('data-b'), L2 = t.getAttribute('data-list'); drafts[b2][L2].splice(+t.getAttribute('data-i'), 1); persist(); renderForm(); refresh(); return; }
       if (a === 'psearch') return psearch(t.getAttribute('data-b'), t.getAttribute('data-p') || '');
       if (a === 'ppick') return ppick(t.getAttribute('data-b'), t.getAttribute('data-p') || '', +t.getAttribute('data-i'));
@@ -12132,7 +12304,7 @@ window.MTData=M;})();
     if (/203\s*\(?k/i.test(T)) o.renoProgram = '203k'; else if (/homestyle/i.test(T)) o.renoProgram = 'homestyle';
     return o;
   }
-  var SID = {contract: 'mtBcontract', leasefile: 'mtBleasefile', approval: 'mtBapproval', estfile: 'mtBestfile', plfile: 'mtBplfile', mifile: 'mtBmifile', payfile: 'mtBpayfile'};
+  var SID = {giftfile: 'mtBgiftfile', contract: 'mtBcontract', leasefile: 'mtBleasefile', approval: 'mtBapproval', estfile: 'mtBestfile', plfile: 'mtBplfile', mifile: 'mtBmifile', payfile: 'mtBpayfile'};
   function readInto(kind, fl) {
     var sid = SID[kind] || 'mtB' + kind;
     status(sid, 'Reading ' + esc(fl.name) + '… scanned pages use OCR and can take a minute.');
@@ -12181,6 +12353,15 @@ window.MTData=M;})();
         if (Y.ytdBase || Y.ytdGross) { s6.ytdMode = 'manual'; s6.ytdBase = String(Y.ytdBase || (Y.ytdGross - (Y.ytdOt || 0) - (Y.ytdComm || 0) - (Y.ytdBonus || 0))); s6.ytdOt = String(Y.ytdOt || ''); s6.ytdComm = String(Y.ytdComm || ''); s6.ytdBonus = String(Y.ytdBonus || ''); s6.ytdOther = ''; g6.push('year-to-date earnings'); }
         if (Y.gross) { var cg = B.pay.calc(s6).gross; g6.push('gross ' + usd(Y.gross) + (Math.abs(cg - Y.gross) > 1 ? ' (the stub rebuilt here shows ' + usd(cg) + ' - check hours and other pay)' : ' (matches)')); }
         done(g6, 'stub');
+      } else if (kind === 'giftfile') {
+        var Gf = parseGift(text), s7 = drafts.gift, g7 = [];
+        if (Gf.type) { s7.type = Gf.type; var gd2 = giftDefaults(Gf.type); for (var gk2 in gd2) s7[gk2] = gd2[gk2]; s7.upTo = Gf.upTo; g7.push(Gf.type === 'equity' ? 'gift of equity' : Gf.type === 'full' ? 'full letter with source of funds' : 'gift letter'); }
+        if (Gf.amount) { s7.amount = Gf.amount; g7.push('amount ' + usd(Gf.amount)); }
+        if (Gf.borrowers && Gf.borrowers.length) { s7.borrowers = Gf.borrowers.map(function (n) { return {name: n, addr: '', phone: ''}; }); g7.push(Gf.borrowers.length + ' borrower(s)'); }
+        if (Gf.donor && (Gf.donor.name || Gf.donor.relationship)) { s7.donors = [Gf.donor]; g7.push('donor'); }
+        if (Gf.addr) { s7.address = Gf.addr.address; s7.addrFree = ''; if (Gf.addr.city) { s7.city = Gf.addr.city; s7.state = Gf.addr.state; s7.zip = Gf.addr.zip; } g7.push('property'); }
+        ['bankName', 'acctType', 'acctNo', 'bankAddr', 'transferDate'].forEach(function (k) { if (Gf[k]) { s7[k] = Gf[k]; if (k === 'bankName') { s7.oSource = true; g7.push('source of funds'); } } });
+        done(g7, 'letter');
       } else if (kind === 'mifile') {
         var M = parseMIdoc(text), s5 = drafts.mi, g5 = [];
         [['program', 'program'], ['price', 'price'], ['value', 'value'], ['base', 'loan amount'], ['term', 'term', 'termYears'], ['miRate', 'MI rate'], ['ufmip', 'UFMIP'], ['down', 'down payment', 'downPct'], ['renoCost', 'renovation cost'], ['contingency', 'contingency'], ['draws', 'draws'], ['feePerDraw', 'inspection fee'], ['titlePerDraw', 'title update fee'], ['consultant', 'consultant fee'], ['permits', 'permits'], ['architect', 'architect'], ['payment', 'payment'], ['renoProgram', 'renovation program']].forEach(function (r) {

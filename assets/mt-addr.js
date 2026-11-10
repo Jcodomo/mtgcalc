@@ -1,4 +1,4 @@
-/* Mortgage Suite 56.3 - address autocomplete on every property and address box.
+/* Mortgage Suite 56.5 - address autocomplete on every property and address box.
    Suggestions come from Photon (photon.komoot.io), an OpenStreetMap search built for type-ahead, limited to the United States.
    What you type in an address box is sent to Photon after you pause; nothing else is sent. Suggestions can be turned off
    (the choice is kept in this browser). A pick fills the street and, where the page has them, the city, state, ZIP and county:
@@ -74,7 +74,7 @@
   function css() {
     if (document.getElementById('mtAddrCss')) return; var s = document.createElement('style'); s.id = 'mtAddrCss';
     s.textContent = '.mtA-list{position:fixed;z-index:' + Z + ';min-width:300px;max-width:min(560px,calc(100vw - 16px));background:#0a1b38;color:#e6eefb;border:1px solid #2b5590;border-radius:10px;box-shadow:0 14px 34px rgba(0,0,0,.45);overflow:hidden;font:13px/1.35 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;text-align:left}' +
-      '.mtA-list [role=option]{padding:7px 11px;cursor:pointer;border-top:1px solid #142d52}.mtA-list [role=option]:first-child{border-top:0}.mtA-list [role=option] b{display:block;font-weight:600;color:#fff}.mtA-list [role=option] small{color:#9db0c8;font-size:11.5px}' +
+      '.mtA-list [role=option]{padding:7px 11px;cursor:pointer;border-top:1px solid #142d52}.mtA-list [role=option]:first-child{border-top:0}.mtA-list [role=option] b{display:block;font-weight:600;color:#fff}.mtA-list [role=option] small{color:#9db0c8;font-size:11.5px}.mtA-list [role=option] em{font-style:normal;font-weight:600;font-size:10.5px;color:#0b1c3a;background:#9fc4ff;border-radius:999px;padding:1px 7px;margin-left:6px;vertical-align:1px}' +
       '.mtA-list [role=option][aria-selected=true],.mtA-list [role=option]:hover{background:#123a75}.mtA-list .mtA-ft{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:5px 11px;font-size:11px;color:#8ea3c0;background:#071630;border-top:1px solid #142d52}' +
       '.mtA-list .mtA-ft button{all:unset;cursor:pointer;color:#9fc4ff;font-size:11px}.mtA-list .mtA-ft button:hover{text-decoration:underline}.mtA-list .mtA-ft button:focus-visible{outline:2px solid #5aa2ff}.mtA-list .mtA-msg{padding:8px 11px;color:#9db0c8}' +
       '@media print{.mtA-list{display:none!important}}';
@@ -97,7 +97,7 @@
   function foot() { return '<div class="mtA-ft"><span>Address data &copy; OpenStreetMap contributors</span><span><button type="button" data-mta="google">Check on Google</button> &middot; <button type="button" data-mta="off">Turn off suggestions</button></span></div>'; }
   function render(list, msg) {
     ensureBox(); items = list || []; hi = -1;
-    box.innerHTML = (items.length ? items.map(function (a, i) { return '<div role="option" id="mtA-o' + i + '" data-i="' + i + '" aria-selected="false"><b>' + esc(a.street) + '</b><small>' + esc(a.cityLine) + (a.county ? ' &middot; ' + esc(a.county) + ' County' : '') + '</small></div>'; }).join('') : '<div class="mtA-msg">' + esc(msg || 'No US address matches yet - keep typing.') + '</div>') + foot();
+    box.innerHTML = (items.length ? items.map(function (a, i) { return '<div role="option" id="mtA-o' + i + '" data-i="' + i + '" aria-selected="false"><b>' + esc(a.street) + (a.src ? ' <em>' + esc(a.src) + '</em>' : '') + '</b><small>' + esc(a.cityLine) + (a.county ? ' &middot; ' + esc(a.county) + ' County' : '') + '</small></div>'; }).join('') : '<div class="mtA-msg">' + esc(msg || 'No US address matches yet - keep typing.') + '</div>') + foot();
     box.hidden = false; if (cur) { cur.setAttribute('aria-expanded', 'true'); cur.removeAttribute('aria-activedescendant'); } place();
   }
   function hide() { if (box) box.hidden = true; if (cur) { cur.setAttribute('aria-expanded', 'false'); cur.removeAttribute('aria-activedescendant'); } items = []; hi = -1; }
@@ -105,7 +105,7 @@
   function choose(i) {
     var a = items[i], el = cur; if (!a || !el) return; hide();
     try { if (isFinite(a.lat)) localStorage.setItem(BIAS, JSON.stringify({lat: a.lat, lon: a.lon})); } catch (e) {}
-    el.__mtaPicked = a.street; var o = el.__mta || {};
+    el.__mtaPicked = a.street; remember(a, 'Used'); var o = el.__mta || {};
     if (o.onPick) o.onPick(a, el); else fill(el, a);
   }
   /* Some pages rebuild their inputs on every keystroke (the Income Calculator's panels). The list then follows the rebuilt
@@ -123,13 +123,46 @@
     if (ae !== x) { if (ae && ae !== document.body && ae !== document.documentElement) return null; try { x.focus({preventScroll: true}); var n = x.value.length; x.setSelectionRange(n, n); } catch (e) {} }
     cur = x; return x;
   }
+  /* Known addresses - the loan file's, the document builders' drafts, ones picked before and full addresses typed into an
+     address box - are matched on every keystroke without the network; Photon's results join them a moment later. */
+  var RECENT = 'mt.addr.recent', ABBR2 = {}; Object.keys(STATES).forEach(function (k) { ABBR2[STATES[k]] = k; });
+  function mk(street, city, state, zip, county, src) {
+    street = String(street || '').trim(); if (!street) return null; state = String(state || '').trim(); city = String(city || '').trim();
+    var full = ABBR2[state.toUpperCase()] || state, abbr = STATES[full] || state; zip = String(zip || '').slice(0, 5);
+    return {street: street, city: city, state: full, stateAbbr: abbr, zip: zip, county: String(county || '').replace(/\s+County$/i, ''), src: src,
+      line: [street, city, [abbr, zip].filter(Boolean).join(' ')].filter(Boolean).join(', '), cityLine: [city, [abbr, zip].filter(Boolean).join(' ')].filter(Boolean).join(', '), exact: true};
+  }
+  function fromLine(line, src) { line = String(line || '').replace(/\s+/g, ' ').trim(); var m = line.match(/^(.*?),\s*([^,]+?),?\s+([A-Za-z]{2}|[A-Za-z .]{4,}?)\.?,?\s+(\d{5})(?:-\d{4})?$/); return m ? mk(m[1], m[2], m[3], m[4], '', src) : null; }
+  var knownAt = 0, knownList = [];
+  function known() {
+    if (Date.now() - knownAt < 1500) return knownList; var out = [], add = function (a) { if (a) out.push(a); };
+    try { (JSON.parse(localStorage.getItem(RECENT) || '[]') || []).forEach(function (a) { add(mk(a.street, a.city, a.state, a.zip, a.county, a.src === 'Typed' ? 'Typed before' : 'Used before')); }); } catch (e) {}
+    try { var st = window.mortgageSuite && mortgageSuite.store, ai = st && st.activeInputs; if (ai) add(mk(ai.propertyAddress, ai.city, ai.state, ai.zipCode, ai.nyCounty, 'Loan file')); } catch (e) {}
+    try { var wf = JSON.parse(localStorage.getItem('mtgcalc-shared-workflow-v1') || 'null'), si = wf && wf.suiteInputs; if (si) add(mk(si.propertyAddress, si.city, si.state, si.zipCode, si.nyCounty, 'Loan file')); } catch (e) {}
+    try { var S = (0, eval)('typeof S !== "undefined" ? S : null'); if (S && S.loan && S.loan.address) add(fromLine(S.loan.address, 'Loan file') || mk(S.loan.address, '', '', '', '', 'Loan file')); } catch (e) {}
+    try { var dr = JSON.parse(localStorage.getItem('mt.builder.v1') || '{}') || {}; Object.keys(dr).forEach(function (k) { var d = dr[k]; if (d && d.address) add(fromLine(d.address, 'Document builder') || mk(d.address, d.city, d.state, d.zip, d.county, 'Document builder')); }); } catch (e) {}
+    var seen = {}; knownList = out.filter(function (a) { var k = (a.street + '|' + a.zip).toLowerCase(); if (seen[k]) return false; seen[k] = 1; return true; }); knownAt = Date.now(); return knownList;
+  }
+  function localMatch(q) {
+    var t = words(q); if (!t.length) return [];
+    return known().filter(function (a) { var hay = words(a.line + ' ' + a.county); return t.every(function (w, i) { var last = i === t.length - 1; return hay.some(function (h) { return h === w || ((last || /^\d/.test(w) || w.length >= 3) && h.indexOf(w) === 0); }); }); }).slice(0, 4);
+  }
+  function remember(a, src) {
+    if (!a || !a.street) return; var list = []; try { list = JSON.parse(localStorage.getItem(RECENT) || '[]') || []; } catch (e) {}
+    var k = (a.street + '|' + a.zip).toLowerCase(); list = list.filter(function (x) { return (x.street + '|' + x.zip).toLowerCase() !== k; });
+    list.unshift({street: a.street, city: a.city, state: a.state, zip: a.zip, county: a.county, src: src || 'Used'}); try { localStorage.setItem(RECENT, JSON.stringify(list.slice(0, 40))); } catch (e) {} knownAt = 0;
+  }
+  function merge(loc, remote) { var seen = {}; return loc.concat(remote).filter(function (a) { var k = (a.street + '|' + (a.zip || a.city)).toLowerCase(); if (seen[k]) return false; seen[k] = 1; return true; }).slice(0, 7); }
   function query(el) {
     var q = String(el.value || '').trim(); clearTimeout(timer);
-    if (off() || q.length < 4 || !/[a-z]/i.test(q) || el.__mtaPicked === el.value) return hide();
-    var my = ++seq; timer = setTimeout(function () {
-      search(q).then(function (list) { if (my !== seq || (cur !== el && revive(el) !== cur)) return; if (!live(el)) return; render(list); })
-        .catch(function (e) { if (e && e.name === 'AbortError') return; if (my === seq && live(el)) render([], 'Address suggestions are not answering right now - type the address, or use Check on Google.'); });
-    }, 320);
+    if (off() || q.length < 2 || !/[a-z0-9]/i.test(q) || el.__mtaPicked === el.value) return hide();
+    var loc = localMatch(q), my = ++seq;
+    if (loc.length) { if (live(el)) render(loc); } else if (box && !box.hidden) hide();
+    if (q.length < 3 || !/[a-z]/i.test(q)) return;
+    timer = setTimeout(function () {
+      search(q).then(function (list) { if (my !== seq || (cur !== el && revive(el) !== cur)) return; if (!live(el)) return; render(merge(localMatch(q), list)); })
+        .catch(function (e) { if (e && e.name === 'AbortError') return; if (my === seq && live(el)) { var l2 = localMatch(q); render(l2, l2.length ? '' : 'Address suggestions are not answering right now - type the address, or use Check on Google.'); } });
+    }, 200);
   }
 
   /* ------------------------------------------------------ filling the page */
@@ -172,6 +205,7 @@
     if (el.isConnected) { el.__sig = sig(el); el.__sigIdx = Math.max(0, same(el.__sig).indexOf(el)); }
     el.addEventListener('input', function (e) { if (!e.isTrusted && el.__mtaPicked !== undefined) return; cur = el; el.__mtaPicked = undefined; query(el); });
     el.addEventListener('focus', function () { cur = el; });
+    el.addEventListener('change', function () { if (el.__mtaPicked === undefined) { var a = fromLine(el.value, 'Typed'); if (a) remember(a, 'Typed'); } });
     el.addEventListener('blur', function () { setTimeout(function () { if (cur === el && document.activeElement !== el) hide(); }, 120); });
     el.addEventListener('keydown', function (e) {
       if (!box || box.hidden) { if (e.key === 'ArrowDown' && !off()) { el.__mtaPicked = undefined; cur = el; query(el); } return; }
