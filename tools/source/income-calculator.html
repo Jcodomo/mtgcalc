@@ -997,8 +997,8 @@ body,#calc-root,#suite-root{min-width:0}
   <div class="subtabs no-print">
     <button class="subtab on" id="sub-docs-import" onclick="subTab('docs','import')">
       <svg class="icon"><use href="#i-scan"/></svg>Document Import &amp; OCR</button>
-    <button class="subtab" id="sub-docs-paystub" onclick="subTab('docs','paystub')">
-      <svg class="icon"><use href="#i-receipt"/></svg>Pay Stub Generator</button>
+    <button class="subtab" id="sub-docs-paystub" onclick="subTab('docs','paystub')" title="Opens the pay statement in the Document Builder">
+      <svg class="icon"><use href="#i-receipt"/></svg>Pay Statement (Document Builder)</button>
   </div>
 
   <div class="subpanel on" id="subpanel-docs-import">
@@ -7051,6 +7051,8 @@ function switchTab(t){
 const SUB = {docs:'import'};
 const currentSub = tab => SUB[tab];
 function subTab(tab, name){
+  /* 56.4: the pay stub generator moved into the Document Builder */
+  if (tab==='docs' && name==='paystub' && window.MTBuild){ MTBuild.open('pay'); if (!SUB[tab] || SUB[tab]==='paystub') name = 'import'; else return; }
   SUB[tab] = name;
   document.querySelectorAll(`#panel-${tab} .subpanel`).forEach(el=>
     el.classList.toggle('on', el.id === `subpanel-${tab}-${name}`));
@@ -8174,6 +8176,6 @@ window.__mtgcalcBridge = {
 <script src="mt-addr.js?v=56.3"></script>
 <script src="doc-center.js?v=56.1"></script>
 <script src="mt-data.js?v=56.1"></script>
-<script src="doc-builder.js?v=56.3"></script>
+<script src="doc-builder.js?v=56.4"></script>
 </body>
 </html>

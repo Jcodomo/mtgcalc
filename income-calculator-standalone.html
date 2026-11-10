@@ -1283,8 +1283,8 @@ html[data-v25-surface="oled"][data-theme] body *:has(> nav#v23SuitePrimaryNav){ 
   <div class="subtabs no-print">
     <button class="subtab on" id="sub-docs-import" onclick="subTab('docs','import')">
       <svg class="icon"><use href="#i-scan"/></svg>Document Import &amp; OCR</button>
-    <button class="subtab" id="sub-docs-paystub" onclick="subTab('docs','paystub')">
-      <svg class="icon"><use href="#i-receipt"/></svg>Pay Stub Generator</button>
+    <button class="subtab" id="sub-docs-paystub" onclick="subTab('docs','paystub')" title="Opens the pay statement in the Document Builder">
+      <svg class="icon"><use href="#i-receipt"/></svg>Pay Statement (Document Builder)</button>
   </div>
 
   <div class="subpanel on" id="subpanel-docs-import">
@@ -7337,6 +7337,8 @@ function switchTab(t){
 const SUB = {docs:'import'};
 const currentSub = tab => SUB[tab];
 function subTab(tab, name){
+  /* 56.4: the pay stub generator moved into the Document Builder */
+  if (tab==='docs' && name==='paystub' && window.MTBuild){ MTBuild.open('pay'); if (!SUB[tab] || SUB[tab]==='paystub') name = 'import'; else return; }
   SUB[tab] = name;
   document.querySelectorAll(`#panel-${tab} .subpanel`).forEach(el=>
     el.classList.toggle('on', el.id === `subpanel-${tab}-${name}`));
@@ -10785,7 +10787,7 @@ window.MTData=M;})();
 
 </script>
 <script>/* doc-builder.js (inlined) */
-/* Mortgage Suite 56.3 - Document Builder (Income Calculator, Full Suite and the Loan Suite pages).
+/* Mortgage Suite 56.4 - Document Builder (Income Calculator, Full Suite and the Loan Suite pages).
    Builds, previews, prints and saves as PDF: contract addenda (five styles, up to 4 buyers and 4 sellers, a seller-concession
    and transfer-tax calculator, 203(k) / HomeStyle / FHA / VA clauses, a contract dropped in to fill the parties), residential
    leases (four styles), contractor estimates, profit and loss statements, commitment letters (filled from a lender's
@@ -10967,7 +10969,8 @@ window.MTData=M;})();
 
   /* ================================================================= ADDENDUM */
   var ADD_STYLES = [['master', 'Amendment to Contract of Sale - classic (Times)'], ['clean', 'Amendment to Contract of Sale - clean (Arial)'], ['numbered', 'Addendum #__ to Contract of Sale - numbered paragraphs'],
-    ['purchase', 'Addendum to Purchase Agreement - headings and signature table'], ['fillin', 'Addendum to Real Estate Purchase and Sale Agreement - fill-in form'], ['letter', 'Formal addendum - letterhead with recitals']];
+    ['purchase', 'Addendum to Purchase Agreement - headings and signature table'], ['fillin', 'Addendum to Real Estate Purchase and Sale Agreement - fill-in form'], ['letter', 'Formal addendum - letterhead with recitals'],
+    ['rider', 'Rider to Contract of Sale - initials beside each paragraph'], ['table', 'Contract amendment - modern table of changes']];
   var CLAUSES = {
     k203: 'The Buyer has applied for FHA Section 203(k) financing, and this Contract is contingent upon mortgage approval and the Buyer\'s acceptance of any additional required improvements as decided by the Lender/Mortgagee.',
     homestyle: 'The Buyer is financing this purchase with a Fannie Mae HomeStyle Renovation mortgage. This Contract is contingent upon the Buyer obtaining that financing and upon the Buyer\'s acceptance of the renovation scope, costs and any additional repairs or improvements required by the Lender.',
@@ -11161,6 +11164,25 @@ window.MTData=M;})();
           '<p><b>BUYER(S):</b></p>' + bl.concat(bl.length ? [] : [{}]).map(function (p) { return '<div class="r2"><span class="sl2">' + esc(p.name || '') + '</span>Date: <span class="sl3"></span></div>'; }).join('') +
           '<p><b>SELLER(S):</b></p>' + (sellers.length ? sellers : [{}]).map(function (p) { return '<div class="r2"><span class="sl2">' + esc(p.name || '') + '</span>Date: <span class="sl3"></span></div>'; }).join(''), CSS_ADD_FILL);
       }
+      if (st === 'rider') {
+        var ri = T.map(function (t) { return t.t; }); if (s.remain) ri.push(s.remainText || 'Except as modified by this Rider, all terms of the Contract remain in full force and effect. If this Rider and the Contract conflict, this Rider controls.');
+        var sn = sellers.map(function (p) { return p.name; });
+        var rows2 = Math.max(bl.length, sellers.length, 1), st2 = '';
+        for (var r = 0; r < rows2; r++) st2 += '<tr><td>' + (bl[r] ? '<div class="sl"></div>' + esc(bl[r].name) + ', Purchaser' : '') + '</td><td>' + (sellers[r] ? '<div class="sl"></div>' + esc(sellers[r].name) + (sellers[r].by ? '<br>By: ' + esc(sellers[r].by) : '') + ', Seller' : '') + '</td></tr>';
+        return page('tnr', '<h1 class="b">' + esc(s.title || 'RIDER TO CONTRACT OF SALE') + '</h1><p class="ctr">' + esc(addr) + '</p>' +
+          '<p>' + esc(s.leadText || 'This Rider is made a part of the Contract of Sale' + (s.contractDate ? ' dated ' + when(s.contractDate) : '') + ' between ' + (joinNames(sn) || '__________') + ', as Seller, and ' + (joinNames(buyers) || '__________') + ', as Purchaser, for the premises above. The parties agree as follows:') + '</p>' +
+          '<table class="rd">' + ri.map(function (x, i) { return '<tr><td class="no">R-' + (i + 1) + '.</td><td>' + esc(x) + '</td><td class="ini"><i></i>Purchaser<i></i>Seller</td></tr>'; }).join('') + '</table>' +
+          '<table class="rs">' + st2 + '</table><p>Dated: ' + esc(when(s.date)) + '</p>', CSS_ADD_RIDER);
+      }
+      if (st === 'table') {
+        var box = function (role, p) { return '<div class="sb"><div class="sbl">' + role + '</div><div class="sbn">' + esc(p.name || '') + (p.by ? ' - by ' + esc(p.by) : '') + '</div><div class="sbs"></div><div class="sbd">Signature &nbsp; &middot; &nbsp; Date</div></div>'; };
+        return page('ari', '<div class="tbh"><div class="tbt">' + esc(s.title || 'CONTRACT AMENDMENT') + '</div><div class="tbn">' + (s.number ? 'No. ' + esc(s.number) + '<br>' : '') + esc(when(s.date)) + '</div></div>' +
+          '<table class="kv2"><tr><th>Buyer' + (buyers.length > 1 ? 's' : '') + '</th><td>' + esc(joinNames(buyers)) + '</td></tr><tr><th>Seller' + (sellers.length > 1 ? 's' : '') + '</th><td>' + esc(sellers.map(function (p) { return p.name + (p.by ? ' (by ' + p.by + ')' : ''); }).join(', ')) + '</td></tr><tr><th>Property</th><td>' + esc(addr) + '</td></tr>' + (s.contractDate ? '<tr><th>Contract dated</th><td>' + esc(when(s.contractDate)) + '</td></tr>' : '') + '</table>' +
+          '<p>' + esc(s.leadText || 'The parties to the contract identified above agree to the following changes:') + '</p>' +
+          '<table class="chg"><thead><tr><th>#</th><th>Item</th><th>Agreed change</th></tr></thead><tbody>' + (T.map(function (t, i) { return '<tr><td>' + (i + 1) + '</td><td><b>' + esc(t.h) + '</b></td><td>' + esc(t.t) + '</td></tr>'; }).join('') || '<tr><td colspan="3">Tick a change in the form</td></tr>') + '</tbody></table>' +
+          (s.remain ? '<p class="rm">' + esc(s.remainText || 'All other terms and conditions of the contract remain unchanged and in full force and effect.') + '</p>' : '') +
+          '<div class="sgg">' + bl.map(function (p) { return box('Buyer', p); }).join('') + sellers.map(function (p) { return box('Seller', p); }).join('') + '</div>', CSS_ADD_TABLE);
+      }
       /* letter: formal recitals */
       return page('geo', '<div class="lh">' + esc(addr) + '</div><h1>' + esc(s.title || 'ADDENDUM TO CONTRACT OF SALE') + '</h1>' +
         '<p>This Addendum is entered into on ' + esc(when(s.date)) + ' by and between ' + esc(joinNames(buyers)) + ' ("Buyer") and ' + esc(sellers.map(function (p) { return p.name; }).join(', ')) + ' ("Seller").</p>' +
@@ -11171,21 +11193,25 @@ window.MTData=M;})();
   };
   var CSS_PAGE = '@page{size:letter;margin:0}*{box-sizing:border-box}html{background:#7b8394}body{margin:0;padding:18px 0}.pg{width:8.5in;min-height:11in;margin:0 auto 18px;background:#fff;color:#000;padding:1in 1in .8in;position:relative;box-shadow:0 4px 18px rgba(0,0,0,.35)}' +
     '@media print{html,body{background:#fff;padding:0}.pg{margin:0;box-shadow:none;page-break-after:always}.pg:last-child{page-break-after:auto}}.tnr{font-family:"Times New Roman",Times,serif;font-size:12pt}.ari{font-family:Arial,Helvetica,sans-serif;font-size:11pt}.geo{font-family:Georgia,"Times New Roman",serif;font-size:11.5pt}.cal{font-family:Calibri,"Segoe UI",Arial,sans-serif;font-size:11pt}';
-  CSS_PAGE += '.fitw{transform-origin:0 0}.pg.fitted{height:11in;min-height:0;overflow:hidden}.pg.fitc{padding:.45in .55in!important}.pg.fitc .hd.m{margin:-.45in -.55in 14px}';
+  CSS_PAGE += '.lg{display:block;max-width:2.8in;object-fit:contain}.lgc{text-align:center;margin:0 0 8px}.lgc .lg{margin:0 auto}.lgrow{display:flex;gap:12px;align-items:center}.fitw{transform-origin:0 0}.pg.fitted{height:11in;min-height:0;overflow:hidden}.pg.fitc{padding:.45in .55in!important}.pg.fitc .hd.m{margin:-.45in -.55in 14px}';
   var CSS_ADD_MASTER = '.sigs.two{display:grid;grid-template-columns:1fr 1fr;gap:.35in;margin-top:.2in}.sigs.two .sig{width:auto;margin:0 0 .22in}.sigs.two .sig .sl{width:100%}.sigs.two .sig .dt{position:static;display:block;margin-top:2px}' + 'h1.u{text-align:center;font-weight:400;font-size:12pt;text-decoration:underline;margin:.6in 0 .3in}.ari h1.u{text-decoration:none}table.hdr{border-collapse:collapse;margin:0 0 .25in .1in}table.hdr td{padding:5px 10px 9px 0;vertical-align:top}.ari table.hdr td:first-child u{text-decoration:none}' +
     'p.lead{margin:.15in 0 .2in}p.term{margin:0 0 .15in}.ari p.lead,.ari p.term{text-align:center;font-size:9.5pt}.sigs{margin-top:.25in}.sig{position:relative;margin:0 0 .28in .1in;width:6.4in}.sig .sl{border-bottom:1px solid #000;width:4.1in;height:22px}.sig .dt{position:absolute;left:4.25in;top:4px}.sig .dt i{display:inline-block;width:1.1in;border-bottom:1px solid #000}.sig .sn{margin-top:2px}.sig .pn{font-size:9pt;color:#333}';
   var CSS_ADD_NUM = '.sig2.two{display:grid;grid-template-columns:1fr 1fr;gap:.1in .35in;margin-top:.45in}.sig2.two .r{width:auto;margin-bottom:.3in}.sig2.two .sl{width:2.2in}' + 'h1.b{text-align:center;font-size:12.5pt;margin:.4in 0 .3in}table.hdr{border-collapse:collapse;margin-bottom:.25in}table.hdr td{padding:1px 10px 1px 0;vertical-align:top}table.hdr td:first-child{font-weight:700}p,li{line-height:1.35}ol{padding-left:.25in}li{margin:0 0 .12in;padding-left:4px}.sig2{margin-top:.7in}.sig2 .r{display:flex;justify-content:space-between;width:5.2in;margin-bottom:.45in}.sig2 .sl{border-bottom:1px solid #000;width:3.1in;height:18px;margin-bottom:2px}';
   var CSS_ADD_PURCHASE = 'h1.big{text-align:center;font-size:18pt;margin:.3in 0 .45in}p{line-height:1.35;margin:0 0 .13in}table.st{width:100%;border-collapse:collapse;margin-top:.45in}table.st th,table.st td{border:1px solid #000;text-align:left;font-weight:400;padding:4px 6px;vertical-align:bottom;width:50%}table.st .sl{border-bottom:1px solid #000;width:2.4in;height:22px;margin-bottom:2px}';
   var CSS_ADD_FILL = 'h1.bu{text-align:center;font-size:13pt;text-decoration:underline;margin:.2in 0 .35in}p.ind{text-indent:.6in;line-height:1.6}.fl{border-bottom:1px solid #000;padding:0 6px;font-family:Arial,sans-serif;font-size:10.5pt}.big{font-family:Arial,sans-serif;font-size:19pt;line-height:1.25;margin:.3in 0 .5in .45in;min-height:2in}.r2{display:flex;align-items:flex-end;gap:10px;margin:.18in 0}.sl2{display:inline-block;width:3in;border-bottom:1px solid #000;min-height:18px;font-family:Arial,sans-serif;font-size:10pt}.sl3{display:inline-block;width:2.1in;border-bottom:1px solid #000;margin-left:6px}';
+  var CSS_ADD_RIDER = 'h1.b{text-align:center;font-size:13pt;margin:.25in 0 .05in;letter-spacing:.04em}p.ctr{text-align:center;margin:0 0 .2in;font-size:11pt}p{line-height:1.4}table.rd{width:100%;border-collapse:collapse;margin:.1in 0 .25in}table.rd td{vertical-align:top;padding:7px 6px 10px;border-bottom:1px solid #bbb;line-height:1.35}table.rd td.no{width:.5in;font-weight:700}table.rd td.ini{width:1in;font-size:7.5pt;text-align:center;color:#333}table.rd td.ini i{display:block;border-bottom:1px solid #000;height:15px;margin:2px 0}table.rs{width:100%;border-collapse:collapse;margin-top:.15in}table.rs td{width:50%;padding:0 12px 22px 0;vertical-align:bottom;font-size:10.5pt}table.rs .sl{border-bottom:1px solid #000;height:24px;margin-bottom:2px}';
+  var CSS_ADD_TABLE = '.tbh{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #1f3a5f;padding-bottom:6px;margin-bottom:12px}.tbt{font-size:17pt;font-weight:700;color:#1f3a5f;letter-spacing:.04em}.tbn{text-align:right;font-size:9.5pt;color:#444}table.kv2{width:100%;border-collapse:collapse;margin-bottom:12px;font-size:10pt}table.kv2 th{width:1.4in;text-align:left;background:#e8eef6;color:#1f3a5f;padding:5px 8px;border:1px solid #c5d3e4}table.kv2 td{padding:5px 8px;border:1px solid #c5d3e4}p{font-size:10.5pt;line-height:1.4}' +
+    'table.chg{width:100%;border-collapse:collapse;font-size:10pt;margin:6px 0 10px}table.chg th{background:#1f3a5f;color:#fff;text-align:left;padding:5px 8px}table.chg td{padding:6px 8px;border-bottom:1px solid #d5dde8;vertical-align:top;line-height:1.35}table.chg td:first-child{width:.3in;text-align:center;color:#666}table.chg td:nth-child(2){width:1.6in}p.rm{font-style:italic;color:#333}' +
+    '.sgg{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:.25in}.sb{border:1px solid #c5d3e4;border-radius:4px;padding:6px 10px}.sbl{font-size:7.5pt;text-transform:uppercase;letter-spacing:.06em;color:#1f3a5f;font-weight:700}.sbn{font-size:10pt;margin-top:2px}.sbs{border-bottom:1px solid #000;height:26px}.sbd{font-size:7.5pt;color:#666;margin-top:2px}';
   var CSS_ADD_LETTER = '.lh{text-align:right;font-size:9.5pt;color:#555;border-bottom:2px solid #1f3a5f;padding-bottom:6px;margin-bottom:.3in}h1{font-size:15pt;text-align:center;letter-spacing:.06em;color:#1f3a5f;margin:0 0 .3in}p,li{line-height:1.45;margin:0 0 .12in}ol{padding-left:.3in}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:.4in;margin-top:.5in}.grid2 .sl{border-bottom:1px solid #000;height:30px;margin:.12in 0 2px}.grid2 .d{font-size:9.5pt;color:#444}';
   function page(font, body, css, extra) { return '<!doctype html><html><head><meta charset="utf-8"><title>Document</title><style>' + CSS_PAGE + (css || '') + (extra || '') + '</style></head><body><div class="pg ' + font + '"><div class="fitw">' + body + '</div></div></body></html>'; }
   function pages(font, list, css) { return '<!doctype html><html><head><meta charset="utf-8"><title>Document</title><style>' + CSS_PAGE + (css || '') + '</style></head><body>' + list.map(function (b) { return '<div class="pg ' + font + '"><div class="fitw">' + b + '</div></div>'; }).join('') + '</body></html>'; }
 
   /* ==================================================================== LEASE */
-  var LEASE_STYLES = [['standard', 'Lease agreement - six sections (I-VI)'], ['detailed', 'Residential lease - detailed clauses'], ['monthly', 'Month-to-month rental agreement'], ['unit', 'Accessory unit / room rental agreement']];
+  var LEASE_STYLES = [['standard', 'Lease agreement - six sections (I-VI)'], ['detailed', 'Residential lease - detailed clauses'], ['monthly', 'Month-to-month rental agreement'], ['unit', 'Accessory unit / room rental agreement'], ['short', 'Short-form lease - one page, numbered paragraphs'], ['modern', 'Modern lease - key terms table and clauses']];
   function box(on) { return on ? '&#9746;' : '&#9744;'; }
   B.lease = {
-    label: 'Lease agreement', sub: 'Four styles, up to 4 tenants',
+    label: 'Lease agreement', sub: 'Six styles, up to 4 tenants',
     init: function () {
       var f = file();
       return {style: 'standard', date: iso(), landlords: [{name: '', mail: ''}], tenants: [{name: '', mail: ''}], address: f.address, city: f.city, state: stateName(f.state), zip: f.zip, county: f.county, unit: '',
@@ -11205,11 +11231,12 @@ window.MTData=M;})();
         '<fieldset><legend>Payment</legend><div class="g">' + field(b, 'rent', 'Monthly rent', {type: 'money'}) + field(b, 'dueDay', 'Due on the', {list: ['1st', '5th', '10th', '15th', 'last']}) + field(b, 'depOn', 'Security deposit', {type: 'check'}) + field(b, 'deposit', 'Deposit amount', {type: 'money'}) +
         field(b, 'lastOn', 'Last month\'s rent at signing', {type: 'check'}) + field(b, 'last', 'Last month amount', {type: 'money'}) + field(b, 'otherOn', 'Other charge', {type: 'check'}) + field(b, 'other', 'Describe') + '</div></fieldset>' +
         '<fieldset><legend>Utilities and terms</legend><div class="g">' + field(b, 'utilities', 'Tenant pays all utilities except', {wide: 1, ph: 'Gas, electric', list: ['None', 'Water and sewer', 'Gas and electric', 'Heat and hot water', 'Water, sewer and trash']}) + field(b, 'additional', 'Additional terms', {type: 'textarea', wide: 1, rows: 2}) +
-        (s.style === 'detailed' || s.style === 'unit' ? field(b, 'lateFee', 'Late fee ($)', {type: 'money'}) + field(b, 'graceDays', 'Grace period (days)') + field(b, 'occupants', 'Maximum occupants') + field(b, 'parking', 'Parking') + field(b, 'pets', 'Pets', {wide: 1}) : '') +
+        (s.style !== 'standard' && s.style !== 'monthly' ? field(b, 'lateFee', 'Late fee ($)', {type: 'money'}) + field(b, 'graceDays', 'Grace period (days)') + field(b, 'occupants', 'Maximum occupants') + field(b, 'parking', 'Parking') + field(b, 'pets', 'Pets', {wide: 1}) : '') +
         (s.style === 'unit' ? field(b, 'shared', 'Shared areas', {type: 'textarea', wide: 1, rows: 2}) : '') + '</div></fieldset>' +
         '<div class="row"><button type="button" class="btn" data-a="leaseRent">Send the rent to the Loan Suite rental</button></div>';
     },
     doc: function (s) {
+      if (s.style === 'short' || s.style === 'modern') return B.lease.doc2(s);
       var ll = (s.landlords || []).filter(function (p) { return p.name; }), tt = (s.tenants || []).filter(function (p) { return p.name; }), addr = addrOf(s) + (s.unit ? ', ' + s.unit : '');
       var monthly = s.style === 'monthly' || s.leaseType === 'monthly', title = s.style === 'monthly' ? 'MONTH-TO-MONTH RENTAL AGREEMENT' : s.style === 'unit' ? 'ACCESSORY UNIT RENTAL AGREEMENT' : s.style === 'detailed' ? 'RESIDENTIAL LEASE AGREEMENT' : 'LEASE AGREEMENT';
       var u = function (v, w) { return '<span class="fl" style="min-width:' + (w || 1.4) + 'in">' + esc(v || '') + '</span>'; };
@@ -11248,11 +11275,42 @@ window.MTData=M;})();
       return page('ari', '<h1>' + title + '</h1>' + sec.join('') + sig, CSS_LEASE);
     }
   };
+  /* short-form and modern leases share one set of clauses */
+  B.lease.doc2 = function (s) {
+    var ll = (s.landlords || []).filter(function (p) { return p.name; }), tt = (s.tenants || []).filter(function (p) { return p.name; }), addr = addrOf(s) + (s.unit ? ', ' + s.unit : ''), monthly = s.leaseType === 'monthly', law = stateName(s.state) || '__________';
+    var term = monthly ? 'month to month starting ' + when(s.start) + ', ending on ' + (s.noticeDays || 30) + ' days\' written notice from either party' : 'from ' + when(s.start) + ' through ' + when(s.end);
+    var kind = s.residence === 'Other' ? s.residenceOther : s.residence;
+    var C = [['Premises', 'Landlord rents to Tenant the ' + (kind ? String(kind).toLowerCase() : 'residence') + ' at ' + addr + (s.beds || s.baths ? ' (' + [s.beds ? s.beds + ' bedroom' + (s.beds == 1 ? '' : 's') : '', s.baths ? s.baths + ' bath' + (s.baths == 1 ? '' : 's') : ''].filter(Boolean).join(', ') + ')' : '') + '.'],
+      ['Term', 'The lease runs ' + term + '.'],
+      ['Rent', 'Tenant will pay ' + (N(s.rent) ? usd(s.rent) : '$________') + ' a month, due on the ' + (s.dueDay || '1st') + ' of each month' + (N(s.lateFee) ? '. Rent not received within ' + (s.graceDays || 5) + ' days of the due date carries a late charge of ' + usd(s.lateFee) + ', where permitted by law' : '') + '.'],
+      ['Deposit', (s.depOn && N(s.deposit) ? 'Tenant will pay a security deposit of ' + usd(s.deposit) + ' when this lease is signed' : 'No security deposit is required') + (s.lastOn && N(s.last) ? ', plus last month\'s rent of ' + usd(s.last) : '') + '. The deposit, less lawful deductions for unpaid rent or damage beyond normal wear and tear, is returned within the time the law of ' + law + ' requires.' + (s.otherOn && s.other ? ' Also due at signing: ' + s.other + '.' : '')],
+      ['Utilities', 'Tenant pays all utilities and services except: ' + (s.utilities || 'none') + '.'],
+      ['Use and occupancy', 'The premises are a private residence only' + (s.occupants ? ', for no more than ' + s.occupants + ' occupants' : '') + '. Tenant will not sublet or assign without Landlord\'s written consent.' + (s.parking ? ' Parking: ' + s.parking + '.' : '')],
+      ['Pets', s.pets || 'No pets without the Landlord\'s written consent.']];
+    if (s.style === 'modern' && s.shared && /room|unit|basement|accessory/i.test(kind || '')) C.push(['Shared areas', s.shared]);
+    C.push(['Maintenance', 'Tenant keeps the premises clean and reports needed repairs promptly; Landlord keeps the premises safe and habitable, except damage caused by Tenant or Tenant\'s guests.'],
+      ['Entry', 'Landlord may enter at reasonable times with the notice the law requires, and at any time in an emergency.'],
+      ['Governing law', 'This lease is governed by the laws of the State of ' + law + '.']);
+    if (s.additional) C.push(['Additional terms', s.additional]);
+    var sig = function (role, p) { return '<div class="sx"><div class="sxl"></div><div>' + role + (p && p.name ? ': ' + esc(p.name) : '') + '</div><div class="sxd">Date ________________</div></div>'; };
+    var sigs = '<div class="sg2">' + (ll.length ? ll : [{}]).map(function (p) { return sig('Landlord', p); }).join('') + (tt.length ? tt : [{}]).map(function (p) { return sig('Tenant', p); }).join('') + '</div>';
+    var who = function (list) { return list.map(function (p) { return esc(p.name) + (p.mail ? ' <span class="ml">(' + esc(p.mail) + ')</span>' : ''); }).join('<br>') || '________________'; };
+    if (s.style === 'short') return page('cal', '<h1 class="sh">' + (monthly ? 'MONTH-TO-MONTH RENTAL AGREEMENT' : 'RESIDENTIAL LEASE') + '</h1><p>This lease is made on ' + esc(when(s.date)) + ' between ' + (ll.map(function (p) { return esc(p.name); }).join(' and ') || '________________') + ' ("Landlord") and ' + (tt.map(function (p) { return esc(p.name); }).join(', ') || '________________') + ' ("Tenant").</p>' +
+      '<ol class="sh">' + C.map(function (c) { return '<li><b>' + esc(c[0]) + '.</b> ' + esc(c[1]) + '</li>'; }).join('') + '</ol><p>Landlord and Tenant have signed this lease on the dates below.</p>' + sigs, CSS_LEASE2);
+    return page('ari', '<div class="mh"><div class="mt">' + (monthly ? 'Month-to-Month Rental Agreement' : 'Residential Lease Agreement') + '</div><div class="md">' + esc(when(s.date)) + '</div></div>' +
+      '<table class="kt"><tr><th>Landlord</th><td>' + who(ll) + '</td><th>Tenant' + (tt.length > 1 ? 's' : '') + '</th><td>' + who(tt) + '</td></tr><tr><th>Premises</th><td colspan="3">' + esc(addr) + (kind ? ' &middot; ' + esc(kind) : '') + (s.beds ? ' &middot; ' + esc(s.beds) + ' bd' : '') + (s.baths ? ' / ' + esc(s.baths) + ' ba' : '') + '</td></tr>' +
+      '<tr><th>Term</th><td colspan="3">' + esc(monthly ? 'Month to month from ' + when(s.start) + ' (' + (s.noticeDays || 30) + ' days\' notice)' : when(s.start) + ' to ' + when(s.end)) + '</td></tr><tr><th>Monthly rent</th><td>' + (N(s.rent) ? usd(s.rent) : '') + ' due the ' + esc(s.dueDay || '1st') + '</td><th>Security deposit</th><td>' + (s.depOn && N(s.deposit) ? usd(s.deposit) : 'None') + '</td></tr>' +
+      '<tr><th>Late charge</th><td>' + (N(s.lateFee) ? usd(s.lateFee) + ' after ' + esc(s.graceDays || 5) + ' days' : 'None') + '</td><th>Tenant pays utilities except</th><td>' + esc(s.utilities || 'None') + '</td></tr></table>' +
+      '<h2 class="mh2">Terms and conditions</h2><ol class="mo">' + C.map(function (c) { return '<li><b>' + esc(c[0]) + '.</b> ' + esc(c[1]) + '</li>'; }).join('') + '</ol>' + sigs, CSS_LEASE2);
+  };
+  var CSS_LEASE2 = 'h1.sh{text-align:center;font-size:15pt;letter-spacing:.05em;margin:0 0 .15in}p{font-size:10.5pt;line-height:1.4;margin:0 0 .1in}ol.sh{padding-left:.3in;margin:0 0 .15in}ol.sh li,ol.mo li{font-size:10.5pt;line-height:1.4;margin:0 0 .07in}.ml{color:#555;font-size:9pt}' +
+    '.sg2{display:grid;grid-template-columns:1fr 1fr;gap:.15in .4in;margin-top:.25in}.sx{font-size:10pt}.sxl{border-bottom:1px solid #000;height:28px;margin-bottom:2px}.sxd{font-size:8.5pt;color:#555;margin-top:3px}' +
+    '.mh{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #2d5a27;padding-bottom:6px;margin-bottom:12px}.mt{font-size:18pt;font-weight:700;color:#2d5a27}.md{font-size:10pt;color:#444}table.kt{width:100%;border-collapse:collapse;font-size:9.5pt;margin-bottom:12px}table.kt th{background:#eaf2e8;color:#2d5a27;text-align:left;padding:5px 7px;border:1px solid #c9dcc5;width:1.15in;vertical-align:top}table.kt td{padding:5px 7px;border:1px solid #c9dcc5;vertical-align:top}h2.mh2{font-size:11.5pt;color:#2d5a27;margin:6px 0 6px;text-transform:uppercase;letter-spacing:.06em}ol.mo{padding-left:.28in;margin:0}';
   var CSS_LEASE = '.pg{padding:.75in .85in .7in}h1{text-align:center;font-size:17pt;margin:0 0 .2in}p{margin:0 0 .09in;line-height:1.32;font-size:11.5pt}p.sh{margin-top:.14in}p.ind{margin-left:.35in}p.ind2{margin-left:.55in}.fl{display:inline-block;border-bottom:1px solid #000;font-size:8.5pt;padding:0 3px;vertical-align:baseline;line-height:1.3}u{text-underline-offset:2px}table.sg{width:100%;margin-top:.2in;font-size:11.5pt;border-collapse:collapse}table.sg td{padding:6px 10px 14px 0;width:50%;line-height:1.7}.bl{display:inline-block;width:1.7in;border-bottom:2px solid #2f6fd6;vertical-align:baseline}';
 
   /* ======================================================= CONTRACTOR ESTIMATE */
   var TRADES = ['Kitchen', 'Bathroom', 'Roofing', 'Electrical', 'Plumbing', 'HVAC', 'Windows and doors', 'Flooring', 'Painting', 'Siding / exterior', 'Gutters and downspouts', 'Masonry', 'Foundation / structural', 'Drywall / plaster', 'Insulation', 'Trim and carpentry', 'Stairs and railings', 'Appliances', 'Decks / porches', 'Walks and driveways', 'Landscaping / site work', 'Demolition and debris', 'Lead paint / health and safety', 'Well / septic', 'Permits and plans', 'Other'];
-  var EST_STYLES = [['classic', 'Classic proposal - labor and materials'], ['modern', 'Modern itemized - color header'], ['qty', 'Detailed bid - quantity, unit and unit price'], ['reno', 'Renovation loan bid - 203(k) / HomeStyle'], ['lump', 'Lump-sum bid - one page, scope and total'], ['letter', 'Proposal letter and contract - acceptance block']];
+  var EST_STYLES = [['classic', 'Classic proposal - labor and materials'], ['modern', 'Modern itemized - color header'], ['qty', 'Detailed bid - quantity, unit and unit price'], ['reno', 'Renovation loan bid - 203(k) / HomeStyle'], ['lump', 'Lump-sum bid - one page, scope and total'], ['letter', 'Proposal letter and contract - acceptance block'], ['grouped', 'Grouped by trade - subtotal for each trade'], ['invoice', 'Quote / invoice - item, quantity, unit price, totals box']];
   var EST_PRESETS = {
     kitchen: ['Kitchen remodel', [['Demolition and debris', 'Remove existing cabinets, counters, flooring and fixtures; haul away debris'], ['Kitchen', 'Supply and install base and wall cabinets, hardware and countertops'], ['Plumbing', 'Sink, faucet, dishwasher and supply/drain connections'], ['Electrical', 'GFCI receptacles, under-cabinet and recessed lighting, appliance circuits'], ['Flooring', 'Install new kitchen flooring with underlayment'], ['Painting', 'Patch, prime and paint walls and ceiling'], ['Appliances', 'Range, refrigerator, dishwasher and range hood']]],
     bath: ['Bathroom remodel', [['Demolition and debris', 'Remove tub/shower, vanity, toilet, tile and flooring'], ['Plumbing', 'New valve, tub/shower, toilet, vanity sink and faucet'], ['Bathroom', 'Cement board, waterproofing, wall and floor tile'], ['Electrical', 'GFCI receptacle, vanity light and exhaust fan vented to exterior'], ['Painting', 'Prime and paint walls, ceiling and trim']]],
@@ -11262,7 +11320,7 @@ window.MTData=M;})();
     full: ['Full renovation (FHA 203(k) / HomeStyle)', [['Permits and plans', 'Building permits, plans and inspections'], ['Demolition and debris', 'Interior demolition and debris removal'], ['Roofing', 'Roof replacement'], ['Electrical', 'Upgrade service to 200 amp; rewire as needed to code'], ['Plumbing', 'Replace supply and drain lines; new water heater'], ['HVAC', 'New furnace / boiler and distribution'], ['Kitchen', 'New kitchen cabinets, counters and appliances'], ['Bathroom', 'Remodel bathroom(s)'], ['Flooring', 'New flooring throughout'], ['Drywall / plaster', 'Repair or replace drywall'], ['Painting', 'Interior and exterior paint'], ['Lead paint / health and safety', 'Lead-safe work practices; handrails, smoke and CO detectors']]]
   };
   B.estimate = {
-    label: 'Contractor estimate', sub: 'Six layouts, line items, draws',
+    label: 'Contractor estimate', sub: 'Eight layouts, logo, draws',
     init: function () { var f = file(); return {style: 'classic', title: '', company: '', license: '', phone: '', email: '', companyAddr: '', number: 'EST-' + iso().replace(/-/g, '').slice(2), date: dateFromPicker(iso()), validDays: '30', customer: f.borrowers.join(' & '), custPhone: '', custEmail: '',
       address: f.address, city: f.city, state: stateName(f.state), zip: f.zip, county: f.county, addrFree: '', lender: '', loanNo: '', consultant: '', program: f.renovation ? (/fha/i.test(f.program) ? 'FHA 203(k)' : 'Fannie Mae HomeStyle') : '',
       startDate: '', duration: '', items: [{trade: 'Kitchen', desc: '', qty: '', unit: '', labor: '', materials: ''}], permits: '', ohp: '10', contingency: '0', tax: '0', deposit: '10', draws: '4', warranty: '1 year on workmanship; manufacturer warranties on materials.',
@@ -11276,7 +11334,7 @@ window.MTData=M;})();
       return dropZone('estfile', 'Drop a contractor\'s bid or estimate', 'Reads the company, phone, email, license, estimate number, date, customer and each priced line.') +
         '<fieldset><legend>Version</legend><div class="g">' + field(b, 'style', 'Estimate version', {type: 'select', options: EST_STYLES, wide: 1}) +
         '<label class="f w">Start from a sample scope<span class="row" style="flex-wrap:nowrap"><select id="mtBpreset" aria-label="Sample scope" style="flex:1"><option value="">Choose a scope…</option>' + Object.keys(EST_PRESETS).map(function (k) { return '<option value="' + k + '">' + EST_PRESETS[k][0] + '</option>'; }).join('') + '</select><button type="button" class="btn" data-a="estPreset">Replace lines</button><button type="button" class="btn" data-a="estPresetAdd">Add lines</button></span></label>' +
-        field(b, 'title', 'Heading (blank = the version\'s heading)', {wide: 1, ph: s.style === 'reno' ? 'RENOVATION BID / WORK WRITE-UP' : s.style === 'letter' ? 'PROPOSAL AND CONTRACT' : 'ESTIMATE'}) + '</div></fieldset>' +
+        field(b, 'title', 'Heading (blank = the version\'s heading)', {wide: 1, ph: s.style === 'reno' ? 'RENOVATION BID / WORK WRITE-UP' : s.style === 'letter' ? 'PROPOSAL AND CONTRACT' : s.style === 'invoice' ? 'QUOTE' : 'ESTIMATE'}) + '</div></fieldset>' + logoBlock(b) +
         '<fieldset><legend>Contractor</legend><div class="g">' + field(b, 'company', 'Company', {wide: 1}) + field(b, 'number', 'Estimate #') + field(b, 'license', 'License #') + field(b, 'phone', 'Phone') + field(b, 'email', 'Email') + field(b, 'companyAddr', 'Company address', {wide: 1, addrLine: 1}) + field(b, 'date', 'Date', {type: 'date'}) + field(b, 'validDays', 'Valid for (days)') + '</div></fieldset>' +
         '<fieldset><legend>Customer</legend><div class="g">' + field(b, 'customer', 'Customer / bill to', {wide: 1}) + field(b, 'custPhone', 'Customer phone') + field(b, 'custEmail', 'Customer email') +
         (s.style === 'reno' ? field(b, 'program', 'Renovation program', {list: ['FHA 203(k)', 'FHA Limited 203(k)', 'Fannie Mae HomeStyle', 'Freddie Mac CHOICERenovation', 'VA Renovation']}) + field(b, 'lender', 'Lender') + field(b, 'loanNo', 'Loan / FHA case #') + field(b, 'consultant', '203(k) consultant') : '') + '</div></fieldset>' + propertyBlock(b) +
@@ -11298,7 +11356,7 @@ window.MTData=M;})();
     side: function () { var c = B.estimate.calc(drafts.estimate), el = $('mtBest'); if (el) el.innerHTML = '<div class="kv"><span>Labor</span><b>' + usd(c.labor) + '</b><span>Materials</span><b>' + usd(c.materials) + '</b><span>Overhead & profit</span><b>' + usd(c.ohp) + '</b>' + (c.tax ? '<span>Sales tax</span><b>' + usd(c.tax) + '</b>' : '') + '<span>Contingency</span><b>' + usd(c.cont) + '</b><span>Permits</span><b>' + usd(c.permits) + '</b><span>Total</span><b>' + usd(c.total) + '</b><span>Deposit / each draw</span><b>' + usd(c.deposit) + ' / ' + usd((c.total - c.deposit) / Math.min(50, Math.max(1, Math.round(N(drafts.estimate.draws) || 1)))) + '</b></div>'; },
     doc: function (s) {
       var c = B.estimate.calc(s), addr = addrOf(s), draws = Math.min(50, Math.max(1, Math.round(N(s.draws) || 1))), st = s.style || 'classic', lines = (s.items || []).filter(function (i) { return i.trade || i.desc || N(i.labor) || N(i.materials); });
-      var title = s.title || (st === 'reno' ? 'RENOVATION BID' : st === 'letter' ? 'PROPOSAL AND CONTRACT' : st === 'lump' ? 'BID PROPOSAL' : 'ESTIMATE');
+      var title = s.title || (st === 'reno' ? 'RENOVATION BID' : st === 'letter' ? 'PROPOSAL AND CONTRACT' : st === 'lump' ? 'BID PROPOSAL' : st === 'invoice' ? 'QUOTE' : 'ESTIMATE');
       var info = [s.companyAddr, s.phone, s.email, s.license ? 'License # ' + s.license : ''].filter(Boolean).map(esc).join(' &middot; '), amt = function (i) { return N(i.labor) + N(i.materials); };
       var after = c.total - c.deposit, sched = ''; for (var d = 1; d <= draws; d++) sched += '<tr><td>Draw ' + d + (d === draws ? ' (final, on completion and inspection)' : '') + '</td><td class="n">' + usd(after / draws) + '</td></tr>';
       var payTbl = '<h3>Payment schedule</h3><table class="ps"><tr><td>Deposit at signing (' + esc(s.deposit || 0) + '%)</td><td class="n">' + usd(c.deposit) + '</td></tr>' + sched + '</table>';
@@ -11307,16 +11365,31 @@ window.MTData=M;})();
       var terms = '<h3>Terms</h3><p class="terms">' + esc(s.notes || '').replace(/\n/g, '<br>') + '</p>' + (s.warranty ? '<p class="terms"><b>Warranty:</b> ' + esc(s.warranty) + '</p>' : '') + sched2;
       var sigs = '<div class="sigs"><div><div class="sl"></div>Contractor' + (s.signer ? ' - ' + esc(s.signer) : '') + ' &nbsp; Date</div><div><div class="sl"></div>Customer acceptance &nbsp; Date</div></div>';
       var meta = '<table class="meta"><tr><td><b>Customer</b><br>' + esc(s.customer || '') + (s.custPhone ? '<br>' + esc(s.custPhone) : '') + (s.custEmail ? '<br>' + esc(s.custEmail) : '') + '</td><td><b>Job site</b><br>' + esc(addr) + '</td><td><b>Date</b><br>' + esc(when(s.date)) + '<br><b>Valid</b> ' + esc(s.validDays || '30') + ' days</td></tr></table>';
-      var head = function (cls) { return '<div class="hd ' + (cls || '') + '"><div><div class="co">' + esc(s.company || 'Contractor name') + '</div><div class="ci">' + info + '</div></div><div class="tt">' + esc(title) + '<br><span>' + esc(s.number) + '</span></div></div>'; };
+      var head = function (cls, right) { return logoHead(s, '<div class="co">' + esc(s.company || 'Contractor name') + '</div><div class="ci">' + info + '</div>', right || '<div class="tt">' + esc(title) + '<br><span>' + esc(s.number) + '</span></div>', 'hd ' + (cls || '')); };
       if (st === 'lump') {
         return page('cal', head() + meta + '<h3>Scope of work</h3><ul class="sc">' + (lines.map(function (i) { return '<li><b>' + esc(i.trade) + '</b>' + (i.desc ? ' - ' + esc(i.desc).replace(/\n/g, '<br>') : '') + '</li>'; }).join('') || '<li>Add scope lines</li>') + '</ul>' +
           '<div class="lump"><span>Total price for the work above</span><b>' + usd(c.total) + '</b></div>' + payTbl + terms + (s.accept ? '<p class="terms">' + esc(s.accept) + '</p>' : '') + sigs, CSS_EST);
       }
       if (st === 'letter') {
-        return page('geo', '<div class="lh"><div class="co">' + esc(s.company || 'Contractor name') + '</div><div class="ci">' + info + '</div></div><p>' + esc(when(s.date)) + '</p><p>' + esc(s.customer || '') + '<br>' + esc(addr) + '</p><h1 class="lt">' + esc(title) + (s.number ? ' <span>No. ' + esc(s.number) + '</span>' : '') + '</h1>' +
+        return page('geo', logoHead(s, '<div class="co">' + esc(s.company || 'Contractor name') + '</div><div class="ci">' + info + '</div>', '', 'lh') + '<p>' + esc(when(s.date)) + '</p><p>' + esc(s.customer || '') + '<br>' + esc(addr) + '</p><h1 class="lt">' + esc(title) + (s.number ? ' <span>No. ' + esc(s.number) + '</span>' : '') + '</h1>' +
           '<p>' + esc(s.intro || '') + '</p><ol class="lt">' + lines.map(function (i) { return '<li><b>' + esc(i.trade) + '.</b> ' + esc(i.desc || '').replace(/\n/g, '<br>') + (amt(i) ? ' <span class="amt">' + usd(amt(i)) + '</span>' : '') + '</li>'; }).join('') + '</ol>' +
           '<p>We propose to do the work above for the sum of <b>' + usd(c.total) + '</b>' + (c.ohp || c.cont || c.permits || c.tax ? ' (including ' + [c.ohp ? 'overhead and profit' : '', c.tax ? 'sales tax' : '', c.cont ? 'a ' + esc(s.contingency) + '% contingency' : '', c.permits ? 'permits and fees' : ''].filter(Boolean).join(', ') + ')' : '') + ', payable ' + esc(s.deposit || 0) + '% (' + usd(c.deposit) + ') at signing and the balance in ' + draws + ' draw' + (draws > 1 ? 's' : '') + ' of ' + usd(after / draws) + ' as the work is completed.</p>' +
           terms + '<p>This proposal may be withdrawn if not accepted within ' + esc(s.validDays || '30') + ' days.</p><div class="sigs"><div><div class="sl"></div>' + esc(s.signer || 'Authorized signature') + ', ' + esc(s.company || '') + '</div><div></div></div><h3>Acceptance of proposal</h3><p class="terms">' + esc(s.accept || '') + '</p>' + '<div class="sigs"><div><div class="sl"></div>Customer &nbsp; Date</div><div><div class="sl"></div>Customer &nbsp; Date</div></div>', CSS_EST);
+      }
+      if (st === 'grouped') {
+        var groups = {}, order = []; lines.forEach(function (i) { var k = i.trade || 'Other'; if (!groups[k]) { groups[k] = []; order.push(k); } groups[k].push(i); });
+        var gl = function (g, f) { return g.reduce(function (t, i) { return t + N(i[f]); }, 0); };
+        var gb = order.map(function (k) { var g = groups[k], L = gl(g, 'labor'), M = gl(g, 'materials'); return '<tr class="gh"><td colspan="4">' + esc(k) + '</td></tr>' + g.map(function (i) { return '<tr><td class="ind">' + (esc(i.desc || '').replace(/\n/g, '<br>') || esc(k)) + '</td><td class="n">' + usd(i.labor) + '</td><td class="n">' + usd(i.materials) + '</td><td class="n">' + usd(amt(i)) + '</td></tr>'; }).join('') + '<tr class="gs"><td>Subtotal - ' + esc(k) + '</td><td class="n">' + usd(L) + '</td><td class="n">' + usd(M) + '</td><td class="n">' + usd(L + M) + '</td></tr>'; }).join('');
+        var summ = '<h3>Summary by trade</h3><table class="ps" style="width:4.6in">' + order.map(function (k) { var v = gl(groups[k], 'labor') + gl(groups[k], 'materials'); return '<tr><td>' + esc(k) + '</td><td class="n">' + usd(v) + '</td><td class="n" style="color:#666">' + (c.sub ? (v / c.sub * 100).toFixed(1) + '%' : '') + '</td></tr>'; }).join('') + '</table>';
+        return page('cal', head() + meta + '<table class="it gr"><thead><tr><th>Work item</th><th>Labor</th><th>Materials</th><th>Amount</th></tr></thead><tbody>' + (gb || '<tr><td colspan="4" class="c">Add scope lines</td></tr>') + '</tbody></table>' + totTbl + summ + payTbl + terms + sigs, CSS_EST);
+      }
+      if (st === 'invoice') {
+        var valid = parseDate(s.date) && N(s.validDays) ? longDate(addDays(s.date, N(s.validDays))) : (s.validDays || 30) + ' days';
+        var qm = '<div class="tt">' + esc(title) + '</div><table class="qm"><tr><td>Quote #</td><td>' + esc(s.number || '') + '</td></tr><tr><td>Date</td><td>' + esc(when(s.date)) + '</td></tr><tr><td>Valid until</td><td>' + esc(valid) + '</td></tr></table>';
+        var ir = lines.map(function (i, k) { var q = N(i.qty) || 1; return '<tr><td class="c">' + (k + 1) + '</td><td><b>' + esc(i.trade) + '</b></td><td>' + esc(i.desc || '').replace(/\n/g, '<br>') + '</td><td class="n">' + (N(i.qty) ? esc(i.qty) + (i.unit ? ' ' + esc(i.unit) : '') : '1') + '</td><td class="n">' + usd(amt(i) / q) + '</td><td class="n">' + usd(amt(i)) + '</td></tr>'; }).join('');
+        var tb = '<table class="qt"><tr><td>Subtotal</td><td class="n">' + usd(c.sub) + '</td></tr>' + (c.ohp ? '<tr><td>Overhead & profit (' + esc(s.ohp) + '%)</td><td class="n">' + usd(c.ohp) + '</td></tr>' : '') + (c.tax ? '<tr><td>Sales tax on materials</td><td class="n">' + usd(c.tax) + '</td></tr>' : '') + (c.cont ? '<tr><td>Contingency (' + esc(s.contingency) + '%)</td><td class="n">' + usd(c.cont) + '</td></tr>' : '') + (c.permits ? '<tr><td>Permits and fees</td><td class="n">' + usd(c.permits) + '</td></tr>' : '') + '<tr class="g"><td>Total</td><td class="n">' + usd(c.total) + '</td></tr><tr><td>Deposit due at signing (' + esc(s.deposit || 0) + '%)</td><td class="n">' + usd(c.deposit) + '</td></tr><tr><td>Balance in ' + draws + ' payment' + (draws > 1 ? 's' : '') + ' of</td><td class="n">' + usd(after / draws) + '</td></tr></table>';
+        return page('cal', head('', qm) + '<div class="bx"><div><b>Bill to</b><br>' + esc(s.customer || '') + (s.custPhone ? '<br>' + esc(s.custPhone) : '') + (s.custEmail ? '<br>' + esc(s.custEmail) : '') + '</div><div><b>Job site</b><br>' + esc(addr) + '</div></div>' +
+          '<table class="it"><thead><tr><th>#</th><th>Item</th><th>Description</th><th>Qty</th><th>Unit price</th><th>Amount</th></tr></thead><tbody>' + (ir || '<tr><td colspan="6" class="c">Add scope lines</td></tr>') + '</tbody></table>' + tb + terms + (s.accept ? '<p class="terms">' + esc(s.accept) + '</p>' : '') + sigs, CSS_EST);
       }
       var cols = st === 'qty' ? '<th>#</th><th>Description</th><th>Qty</th><th>Unit</th><th>Unit price</th><th>Labor</th><th>Materials</th><th>Amount</th>' : st === 'reno' ? '<th>#</th><th>Category / work item</th><th>Labor</th><th>Materials</th><th>Total</th>' : '<th>#</th><th>Scope of work</th><th>Labor</th><th>Materials</th><th>Amount</th>';
       var rows = lines.map(function (i, k) { var a = amt(i), q = N(i.qty); return '<tr><td class="c">' + (k + 1) + '</td><td><b>' + esc(i.trade) + '</b>' + (i.desc ? '<br>' + esc(i.desc).replace(/\n/g, '<br>') : '') + '</td>' +
@@ -11335,39 +11408,58 @@ window.MTData=M;})();
     'table{width:100%;border-collapse:collapse;font-size:10pt}table.meta td{vertical-align:top;padding:4px 8px 10px 0;width:33%}table.it th{background:#1f3a5f;color:#fff;padding:5px 6px;text-align:left}table.it td{border-bottom:1px solid #ccd5e0;padding:6px;vertical-align:top}table.it.q{font-size:9pt}.n{text-align:right;white-space:nowrap}.c{text-align:center}table.tot{width:3.4in;margin:10px 0 0 auto}table.tot td{padding:3px 6px}table.tot tr.g td{border-top:2px solid #1f3a5f;font-weight:700;font-size:11.5pt}' +
     'h3{font-size:11pt;color:#1f3a5f;margin:16px 0 6px}table.ps{width:4.2in}table.ps td{padding:3px 6px;border-bottom:1px solid #e3e8ef}.terms{font-size:9.5pt;line-height:1.4;margin:0 0 6px}.sigs{display:grid;grid-template-columns:1fr 1fr;gap:.5in;margin-top:.45in;font-size:9.5pt}.sigs .sl{border-bottom:1px solid #000;height:28px;margin-bottom:3px}' +
     'ul.sc{margin:4px 0 10px;padding-left:.25in;font-size:10.5pt;line-height:1.45}.lump{display:flex;justify-content:space-between;align-items:center;border:2px solid #1f3a5f;border-radius:6px;padding:10px 14px;margin:12px 0;font-size:12pt}.lump b{font-size:16pt;color:#1f3a5f}' +
-    '.lh{border-bottom:2px solid #1f3a5f;padding-bottom:8px;margin-bottom:18px}.geo p{line-height:1.45;margin:0 0 10px}h1.lt{font-size:14pt;letter-spacing:.06em;color:#1f3a5f;margin:14px 0 10px}h1.lt span{font-size:10pt;color:#666;letter-spacing:0}ol.lt li{margin:0 0 6px;line-height:1.4}ol.lt .amt{float:right;font-weight:700;padding-left:12px}';
+    '.lh{border-bottom:2px solid #1f3a5f;padding-bottom:8px;margin-bottom:18px}.geo p{line-height:1.45;margin:0 0 10px}h1.lt{font-size:14pt;letter-spacing:.06em;color:#1f3a5f;margin:14px 0 10px}h1.lt span{font-size:10pt;color:#666;letter-spacing:0}ol.lt li{margin:0 0 6px;line-height:1.4}ol.lt .amt{float:right;font-weight:700;padding-left:12px}' +
+    '.lh{display:flex;justify-content:space-between;align-items:flex-start}table.it.gr tr.gh td{background:#e8eef6;font-weight:700;color:#1f3a5f;border-bottom:1px solid #9fb3cc}table.it.gr td.ind{padding-left:18px}table.it.gr tr.gs td{font-weight:700;border-top:1px solid #1f3a5f;border-bottom:2px solid #ccd5e0}' +
+    'table.qm{width:auto;margin:6px 0 0 auto;font-size:9pt}table.qm td{padding:1px 0 1px 12px;text-align:right}table.qm td:first-child{color:#666}.bx{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:0 0 12px}.bx>div{border:1px solid #ccd5e0;border-radius:4px;padding:8px 10px;font-size:10pt;line-height:1.4}' +
+    'table.qt{width:3.6in;margin:10px 0 6px auto;border:1px solid #1f3a5f}table.qt td{padding:4px 8px;border-bottom:1px solid #e3e8ef}table.qt tr.g td{background:#1f3a5f;color:#fff;font-weight:700;font-size:12pt}';
   /* ==================================================================== P & L */
   var PL_EXP = ['Advertising', 'Car and truck', 'Contract labor', 'Insurance', 'Interest', 'Legal and professional', 'Office expense', 'Rent or lease', 'Repairs and maintenance', 'Supplies', 'Taxes and licenses', 'Travel', 'Meals', 'Utilities', 'Wages', 'Other'];
+  var PL_STYLES = [['summary', 'Accountant summary'], ['detailed', 'Detailed statement (% of income)'], ['condensed', 'Condensed one-page'], ['annualized', 'Annualized - monthly average and 12-month figures'], ['compare', 'Comparative - this period against a prior period']];
   B.pl = {
-    label: 'Profit and loss', sub: 'Year-to-date or annual P&L',
-    init: function () { var f = file(), y = new Date().getFullYear(); return {style: 'summary', business: '', owner: f.borrowers.join(' & '), bizAddr: '', from: y + '-01-01', to: iso(), own: '100', preparer: '', prepTitle: 'Owner', prepDate: iso(), basis: 'Cash',
-      income: [{label: 'Gross receipts / sales', amt: ''}], cogs: [{label: 'Cost of goods sold', amt: ''}], expenses: PL_EXP.slice(0, 6).map(function (l) { return {label: l, amt: ''}; })}; },
-    calc: function (s) { var sum = function (a) { return (a || []).reduce(function (t, r) { return t + N(r.amt); }, 0); }; var inc = sum(s.income), cogs = sum(s.cogs), exp = sum(s.expenses), gp = inc - cogs, net = gp - exp, from = parseDate(s.from), to = parseDate(s.to);
-      var months = from && to ? Math.max(1, Math.round(((to - from) / 86400000 + 1) / 30.4375)) : 12; return {inc: inc, cogs: cogs, gp: gp, exp: exp, net: net, months: months, monthly: net / months * N(s.own) / 100}; },
+    label: 'Profit and loss', sub: 'Five layouts, logo, YTD or annual',
+    init: function () { var f = file(), y = new Date().getFullYear(); return {style: 'summary', logo: savedLogo(), logoSize: '52', logoPos: 'center', business: '', owner: f.borrowers.join(' & '), bizAddr: '', from: '1/1/' + y, to: dateFromPicker(iso()), own: '100', preparer: '', prepTitle: 'Owner', prepDate: dateFromPicker(iso()), basis: 'Cash',
+      curLabel: String(y), priorLabel: String(y - 1),
+      income: [{label: 'Gross receipts / sales', amt: '', prior: ''}], cogs: [{label: 'Cost of goods sold', amt: '', prior: ''}], expenses: PL_EXP.slice(0, 6).map(function (l) { return {label: l, amt: '', prior: ''}; })}; },
+    fix: function (s) { if (s.curLabel == null) { var y = new Date().getFullYear(); s.curLabel = String(y); s.priorLabel = String(y - 1); } if (s.logoPos == null) s.logoPos = 'center'; },
+    calc: function (s) { var sum = function (a, k) { return (a || []).reduce(function (t, r) { return t + N(r[k || 'amt']); }, 0); }; var inc = sum(s.income), cogs = sum(s.cogs), exp = sum(s.expenses), gp = inc - cogs, net = gp - exp, from = parseDate(s.from), to = parseDate(s.to);
+      var pinc = sum(s.income, 'prior'), pcogs = sum(s.cogs, 'prior'), pexp = sum(s.expenses, 'prior');
+      var months = from && to ? Math.max(1, Math.round(((to - from) / 86400000 + 1) / 30.4375)) : 12; return {inc: inc, cogs: cogs, gp: gp, exp: exp, net: net, months: months, monthly: net / months * N(s.own) / 100, pinc: pinc, pcogs: pcogs, pgp: pinc - pcogs, pexp: pexp, pnet: pinc - pcogs - pexp}; },
     form: function () {
-      var b = 'pl', s = drafts[b], list = function (k, title, addLabel) { return '<fieldset><legend>' + title + '</legend><div class="list">' + (s[k] || []).map(function (r, i) { return '<div class="g" style="grid-template-columns:1fr 130px auto;margin-bottom:5px"><input data-b="pl" data-list="' + k + '" data-i="' + i + '" data-f="label" value="' + esc(r.label) + '" aria-label="Line"><input inputmode="decimal" data-b="pl" data-list="' + k + '" data-i="' + i + '" data-f="amt" value="' + esc(r.amt) + '" placeholder="0.00" aria-label="Amount"><button type="button" class="x" data-a="rm" data-b="pl" data-list="' + k + '" data-i="' + i + '" aria-label="Remove">×</button></div>'; }).join('') + '</div><button type="button" class="btn" data-a="add" data-b="pl" data-list="' + k + '">' + addLabel + '</button></fieldset>'; };
+      var b = 'pl', s = drafts[b], cmp = s.style === 'compare', list = function (k, title, addLabel) { return '<fieldset><legend>' + title + '</legend>' + (cmp ? '<div class="g note" style="grid-template-columns:1fr 110px 110px auto;margin:0 0 4px"><span>Line</span><span>' + esc(s.curLabel || 'This period') + '</span><span>' + esc(s.priorLabel || 'Prior period') + '</span><span></span></div>' : '') + '<div class="list">' + (s[k] || []).map(function (r, i) { var a = ' data-b="pl" data-list="' + k + '" data-i="' + i + '"'; return '<div class="g" style="grid-template-columns:1fr ' + (cmp ? '110px 110px' : '130px') + ' auto;margin-bottom:5px"><input' + a + ' data-f="label" value="' + esc(r.label) + '" aria-label="Line"><input inputmode="decimal"' + a + ' data-f="amt" value="' + esc(r.amt) + '" placeholder="0.00" aria-label="Amount">' + (cmp ? '<input inputmode="decimal"' + a + ' data-f="prior" value="' + esc(r.prior || '') + '" placeholder="0.00" aria-label="Prior period amount">' : '') + '<button type="button" class="x" data-a="rm" data-b="pl" data-list="' + k + '" data-i="' + i + '" aria-label="Remove">×</button></div>'; }).join('') + '</div><button type="button" class="btn" data-a="add" data-b="pl" data-list="' + k + '">' + addLabel + '</button></fieldset>'; };
       return dropZone('plfile', 'Drop a profit and loss statement', 'Reads the business name, period and each income, cost and expense line with its amount.') +
-        '<fieldset><legend>Business</legend><div class="g">' + field(b, 'style', 'Layout', {type: 'select', options: [['summary', 'Accountant summary'], ['detailed', 'Detailed statement (% of income)'], ['condensed', 'Condensed one-page']], wide: 1}) +
+        '<fieldset><legend>Business</legend><div class="g">' + field(b, 'style', 'Layout', {type: 'select', options: PL_STYLES, wide: 1}) +
         field(b, 'business', 'Business name', {wide: 1}) + field(b, 'owner', 'Owner(s)') + field(b, 'own', 'Ownership (%)', {type: 'pct'}) + field(b, 'bizAddr', 'Business address', {wide: 1, addrLine: 1}) + field(b, 'from', 'Period from', {type: 'date'}) + field(b, 'to', 'Period to', {type: 'date'}) +
-        field(b, 'basis', 'Accounting basis', {list: ['Cash', 'Accrual', 'Modified cash']}) + field(b, 'preparer', 'Prepared by') + field(b, 'prepTitle', 'Title', {list: ['Owner', 'Member', 'President', 'CPA', 'Bookkeeper', 'Tax preparer']}) + field(b, 'prepDate', 'Date prepared', {type: 'date'}) + '</div></fieldset>' +
+        (cmp ? field(b, 'curLabel', 'Column heading - this period', {ph: '2026 YTD'}) + field(b, 'priorLabel', 'Column heading - prior period', {ph: '2025'}) : '') +
+        field(b, 'basis', 'Accounting basis', {list: ['Cash', 'Accrual', 'Modified cash']}) + field(b, 'preparer', 'Prepared by') + field(b, 'prepTitle', 'Title', {list: ['Owner', 'Member', 'President', 'CPA', 'Bookkeeper', 'Tax preparer']}) + field(b, 'prepDate', 'Date prepared', {type: 'date'}) + '</div></fieldset>' + logoBlock(b) +
         list('income', 'Income', '+ Add income line') + list('cogs', 'Cost of goods sold', '+ Add cost line') + list('expenses', 'Operating expenses', '+ Add expense') + '<div id="mtBpl"></div>' +
         '<div class="row" style="margin-top:8px"><button type="button" class="btn" data-a="plUse">Send to Non-QM profit and loss income</button></div>';
     },
-    side: function () { var c = B.pl.calc(drafts.pl), el = $('mtBpl'); if (el) el.innerHTML = '<div class="kv"><span>Total income</span><b>' + usd(c.inc) + '</b><span>Gross profit</span><b>' + usd(c.gp) + '</b><span>Total expenses</span><b>' + usd(c.exp) + '</b><span>Net profit (' + c.months + ' months)</span><b class="' + (c.net < 0 ? 'bad' : '') + '">' + usd(c.net) + '</b><span>Monthly x ownership</span><b>' + usd(c.monthly) + '</b></div>'; },
+    side: function () { var c = B.pl.calc(drafts.pl), el = $('mtBpl'); if (el) el.innerHTML = '<div class="kv"><span>Total income</span><b>' + usd(c.inc) + '</b><span>Gross profit</span><b>' + usd(c.gp) + '</b><span>Total expenses</span><b>' + usd(c.exp) + '</b><span>Net profit (' + c.months + ' months)</span><b class="' + (c.net < 0 ? 'bad' : '') + '">' + usd(c.net) + '</b><span>Monthly x ownership</span><b>' + usd(c.monthly) + '</b>' + (drafts.pl.style === 'compare' ? '<span>Prior period net</span><b>' + usd(c.pnet) + '</b>' : '') + '</div>'; },
     doc: function (s) {
-      var c = B.pl.calc(s), det = s.style === 'detailed', rows = function (a) { return (a || []).filter(function (r) { return r.label || N(r.amt); }).map(function (r) { return '<tr><td class="i">' + esc(r.label) + '</td><td class="n">' + usd(r.amt) + '</td>' + (det ? '<td class="n p">' + (c.inc ? pct(N(r.amt) / c.inc, 1) : '') + '</td>' : '') + '</tr>'; }).join(''); };
-      var tot = function (l, v, cls) { return '<tr class="' + (cls || 't') + '"><td>' + l + '</td><td class="n">' + usd(v) + '</td>' + (det ? '<td class="n p">' + (c.inc ? pct(v / c.inc, 1) : '') + '</td>' : '') + '</tr>'; };
-      var head = '<div class="h"><div class="b">' + esc(s.business || 'Business name') + '</div>' + (s.bizAddr ? '<div class="a">' + esc(s.bizAddr) + '</div>' : '') + '<div class="t">Profit and Loss Statement</div><div class="a">' + esc(longDate(s.from)) + ' through ' + esc(longDate(s.to)) + ' &middot; ' + esc(s.basis) + ' basis</div></div>';
-      var body = s.style === 'condensed' ? '<table><tr><td>Total income</td><td class="n">' + usd(c.inc) + '</td></tr><tr><td>Less: cost of goods sold</td><td class="n">' + usd(c.cogs) + '</td></tr>' + tot('Gross profit', c.gp) + '<tr><td>Less: operating expenses</td><td class="n">' + usd(c.exp) + '</td></tr>' + tot('Net profit', c.net, 'g') + '</table>' :
-        '<table>' + (det ? '<tr class="hh"><td></td><td class="n">Amount</td><td class="n">% of income</td></tr>' : '') + '<tr class="s"><td colspan="3">INCOME</td></tr>' + rows(s.income) + tot('Total income', c.inc) +
-        (c.cogs ? '<tr class="s"><td colspan="3">COST OF GOODS SOLD</td></tr>' + rows(s.cogs) + tot('Total cost of goods sold', c.cogs) : '') + tot('Gross profit', c.gp) +
-        '<tr class="s"><td colspan="3">OPERATING EXPENSES</td></tr>' + rows(s.expenses) + tot('Total operating expenses', c.exp) + tot('NET PROFIT', c.net, 'g') + '</table>';
+      var c = B.pl.calc(s), st = s.style || 'summary', mo = c.months;
+      /* the value columns each layout prints for a line (amount, prior amount) */
+      var COLS = {summary: [['Amount', function (v) { return usd(v); }]], condensed: [['Amount', function (v) { return usd(v); }]],
+        detailed: [['Amount', function (v) { return usd(v); }], ['% of income', function (v) { return c.inc ? pct(v / c.inc, 1) : ''; }, 'p']],
+        annualized: [[esc(mo) + '-month amount', function (v) { return usd(v); }], ['Monthly average', function (v) { return usd(v / mo); }, 'p'], ['Annualized (12 months)', function (v) { return usd(v / mo * 12); }]],
+        compare: [[esc(s.curLabel || 'This period'), function (v) { return usd(v); }], [esc(s.priorLabel || 'Prior period'), function (v, p) { return usd(p); }], ['Change', function (v, p) { return usd(v - p); }, 'p'], ['Change %', function (v, p) { return p ? pct((v - p) / Math.abs(p), 1) : ''; }, 'p']]}[st] || [['Amount', function (v) { return usd(v); }]];
+      var n = COLS.length + 1, hdr = COLS.length > 1 ? '<tr class="hh"><td></td>' + COLS.map(function (k) { return '<td class="n">' + k[0] + '</td>'; }).join('') + '</tr>' : '';
+      var cells = function (v, p) { return COLS.map(function (k) { return '<td class="n' + (k[2] ? ' ' + k[2] : '') + '">' + k[1](v, p || 0) + '</td>'; }).join(''); };
+      var rows = function (a) { return (a || []).filter(function (r) { return r.label || N(r.amt) || N(r.prior); }).map(function (r) { return '<tr><td class="i">' + esc(r.label) + '</td>' + cells(N(r.amt), N(r.prior)) + '</tr>'; }).join(''); };
+      var tot = function (l, v, p, cls) { return '<tr class="' + (cls || 't') + '"><td>' + l + '</td>' + cells(v, p) + '</tr>'; };
+      var lg = s.logo ? '<img class="lg plg-' + (s.logoPos || 'center') + '" src="' + s.logo + '" alt="" style="height:' + (N(s.logoSize) || 52) + 'px">' : '';
+      var head = '<div class="h">' + lg + '<div class="b">' + esc(s.business || 'Business name') + '</div>' + (s.bizAddr ? '<div class="a">' + esc(s.bizAddr) + '</div>' : '') + '<div class="t">' + (st === 'compare' ? 'Comparative Profit and Loss Statement' : st === 'annualized' ? 'Profit and Loss Statement - Annualized' : 'Profit and Loss Statement') + '</div><div class="a">' + esc(when(s.from)) + ' through ' + esc(when(s.to)) + ' &middot; ' + esc(s.basis) + ' basis</div></div>';
+      var body = st === 'condensed' ? '<table><tr><td>Total income</td><td class="n">' + usd(c.inc) + '</td></tr><tr><td>Less: cost of goods sold</td><td class="n">' + usd(c.cogs) + '</td></tr>' + tot('Gross profit', c.gp) + '<tr><td>Less: operating expenses</td><td class="n">' + usd(c.exp) + '</td></tr>' + tot('Net profit', c.net, 0, 'g') + '</table>' :
+        '<table class="c' + COLS.length + '">' + hdr + '<tr class="s"><td colspan="' + n + '">INCOME</td></tr>' + rows(s.income) + tot('Total income', c.inc, c.pinc) +
+        (c.cogs || c.pcogs ? '<tr class="s"><td colspan="' + n + '">COST OF GOODS SOLD</td></tr>' + rows(s.cogs) + tot('Total cost of goods sold', c.cogs, c.pcogs) : '') + tot('Gross profit', c.gp, c.pgp) +
+        '<tr class="s"><td colspan="' + n + '">OPERATING EXPENSES</td></tr>' + rows(s.expenses) + tot('Total operating expenses', c.exp, c.pexp) + tot('NET PROFIT', c.net, c.pnet, 'g') + '</table>' +
+        (st === 'annualized' ? '<p class="nt">Monthly average is the period\'s amount divided by ' + mo + ' month' + (mo > 1 ? 's' : '') + '; annualized is that average times 12. Net profit at ' + esc(s.own || 100) + '% ownership: ' + usd(c.net / mo * N(s.own || 100) / 100) + ' a month.</p>' : '');
       return page('cal', head + body + '<p class="cert">I certify that this profit and loss statement for ' + esc(s.business || 'the business') + ' is true and complete to the best of my knowledge and was prepared from the business\'s records.</p>' +
-        '<div class="sg"><div><div class="sl"></div>' + esc(s.preparer || s.owner || '') + (s.prepTitle ? ', ' + esc(s.prepTitle) : '') + '</div><div><div class="sl"></div>Date ' + esc(slashDate(s.prepDate)) + '</div></div>' +
+        '<div class="sg"><div><div class="sl"></div>' + esc(s.preparer || s.owner || '') + (s.prepTitle ? ', ' + esc(s.prepTitle) : '') + '</div><div><div class="sl"></div>Date ' + esc(when(s.prepDate, slashDate)) + '</div></div>' +
         (s.owner && s.owner !== s.preparer ? '<div class="sg"><div><div class="sl"></div>' + esc(s.owner) + ', Owner (' + esc(s.own || 100) + '%)</div><div><div class="sl"></div>Date</div></div>' : ''), CSS_PL);
     }
   };
-  var CSS_PL = '.h{text-align:center;margin-bottom:.25in}.h .b{font-size:17pt;font-weight:700}.h .t{font-size:13pt;font-weight:700;margin-top:8px;letter-spacing:.04em}.h .a{font-size:9.5pt;color:#555}table{width:100%;border-collapse:collapse;font-size:10.5pt}td{padding:3px 6px}td.i{padding-left:22px}.n{text-align:right;white-space:nowrap}.p{color:#666;font-size:9pt}tr.s td{font-weight:700;padding-top:12px;border-bottom:1px solid #999}tr.t td{font-weight:700;border-top:1px solid #000}tr.g td{font-weight:700;font-size:12pt;border-top:2px solid #000;border-bottom:3px double #000}tr.hh td{font-size:9pt;color:#666}.cert{margin-top:.35in;font-size:9.5pt;line-height:1.4}.sg{display:grid;grid-template-columns:2fr 1fr;gap:.4in;margin-top:.3in;font-size:9.5pt}.sg .sl{border-bottom:1px solid #000;height:26px;margin-bottom:3px}';
+  var CSS_PL = '.h{text-align:center;margin-bottom:.25in;position:relative;min-height:.4in}.h .b{font-size:17pt;font-weight:700}.h .t{font-size:13pt;font-weight:700;margin-top:8px;letter-spacing:.04em}.h .a{font-size:9.5pt;color:#555}table{width:100%;border-collapse:collapse;font-size:10.5pt}table.c3,table.c4{font-size:9.5pt}td{padding:3px 6px}td.i{padding-left:22px}.n{text-align:right;white-space:nowrap}.p{color:#666;font-size:9pt}tr.s td{font-weight:700;padding-top:12px;border-bottom:1px solid #999}tr.t td{font-weight:700;border-top:1px solid #000}tr.g td{font-weight:700;font-size:12pt;border-top:2px solid #000;border-bottom:3px double #000}tr.hh td{font-size:8.5pt;color:#555;font-weight:600;border-bottom:1px solid #999}.cert{margin-top:.35in;font-size:9.5pt;line-height:1.4}.nt{font-size:9pt;color:#444;margin-top:10px}.sg{display:grid;grid-template-columns:2fr 1fr;gap:.4in;margin-top:.3in;font-size:9.5pt}.sg .sl{border-bottom:1px solid #000;height:26px;margin-bottom:3px}' +
+    '.lg{display:block;max-width:2.8in;object-fit:contain}.plg-center{margin:0 auto 6px}.plg-left{position:absolute;left:0;top:0}.plg-right{position:absolute;right:0;top:0}';
 
   /* ========================================================= COMMITMENT LETTER */
   var COND_LIB = [
@@ -11577,9 +11669,222 @@ window.MTData=M;})();
     }
   };
 
+  /* ===================================================================== LOGO */
+  /* a logo is resized in the browser and kept with the draft; the last one uploaded is offered to the other builders */
+  var LOGO_KEY = 'mt.builder.logo';
+  function savedLogo() { try { return localStorage.getItem(LOGO_KEY) || ''; } catch (e) { return ''; } }
+  function logoBlock(b) {
+    var s = drafts[b], other = savedLogo();
+    return '<fieldset><legend>Logo</legend><div class="row">' + (s.logo ? '<img src="' + s.logo + '" alt="Current logo" style="max-height:52px;max-width:200px;background:#fff;padding:4px;border-radius:6px">' : '<span class="note" style="margin:0">No logo on this document.</span>') +
+      '<label class="btn">' + (s.logo ? 'Replace logo' : 'Upload logo') + '<input type="file" accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml" data-a="logo" data-b="' + b + '" aria-label="Upload a logo"></label>' +
+      (s.logo ? '<button type="button" class="x" data-a="logoRm" data-b="' + b + '">Remove</button>' : other ? '<button type="button" class="btn" data-a="logoReuse" data-b="' + b + '">Use the last logo uploaded</button>' : '') + '</div>' +
+      (s.logo ? '<div class="g" style="margin-top:8px">' + field(b, 'logoSize', 'Logo size', {type: 'select', options: [['36', 'Small'], ['52', 'Medium'], ['72', 'Large'], ['96', 'Extra large']]}) + field(b, 'logoPos', 'Placement', {type: 'select', options: [['left', 'Left of the name'], ['center', 'Centered above'], ['right', 'Top right']]}) + '</div>' : '') +
+      '<p class="note">PNG, JPG, GIF, WebP or SVG. It is resized and kept in this browser with the draft.</p></fieldset>';
+  }
+  function loadLogo(b, fl) {
+    if (!drafts[b] || !/^image\//.test(fl.type)) { say('Choose an image file for the logo.'); return; }
+    var rd = new FileReader();
+    rd.onload = function () {
+      var img = new Image();
+      img.onload = function () {
+        var w = img.naturalWidth || 600, h = img.naturalHeight || 200, k = Math.min(1, 640 / w, 320 / h), cv = document.createElement('canvas');
+        cv.width = Math.max(1, Math.round(w * k)); cv.height = Math.max(1, Math.round(h * k)); cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+        var url = cv.toDataURL('image/png'); if (url.length > 350000) { var c2 = document.createElement('canvas'); c2.width = cv.width; c2.height = cv.height; var x = c2.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c2.width, c2.height); x.drawImage(cv, 0, 0); url = c2.toDataURL('image/jpeg', .9); }
+        drafts[b].logo = url; if (!drafts[b].logoSize) drafts[b].logoSize = '52'; if (!drafts[b].logoPos) drafts[b].logoPos = 'left';
+        try { localStorage.setItem(LOGO_KEY, url); } catch (e) {}
+        persist(); renderForm(); refresh(true);
+      };
+      img.onerror = function () { say('That image could not be read - try a PNG or JPG.'); };
+      img.src = rd.result;
+    };
+    rd.readAsDataURL(fl);
+  }
+  function logoImg(s) { return s.logo ? '<img class="lg" src="' + s.logo + '" alt="" style="height:' + (N(s.logoSize) || 52) + 'px">' : ''; }
+  /* a header with the logo where the user placed it: left of the name, centered above, or top right */
+  function logoHead(s, left, right, cls) {
+    var im = logoImg(s), pos = s.logoPos || 'left'; if (pos === 'center' && / m\b/.test(' ' + cls)) pos = 'left';
+    if (!im) return '<div class="' + cls + '"><div>' + left + '</div><div>' + right + '</div></div>';
+    if (pos === 'center') return '<div class="lgc">' + im + '</div><div class="' + cls + '"><div>' + left + '</div><div>' + right + '</div></div>';
+    if (pos === 'right') return '<div class="' + cls + '"><div>' + left + '</div><div style="text-align:right">' + im.replace('class="lg"', 'class="lg" style="margin-left:auto;margin-bottom:6px;height:' + (N(s.logoSize) || 52) + 'px"') + right + '</div></div>';
+    return '<div class="' + cls + '"><div class="lgrow">' + im + '<div>' + left + '</div></div><div>' + right + '</div></div>';
+  }
+  var CSS_LOGO = '.lg{display:block;max-width:2.8in;object-fit:contain}.lgc{text-align:center;margin:0 0 8px}.lgc .lg{margin:0 auto}.lgrow{display:flex;gap:12px;align-items:center}';
+
+  /* ============================================================ PAY STATEMENT */
+  /* Moved here from the Income Calculator's Documents tab (55.x). Withholding: IRS Pub 15-T annualised percentage method;
+     New York State, NYC and Yonkers annual tables; NY SDI and Paid Family Leave. Every rate is editable - the tables change each January. */
+  var PAY_PPY = {Weekly: 52, 'Bi-Weekly': 26, 'Semi-Monthly': 24, Monthly: 12};
+  var FED_SD = {single: 16100, mfj: 32200, hoh: 24150};
+  var FED_BR = {single: [[0, .10], [12400, .12], [50400, .22], [105700, .24], [201775, .32], [256225, .35], [640600, .37]],
+    mfj: [[0, .10], [24800, .12], [100800, .22], [211400, .24], [403550, .32], [512450, .35], [768700, .37]],
+    hoh: [[0, .10], [17700, .12], [67450, .22], [105700, .24], [201750, .32], [256200, .35], [640600, .37]]};
+  var NY_SD = {single: 8000, mfj: 16050};
+  var NY_BR = {single: [[0, .04], [8500, .045], [11700, .0525], [13900, .055], [80650, .06], [215400, .0685], [1077550, .0965], [5000000, .103], [25000000, .109]],
+    mfj: [[0, .04], [17150, .045], [23600, .0525], [27900, .055], [161550, .06], [323200, .0685], [2155350, .0965], [5000000, .103], [25000000, .109]]};
+  var NYC_BR = {single: [[0, .03078], [12000, .03762], [25000, .03819], [50000, .03876]], mfj: [[0, .03078], [21600, .03762], [45000, .03819], [90000, .03876]]};
+  var YONKERS = .1675;
+  function bracketTax(income, table, div) { var d = div || 1, inc = Math.max(0, income), tax = 0; for (var i = table.length - 1; i >= 0; i--) { var floor = table[i][0] / d; if (inc > floor) { tax += (inc - floor) * table[i][1]; inc = floor; } } return tax; }
+  var PAY_STYLES = [['classic', 'Classic earnings statement - framed sections'], ['modern', 'Modern - color header, cards and net pay panel'], ['compact', 'Compact stub - half page, earnings beside deductions']];
+  B.pay = {
+    label: 'Pay statement', sub: 'Withholding, YTD, logo',
+    init: function () {
+      var S = G('S'), w = S && S.w2 && S.w2[0] || {}, f = file(), end = new Date(); end.setHours(0, 0, 0, 0);
+      var start = new Date(end); start.setDate(end.getDate() - 13); var pay = new Date(end); pay.setDate(end.getDate() + 5);
+      var hourly = /hour/i.test(w.freq || '') || !w.freq;
+      return {style: 'classic', logo: savedLogo(), logoSize: '52', logoPos: 'left', empName: w.employer || '', empAddr: '', empEin: '', empPhone: '',
+        eeName: (S && S.b1) || f.borrowers[0] || '', eeAddr: '', eeSsn: '', eeId: '', dept: '', freq: hourly ? 'Bi-Weekly' : (PAY_PPY[w.freq] ? w.freq : 'Bi-Weekly'), payType: hourly ? 'hourly' : 'salary',
+        rate: hourly && N(w.rate) ? String(N(w.rate)) : '', salary: !hourly && N(w.rate) ? String(N(w.rate) * (PAY_PPY[w.freq] || 26)) : '', hours: hourly && N(w.hours) ? String(N(w.hours) * 2) : '80',
+        pStart: dateFromPicker(iso(start)), pEnd: dateFromPicker(iso(end)), payDate: dateFromPicker(iso(pay)), periodNo: '', checkNo: '', deposit: '',
+        otHrs: '', otMult: '1.5', dtHrs: '', ptoHrs: '', holHrs: '', earn: [],
+        fedFiling: 'single', fedStep2: false, fedCredit: '', fedOtherInc: '', fedDed: '', fedExtra: '',
+        state: 'NY', nyFiling: 'single', nyAllow: '0', nyExtra: '', locality: 'none', nycAllow: '0', otherState: '', otherRate: '', otherSdiPct: '', otherSdiLbl: 'State disability',
+        k401: '', med: '', hsa: '', fsa: '', post: [], ytdMode: 'auto', ytdBase: '', ytdOt: '', ytdComm: '', ytdBonus: '', ytdOther: '',
+        rSs: '6.2', rSsCap: '184500', rMedi: '1.45', rMediAdd: '0.9', rMediAddOver: '200000', rSdiPct: '0.5', rSdiWeekCap: '0.60', rPflPct: '0.388', rPflCap: '354.53'};
+    },
+    ppy: function (s) { return PAY_PPY[s.freq] || 26; },
+    period: function (s) { if (N(s.periodNo)) return Math.max(1, Math.min(B.pay.ppy(s), Math.round(N(s.periodNo)))); var d = parseDate(s.payDate) || parseDate(s.pEnd); if (!d) return 1; var day = Math.round((d - new Date(d.getFullYear(), 0, 1)) / 864e5) + 1; return Math.max(1, Math.min(B.pay.ppy(s), Math.round(day / (365 / B.pay.ppy(s))))); },
+    calc: function (s) {
+      var ppy = B.pay.ppy(s), per = B.pay.period(s), prior = per - 1, hrs = N(s.hours), sal = s.payType === 'salary';
+      var perPeriod = sal ? N(s.salary) / ppy : N(s.rate) * hrs, hourly = sal ? (hrs ? perPeriod / hrs : N(s.salary) / 2080) : N(s.rate);
+      var ptoH = N(s.ptoHrs) + N(s.holHrs), pto = hourly * ptoH, regular = sal ? Math.max(0, perPeriod - pto) : perPeriod;
+      var ot = hourly * (N(s.otMult) || 1.5) * N(s.otHrs), dt = hourly * 2 * N(s.dtHrs);
+      var kind = function (l) { return /commiss/i.test(l) ? 'comm' : /bonus/i.test(l) ? 'bonus' : 'other'; };
+      var E = [{k: 'base', lbl: sal ? 'Salary' : 'Regular', hrs: sal ? (hrs ? hrs - ptoH : null) : hrs, rate: sal ? null : hourly, amt: regular}];
+      if (ptoH) E.push({k: 'base', lbl: 'PTO / Holiday', hrs: ptoH, rate: hourly, amt: pto});
+      if (N(s.otHrs)) E.push({k: 'ot', lbl: 'Overtime', hrs: N(s.otHrs), rate: hourly * (N(s.otMult) || 1.5), amt: ot});
+      if (N(s.dtHrs)) E.push({k: 'ot', lbl: 'Double Time', hrs: N(s.dtHrs), rate: hourly * 2, amt: dt});
+      (s.earn || []).forEach(function (e) { if (N(e.amt)) E.push({k: kind(e.label || ''), lbl: e.label || 'Other Earnings', hrs: null, rate: null, amt: N(e.amt)}); });
+      var gross = E.reduce(function (t, r) { return t + r.amt; }, 0);
+      var k401 = N(s.k401), s125 = N(s.med) + N(s.hsa) + N(s.fsa), fedTaxable = Math.max(0, gross - k401 - s125), ficaTaxable = Math.max(0, gross - s125);
+      var div = s.fedStep2 ? 2 : 1, filing = FED_SD[s.fedFiling] ? s.fedFiling : 'single';
+      var fedAnnual = Math.max(0, bracketTax(fedTaxable * ppy + N(s.fedOtherInc) - N(s.fedDed) - FED_SD[filing] / div, FED_BR[filing], div) - N(s.fedCredit));
+      var fedWH = fedAnnual / ppy + N(s.fedExtra);
+      var ssWage = Math.min(ficaTaxable, Math.max(0, N(s.rSsCap) - ficaTaxable * prior)), ss = ssWage * N(s.rSs) / 100, medi = ficaTaxable * N(s.rMedi) / 100;
+      if (ficaTaxable * per > N(s.rMediAddOver)) medi += Math.min(ficaTaxable, ficaTaxable * per - N(s.rMediAddOver)) * N(s.rMediAdd) / 100;
+      var taxes = [{lbl: 'Federal Income Tax', amt: fedWH}, {lbl: 'Social Security (OASDI)', amt: ss}, {lbl: 'Medicare', amt: medi}];
+      if (s.state === 'NY') {
+        var nf = NY_SD[s.nyFiling] ? s.nyFiling : 'single', nyTax = bracketTax(Math.max(0, fedTaxable * ppy - NY_SD[nf] - 1000 * N(s.nyAllow)), NY_BR[nf]) / ppy + N(s.nyExtra);
+        taxes.push({lbl: 'NY State Income Tax', amt: nyTax});
+        if (s.locality === 'nyc') taxes.push({lbl: 'NYC Resident Tax', amt: bracketTax(Math.max(0, fedTaxable * ppy - 1000 * N(s.nycAllow)), NYC_BR[nf]) / ppy});
+        if (s.locality === 'yonkers') taxes.push({lbl: 'Yonkers Resident Tax', amt: nyTax * YONKERS});
+        var weeks = 52 / ppy; taxes.push({lbl: 'NY Disability (SDI)', amt: Math.min(gross * N(s.rSdiPct) / 100, N(s.rSdiWeekCap) * weeks)});
+        taxes.push({lbl: 'NY Paid Family Leave', amt: Math.min(gross * N(s.rPflPct) / 100, Math.max(0, N(s.rPflCap) - gross * N(s.rPflPct) / 100 * prior))});
+      } else if (s.state === 'other') {
+        if (N(s.otherRate)) taxes.push({lbl: (s.otherState ? stateAbbr(s.otherState) + ' ' : 'State ') + 'Income Tax', amt: fedTaxable * N(s.otherRate) / 100});
+        if (N(s.otherSdiPct)) taxes.push({lbl: s.otherSdiLbl || 'State disability', amt: gross * N(s.otherSdiPct) / 100});
+      }
+      var preList = [[k401, '401(k) Pre-Tax'], [N(s.med), 'Medical (Sec. 125)'], [N(s.hsa), 'HSA'], [N(s.fsa), 'FSA']].filter(function (x) { return x[0]; }).map(function (x) { return {lbl: x[1], amt: x[0]}; });
+      var postList = (s.post || []).filter(function (p) { return N(p.amt); }).map(function (p) { return {lbl: p.label || 'Deduction', amt: N(p.amt)}; });
+      var sum = function (a) { return a.reduce(function (t, x) { return t + x.amt; }, 0); }, taxTotal = sum(taxes), preTotal = sum(preList), postTotal = sum(postList), net = gross - taxTotal - preTotal - postTotal;
+      var auto = s.ytdMode !== 'manual', cur = {base: 0, ot: 0, comm: 0, bonus: 0, other: 0}; E.forEach(function (e) { cur[e.k] += e.amt; });
+      var ytdE = {}; ['base', 'ot', 'comm', 'bonus', 'other'].forEach(function (k) { ytdE[k] = auto ? cur[k] * per : N(s['ytd' + k.charAt(0).toUpperCase() + k.slice(1)]); });
+      var ytdGross = ytdE.base + ytdE.ot + ytdE.comm + ytdE.bonus + ytdE.other, scale = gross && !auto ? ytdGross / (gross * per) : 1;
+      var yt = function (a) { return a.map(function (t) { return {lbl: t.lbl, amt: t.amt * per * scale}; }); }, ytdTax = yt(taxes), ytdPre = yt(preList), ytdPost = yt(postList);
+      var ytdNet = ytdGross - sum(ytdTax) - sum(ytdPre) - sum(ytdPost);
+      /* each earnings row's YTD: its share of its kind's YTD */
+      E.forEach(function (e) { e.ytd = cur[e.k] ? ytdE[e.k] * e.amt / cur[e.k] : 0; });
+      return {E: E, gross: gross, hourly: hourly, taxes: taxes, preList: preList, postList: postList, taxTotal: taxTotal, preTotal: preTotal, postTotal: postTotal, net: net, per: per, ppy: ppy, ytdE: ytdE, ytdGross: ytdGross, ytdTax: ytdTax, ytdPre: ytdPre, ytdPost: ytdPost, ytdTaxTotal: sum(ytdTax), ytdNet: ytdNet, annual: gross * ppy};
+    },
+    form: function () {
+      var b = 'pay', s = drafts[b], sal = s.payType === 'salary', list = function (k, title, add, ph) { return '<fieldset><legend>' + title + '</legend><div class="list">' + (s[k] || []).map(function (r, i) { return '<div class="g" style="grid-template-columns:1fr 130px auto;margin-bottom:5px"><input list="mtBpay' + k + '" data-b="pay" data-list="' + k + '" data-i="' + i + '" data-f="label" value="' + esc(r.label) + '" aria-label="Description" placeholder="' + ph + '" autocomplete="off"><input inputmode="decimal" data-b="pay" data-list="' + k + '" data-i="' + i + '" data-f="amt" value="' + esc(r.amt) + '" placeholder="0.00" aria-label="Amount this period"><button type="button" class="x" data-a="rm" data-b="pay" data-list="' + k + '" data-i="' + i + '" aria-label="Remove">×</button></div>'; }).join('') + '</div><button type="button" class="btn" data-a="add" data-b="pay" data-list="' + k + '">' + add + '</button></fieldset>'; };
+      return dropZone('payfile', 'Drop a pay stub', 'Reads the employer, employee, pay date, period, rate, hours, gross and year-to-date earnings.') +
+        '<fieldset><legend>Layout</legend><div class="g">' + field(b, 'style', 'Style', {type: 'select', options: PAY_STYLES, wide: 1}) + '</div></fieldset>' + logoBlock(b) +
+        '<fieldset><legend>Employer</legend><div class="g">' + field(b, 'empName', 'Employer name', {wide: 1}) + field(b, 'empAddr', 'Employer address', {wide: 1, addrLine: 1}) + field(b, 'empEin', 'EIN') + field(b, 'empPhone', 'Phone') + '</div></fieldset>' +
+        '<fieldset><legend>Employee</legend><div class="g">' + field(b, 'eeName', 'Employee name', {wide: 1}) + field(b, 'eeAddr', 'Employee address', {wide: 1, addrLine: 1}) + field(b, 'eeSsn', 'SSN (last 4 only)', {ph: '1234'}) + field(b, 'eeId', 'Employee ID') + field(b, 'dept', 'Department / title') + field(b, 'deposit', 'Direct deposit account (last 4)', {ph: '6789'}) + '</div></fieldset>' +
+        '<fieldset><legend>Pay period</legend><div class="g">' + field(b, 'freq', 'Pay frequency', {type: 'select', options: ['Weekly', 'Bi-Weekly', 'Semi-Monthly', 'Monthly']}) + field(b, 'payType', 'Paid', {type: 'select', options: [['hourly', 'Hourly'], ['salary', 'Salary']]}) +
+        field(b, 'pStart', 'Period start', {type: 'date'}) + field(b, 'pEnd', 'Period end', {type: 'date'}) + field(b, 'payDate', 'Pay date', {type: 'date'}) + field(b, 'periodNo', 'Pay period # of the year (blank = from the pay date)', {ph: String(B.pay.period(s))}) + field(b, 'checkNo', 'Check / advice #') + '</div></fieldset>' +
+        '<fieldset><legend>Earnings this period</legend><div class="g">' + (sal ? field(b, 'salary', 'Annual salary', {type: 'money'}) : field(b, 'rate', 'Hourly rate', {type: 'money'})) + field(b, 'hours', 'Hours this period') +
+        field(b, 'otHrs', 'Overtime hours') + field(b, 'otMult', 'Overtime multiplier') + field(b, 'dtHrs', 'Double-time hours') + field(b, 'ptoHrs', 'PTO hours') + field(b, 'holHrs', 'Holiday hours') + '</div><div id="mtBpay"></div></fieldset>' +
+        list('earn', 'Other earnings this period (commission, bonus, tips…)', '+ Add earnings', 'Commission') + '<datalist id="mtBpayearn"><option value="Commission"><option value="Bonus"><option value="Tips"><option value="Shift differential"><option value="Retro pay"><option value="Reimbursement"></datalist>' +
+        '<fieldset><legend>Withholding</legend><div class="g">' + field(b, 'fedFiling', 'Federal filing status', {type: 'select', options: [['single', 'Single / MFS'], ['mfj', 'Married filing jointly'], ['hoh', 'Head of household']]}) + field(b, 'fedStep2', 'W-4 Step 2 (two jobs) checked', {type: 'check'}) +
+        field(b, 'fedCredit', 'W-4 Step 3 credits ($/yr)', {type: 'money'}) + field(b, 'fedOtherInc', 'W-4 Step 4a other income', {type: 'money'}) + field(b, 'fedDed', 'W-4 Step 4b deductions', {type: 'money'}) + field(b, 'fedExtra', 'Extra federal per period', {type: 'money'}) +
+        field(b, 'state', 'State tax', {type: 'select', options: [['NY', 'New York (state tables, SDI, PFL)'], ['other', 'Another state - flat rate'], ['none', 'No state income tax']], wide: 1}) +
+        (s.state === 'NY' ? field(b, 'nyFiling', 'NY filing status', {type: 'select', options: [['single', 'Single'], ['mfj', 'Married']]}) + field(b, 'nyAllow', 'NY allowances (IT-2104)') + field(b, 'locality', 'Locality', {type: 'select', options: [['none', 'None - NY State only'], ['nyc', 'New York City resident'], ['yonkers', 'Yonkers resident']]}) + (s.locality === 'nyc' ? field(b, 'nycAllow', 'NYC allowances') : '') + field(b, 'nyExtra', 'Extra NY per period', {type: 'money'}) : '') +
+        (s.state === 'other' ? field(b, 'otherState', 'State', {list: STATE_NAMES}) + field(b, 'otherRate', 'State income tax (% of taxable pay)', {type: 'pct'}) + field(b, 'otherSdiLbl', 'Other state deduction label', {list: ['State disability', 'SUI / SDI', 'Paid family leave', 'Local income tax']}) + field(b, 'otherSdiPct', 'Its rate (% of gross)', {type: 'pct'}) : '') + '</div></fieldset>' +
+        '<fieldset><legend>Deductions before tax</legend><div class="g">' + field(b, 'k401', '401(k)', {type: 'money'}) + field(b, 'med', 'Medical / dental (Sec. 125)', {type: 'money'}) + field(b, 'hsa', 'HSA', {type: 'money'}) + field(b, 'fsa', 'FSA', {type: 'money'}) + '</div></fieldset>' +
+        list('post', 'Deductions after tax', '+ Add deduction', 'Roth 401(k)') + '<datalist id="mtBpaypost"><option value="Roth 401(k)"><option value="401(k) loan"><option value="Union dues"><option value="Garnishment"><option value="Life insurance"><option value="Charity"></datalist>' +
+        '<fieldset><legend>Year to date</legend><div class="g">' + field(b, 'ytdMode', 'Year-to-date figures', {type: 'select', options: [['auto', 'This period x the pay period number'], ['manual', 'Enter them (from a real stub)']], wide: 1}) +
+        (s.ytdMode === 'manual' ? field(b, 'ytdBase', 'YTD regular / salary', {type: 'money'}) + field(b, 'ytdOt', 'YTD overtime', {type: 'money'}) + field(b, 'ytdComm', 'YTD commission', {type: 'money'}) + field(b, 'ytdBonus', 'YTD bonus', {type: 'money'}) + field(b, 'ytdOther', 'YTD other', {type: 'money'}) : '') + '</div>' +
+        '<div class="row" style="margin-top:8px"><button type="button" class="btn" data-a="payToCalc">Send to the Income Calculator employment record</button></div></fieldset>' +
+        '<details><summary class="note" style="cursor:pointer;margin:0 0 8px">Tax rate table - 2026 figures; edit each January</summary><fieldset><div class="g">' + field(b, 'rSs', 'Social Security %', {type: 'pct'}) + field(b, 'rSsCap', 'SS wage base', {type: 'money'}) + field(b, 'rMedi', 'Medicare %', {type: 'pct'}) + field(b, 'rMediAdd', 'Additional Medicare %', {type: 'pct'}) + field(b, 'rMediAddOver', 'Additional Medicare over', {type: 'money'}) +
+        field(b, 'rSdiPct', 'NY SDI %', {type: 'pct'}) + field(b, 'rSdiWeekCap', 'NY SDI weekly cap', {type: 'money'}) + field(b, 'rPflPct', 'NY PFL %', {type: 'pct'}) + field(b, 'rPflCap', 'NY PFL annual cap', {type: 'money'}) + '</div></fieldset></details>';
+    },
+    side: function () { var c = B.pay.calc(drafts.pay), el = $('mtBpay'); if (el) el.innerHTML = '<div class="kv"><span>Gross pay</span><b>' + usd(c.gross) + '</b><span>Taxes</span><b>' + usd(c.taxTotal) + '</b><span>Deductions</span><b>' + usd(c.preTotal + c.postTotal) + '</b><span>Net pay</span><b>' + usd(c.net) + '</b><span>Period ' + c.per + ' of ' + c.ppy + ' - YTD gross</span><b>' + usd(c.ytdGross) + '</b><span>Annualized gross</span><b>' + usd(c.annual) + '</b></div>'; },
+    doc: function (s) {
+      var c = B.pay.calc(s), st = s.style || 'classic', d = function (x) { return esc(when(x, slashDate)) || '-'; }, m = function (v) { return usd(v); };
+      var earnRows = c.E.map(function (e) { return '<tr><td>' + esc(e.lbl) + '</td><td class="n">' + (e.rate ? m(e.rate) : '') + '</td><td class="n">' + (e.hrs ? (+e.hrs).toFixed(2) : '') + '</td><td class="n">' + m(e.amt) + '</td><td class="n">' + m(e.ytd) + '</td></tr>'; }).join('');
+      var dedRows = function (list, ytd) { return list.map(function (t, i) { return '<tr><td>' + esc(t.lbl) + '</td><td class="n">' + m(t.amt) + '</td><td class="n">' + m(ytd[i].amt) + '</td></tr>'; }).join(''); };
+      var fil = {single: 'Single / MFS', mfj: 'Married filing jointly', hoh: 'Head of household'}[s.fedFiling] + (s.fedStep2 ? ' - Step 2' : '');
+      var stateInfo = s.state === 'NY' ? 'NY ' + (s.nyFiling === 'mfj' ? 'Married' : 'Single') + ' - ' + N(s.nyAllow) + ' allow.' + (s.locality === 'nyc' ? ' - NYC' : s.locality === 'yonkers' ? ' - Yonkers' : '') : s.state === 'other' ? (stateAbbr(s.otherState) || 'State') + ' ' + (N(s.otherRate) || 0) + '%' : 'No state tax';
+      var emp = '<div class="en">' + esc(s.empName || 'Employer name') + '</div><div class="ea">' + esc(s.empAddr || '') + (s.empEin ? ' &middot; EIN ' + esc(s.empEin) : '') + (s.empPhone ? ' &middot; ' + esc(s.empPhone) : '') + '</div>';
+      var hdr = '<div class="tt">' + (st === 'compact' ? 'PAY STUB' : 'EARNINGS STATEMENT') + '</div><div>Pay date <b>' + d(s.payDate) + '</b></div><div>Period ' + d(s.pStart) + ' - ' + d(s.pEnd) + '</div><div>Pay period ' + c.per + ' of ' + c.ppy + (s.checkNo ? ' &middot; No. ' + esc(s.checkNo) : '') + '</div>';
+      var eeTbl = '<table class="ee"><tr><td><span>Employee</span><b>' + esc(s.eeName || '') + '</b></td><td><span>Employee ID</span><b>' + esc(s.eeId || '') + '</b></td><td><span>SSN</span><b>' + (s.eeSsn ? 'XXX-XX-' + esc(String(s.eeSsn).replace(/\D/g, '').slice(-4)) : '') + '</b></td><td><span>Pay frequency</span><b>' + esc(s.freq) + (s.payType === 'salary' ? ' salary' : ' hourly') + '</b></td></tr>' +
+        '<tr><td colspan="2"><span>Address</span><b>' + esc(s.eeAddr || '') + '</b></td><td><span>Federal</span><b>' + esc(fil) + '</b></td><td><span>State</span><b>' + esc(stateInfo) + '</b></td></tr>' + (s.dept ? '<tr><td colspan="4"><span>Department / title</span><b>' + esc(s.dept) + '</b></td></tr>' : '') + '</table>';
+      var earnT = '<table class="t"><thead><tr><th>Earnings</th><th class="n">Rate</th><th class="n">Hours</th><th class="n">Current</th><th class="n">Year to date</th></tr></thead><tbody>' + earnRows + '<tr class="tot"><td>Gross pay</td><td></td><td></td><td class="n">' + m(c.gross) + '</td><td class="n">' + m(c.ytdGross) + '</td></tr></tbody></table>';
+      var taxT = '<table class="t"><thead><tr><th>Taxes</th><th class="n">Current</th><th class="n">Year to date</th></tr></thead><tbody>' + dedRows(c.taxes, c.ytdTax) + '<tr class="tot"><td>Total taxes</td><td class="n">' + m(c.taxTotal) + '</td><td class="n">' + m(c.ytdTaxTotal) + '</td></tr></tbody></table>';
+      var dedT = c.preList.length || c.postList.length ? '<table class="t"><thead><tr><th>Deductions</th><th class="n">Current</th><th class="n">Year to date</th></tr></thead><tbody>' + dedRows(c.preList, c.ytdPre) + dedRows(c.postList, c.ytdPost) + '</tbody></table>' : '';
+      var netBox = '<div class="net"><div><b>Net pay</b><div class="sm">Year-to-date net ' + m(c.ytdNet) + ' &middot; gross ' + m(c.ytdGross) + (s.deposit ? ' &middot; Direct deposit to account ending ' + esc(String(s.deposit).replace(/\D/g, '').slice(-4)) : '') + '</div></div><div class="nv">' + m(c.net) + '</div></div>';
+      var foot = '<p class="ft">Prepared as a worksheet illustration. Federal withholding uses the IRS Publication 15-T annualised percentage method' + (s.state === 'NY' ? '; New York State, New York City and Yonkers use the annual tables with the allowances shown. NY disability is capped at ' + m(s.rSdiWeekCap) + ' a week and Paid Family Leave at ' + m(s.rPflCap) + ' a year' : s.state === 'other' ? '; state tax is a flat rate as entered' : '') + '. Confirm the current tables before relying on the withholding figures.</p>';
+      if (st === 'modern') return page('cal', logoHead(s, emp, hdr, 'ph m') + eeTbl + '<div class="cols"><div>' + earnT + '</div><div>' + taxT + dedT + '</div></div>' + netBox + foot, CSS_PAY + CSS_LOGO);
+      if (st === 'compact') return page('cal', '<div class="cmp">' + logoHead(s, emp, hdr, 'ph c') + eeTbl + '<div class="cols"><div>' + earnT + '</div><div>' + taxT + dedT + '</div></div>' + netBox + foot + '</div><div class="cut">detach here</div>', CSS_PAY + CSS_LOGO);
+      return page('cal', logoHead(s, emp, hdr, 'ph') + eeTbl + '<div class="cols"><div>' + earnT + '</div><div>' + taxT + dedT + '</div></div>' + netBox + foot, CSS_PAY + CSS_LOGO);
+    }
+  };
+  var CSS_PAY = '.pg{padding:.55in .6in}.ph{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;border-bottom:2px solid #444;padding-bottom:8px;margin-bottom:10px}.ph .en{font-size:15pt;font-weight:800}.ph .ea{font-size:8.5pt;color:#555;margin-top:2px}.ph>div:last-child{text-align:right;font-size:9pt;line-height:1.45}.ph .tt{font-size:12pt;font-weight:800;letter-spacing:.06em}' +
+    '.ph.m{background:#1f3a5f;color:#fff;border:0;margin:-.55in -.6in 12px;padding:.35in .6in .2in}.ph.m .ea{color:#d6e2f2}.ph.c{border-bottom:1px solid #444;padding-bottom:5px;margin-bottom:6px}.ph.c .en{font-size:12pt}' +
+    'table{width:100%;border-collapse:collapse;font-size:9pt}table.ee{border:1px solid #999;margin-bottom:10px}table.ee td{border:1px solid #ccc;padding:3px 6px;vertical-align:top}table.ee span{display:block;font-size:7pt;color:#666;text-transform:uppercase;letter-spacing:.04em}table.ee b{font-weight:600}' +
+    '.cols{display:grid;grid-template-columns:1.35fr 1fr;gap:10px;align-items:start}table.t{border:1px solid #999;margin-bottom:8px}table.t th{background:#5f5f5f;color:#fff;text-align:left;padding:3px 6px;font-weight:600}table.t td{padding:3px 6px;border-top:1px solid #e3e3e3}.n{text-align:right;white-space:nowrap}tr.tot td{font-weight:700;background:#efefef;border-top:1px solid #999}' +
+    '.net{display:flex;justify-content:space-between;align-items:center;border:1px solid #999;background:#fde9d9;padding:8px 12px;margin-top:4px}.net .nv{font-size:17pt;font-weight:700}.net .sm{font-size:8.5pt;color:#444;margin-top:2px}.ft{font-size:7.5pt;color:#555;line-height:1.4;margin-top:8px}' +
+    '.ph.m~table.ee{border-color:#1f3a5f}.ph.m~.cols table.t th{background:#1f3a5f}.ph.m~.net{background:#e8f0fb;border-color:#1f3a5f}' +
+    '.cmp{border:1px solid #999;padding:10px 12px}.cmp table{font-size:8pt}.cmp .cols{gap:8px}.cut{border-top:1px dashed #999;margin-top:14px;text-align:center;font-size:7pt;color:#999;letter-spacing:.2em;text-transform:uppercase}';
+  /* send the stub's YTD to the Income Calculator's employment record (here, or the next time the calculator opens) */
+  var PAY_PENDING = 'mt.pay.pending';
+  function payRecord() { var s = drafts.pay, c = B.pay.calc(s), ppy = B.pay.ppy(s), hourly = s.payType !== 'salary', end = parseDate(s.pEnd) || parseDate(s.payDate) || new Date();
+    return {employer: s.empName, employee: s.eeName, freq: hourly ? 'Hourly' : s.freq, rate: hourly ? N(s.rate) : N(s.salary) / ppy, hours: hourly ? Math.round(N(s.hours) * ppy / 52 * 100) / 100 : N(s.hours) * ppy / 52, ytdThru: iso(end), base: c.ytdE.base, ot: c.ytdE.ot, comm: c.ytdE.comm, bonus: c.ytdE.bonus, other: c.ytdE.other}; }
+  function applyW2(rec) {
+    /* only on the Income Calculator page: the Full Suite still carries a hidden copy of the old built-in calculator */
+    if (window.mortgageSuite && mortgageSuite.store) return false;
+    var S = G('S'), newW2 = G('newW2'); if (!S || !S.w2 || typeof newW2 !== 'function') return false;
+    var r2 = function (v) { return Math.round(N(v) * 100) / 100; }, blank = function (x) { return !(x.employer || '').trim() && !N(x.rate); };
+    var j = rec.employer && S.w2.filter(function (x) { return (x.employer || '').trim().toLowerCase() === rec.employer.trim().toLowerCase(); })[0] || S.w2.filter(blank)[0];
+    if (!j) { j = newW2(); S.w2.push(j); }
+    j.employer = rec.employer || j.employer; j.freq = rec.freq; j.rate = r2(rec.rate); j.hours = r2(rec.hours) || j.hours; j.ytdThru = rec.ytdThru || j.ytdThru;
+    ['base', 'ot', 'comm', 'bonus', 'other'].forEach(function (k) { j.y1[k] = r2(rec[k]); });
+    if (rec.employee && !S.b1) { S.b1 = rec.employee; S.borrower = rec.employee; var el = document.getElementById('b1Name'); if (el) el.value = rec.employee; }
+    try { G('renderW2')(); G('RECALC')(); } catch (e) {}
+    return true;
+  }
+  function payToCalc() {
+    var rec = payRecord();
+    if (applyW2(rec)) { close(); try { G('switchTab')('w2'); } catch (e) {} say('Pay stub applied to the employment record - year-to-date figures loaded.'); return; }
+    try { localStorage.setItem(PAY_PENDING, JSON.stringify(rec)); } catch (e) {}
+    say('Saved - the year-to-date figures go into the employment record when the Income Calculator opens.');
+  }
+  /* on the Income Calculator, a stub sent from the Full Suite is applied once */
+  setTimeout(function () { var p = null; try { p = JSON.parse(localStorage.getItem(PAY_PENDING) || 'null'); } catch (e) {} if (p && applyW2(p)) { try { localStorage.removeItem(PAY_PENDING); } catch (e) {} say('Pay statement from the Document Builder applied to the employment record.'); } }, 2500);
+  function parsePay(text) {
+    var T = String(text || '').replace(/\r/g, ''), o = {}, D = '(\\d{1,2}\\/\\d{1,2}\\/\\d{2,4}|[A-Z][a-z]{2,8}\\.?\\s+\\d{1,2},?\\s+\\d{4})', g = function (re) { return grab(T, re); };
+    var top = T.split('\n').map(function (l) { return l.trim(); }).filter(Boolean);
+    o.empName = top.filter(function (l) { return !/earnings|statement|pay\s*(stub|date|period)|advice|employee|period|page|^\d|ssn|social/i.test(l) && /[A-Za-z]{3}/.test(l) && l.length < 60; })[0] || '';
+    o.eeName = (g(/Employee(?:\s*Name)?\s*:?[ \t]*([A-Z][A-Za-z.'-]+(?: [A-Z][A-Za-z.'-]+){1,3})/) || g(/\bName\s*:?[ \t]*([A-Z][A-Za-z.'-]+(?: [A-Z][A-Za-z.'-]+){1,3})/)).replace(/\s+(Employee|ID|SSN|Pay|Date|Dept|Department)\b.*$/, '');
+    o.eeId = g(/Employee\s*(?:ID|#|No\.?)\s*:?\s*([A-Z0-9-]{3,})/i); o.empEin = g(/EIN\s*:?\s*(\d{2}-?\d{7})/i);
+    o.payDate = g(new RegExp('(?:Pay|Check|Advice)\\s*Date\\s*:?\\s*' + D, 'i'));
+    var per = T.match(new RegExp('(?:Pay\\s*)?Period(?:\\s*(?:Beginning|Start|Dates?))?\\s*:?\\s*' + D + '\\s*(?:-|–|to|through|thru)\\s*(?:Period\\s*End(?:ing)?\\s*:?\\s*)?' + D, 'i'));
+    if (per) { o.pStart = per[1]; o.pEnd = per[2]; } else { o.pStart = g(new RegExp('Period\\s*(?:Beginning|Start)\\s*:?\\s*' + D, 'i')); o.pEnd = g(new RegExp('Period\\s*(?:Ending|End)\\s*:?\\s*' + D, 'i')); }
+    o.freq = /semi-?\s*monthly/i.test(T) ? 'Semi-Monthly' : /bi-?\s*weekly/i.test(T) ? 'Bi-Weekly' : /\bweekly\b/i.test(T) ? 'Weekly' : /\bmonthly\b/i.test(T) ? 'Monthly' : '';
+    var num = '\\$?\\s?([\\d,]+\\.\\d{2,4})', line = function (re) { var m = T.match(re); return m ? m.slice(1).map(N) : null; };
+    var reg = line(new RegExp('(?:Regular|Reg\\.?\\s*Pay|Salary|Hourly)[^\\n\\d$]{0,50}' + num + '\\s+([\\d.]+)\\s+' + num + '\\s+' + num, 'i'));
+    if (reg) { o.rate = reg[0]; o.hours = reg[1]; o.current = reg[2]; o.ytdBase = reg[3]; }
+    var ot = line(new RegExp('Overtime[^\\n\\d$]{0,50}' + num + '\\s+([\\d.]+)\\s+' + num + '\\s+' + num, 'i')); if (ot) { o.otHrs = ot[1]; o.otMult = ot[0] && o.rate ? +(ot[0] / o.rate).toFixed(2) : ''; o.ytdOt = ot[3]; }
+    var gross = line(new RegExp('Gross\\s*(?:Pay|Earnings|Wages)?[^\\n\\d$]{0,50}' + num + '\\s+' + num, 'i')); if (gross) { o.gross = gross[0]; o.ytdGross = gross[1]; }
+    ['Commission', 'Bonus'].forEach(function (k) { var x = line(new RegExp(k + '[^\\n\\d$]{0,50}' + num + '\\s+' + num, 'i')); if (x) o['ytd' + (k === 'Commission' ? 'Comm' : 'Bonus')] = x[1], o[k.toLowerCase()] = x[0]; });
+    if (!o.rate) { o.rate = N(g(/(?:Hourly\s*)?Rate\s*:?\s*\$?\s?([\d,]+\.\d{2,4})/i)) || ''; o.hours = N(g(/(?:Regular\s*)?Hours\s*:?\s*([\d.]+)/i)) || ''; }
+    return o;
+  }
+
   /* ================================================================ shell / UI */
-  var ORDER = ['addendum', 'lease', 'estimate', 'pl', 'commit', 'mi'];
-  var RERENDER = {style: 1, leaseType: 1, program: 1, concOnTop: 1, ttOn: 1, renoOn: 0};
+  var ORDER = ['addendum', 'lease', 'estimate', 'pl', 'pay', 'commit', 'mi'];
+  var RERENDER = {style: 1, leaseType: 1, program: 1, concOnTop: 1, ttOn: 1, renoOn: 0, payType: 1, state: 1, locality: 1, ytdMode: 1, logoSize: 0};
   function mount() {
     if ($('mtB')) return;
     if (!$('mtBcss')) { var st = document.createElement('style'); st.id = 'mtBcss'; st.textContent = CSS; document.head.appendChild(st); }
@@ -11589,7 +11894,7 @@ window.MTData=M;})();
     document.body.appendChild(w);
     wire(w);
   }
-  function renderNav() { var n = document.querySelector('#mtB .mb-nav'); n.innerHTML = ORDER.map(function (k) { return '<button type="button" data-a="nav" data-k="' + k + '" aria-current="' + (k === cur) + '">' + B[k].label + '<small>' + B[k].sub + '</small></button>'; }).join('') + '<button type="button" data-a="paystub">Pay statement<small>Opens the pay stub generator</small></button>' +
+  function renderNav() { var n = document.querySelector('#mtB .mb-nav'); n.innerHTML = ORDER.map(function (k) { return '<button type="button" data-a="nav" data-k="' + k + '" aria-current="' + (k === cur) + '">' + B[k].label + '<small>' + B[k].sub + '</small></button>'; }).join('') + 
       (window.V14 && V14.__mtbOrig && (cur === 'addendum' || cur === 'lease') ? '<button type="button" data-a="classic">Classic ' + (cur === 'addendum' ? 'addendum' : 'lease') + ' form<small>The earlier Loan Suite form</small></button>' : ''); $('mtBsub').textContent = ' · ' + B[cur].label; }
   function renderForm() {
     var f = document.querySelector('#mtB .mb-form'), ae = document.activeElement, key = ae && f.contains(ae) ? ['b', 'k', 'list', 'i', 'f', 'cond'].map(function (a) { return ae.getAttribute('data-' + a) || ''; }).join('|') : '', st = f.scrollTop;
@@ -11661,7 +11966,7 @@ window.MTData=M;})();
     w.addEventListener('input', function (e) { if (e.target.matches('input:not([type=checkbox]):not([type=file]):not(.pk):not(#mtBpreset),textarea')) setVal(e.target, e); });
     w.addEventListener('change', function (e) {
       var t = e.target, a = t.getAttribute('data-a');
-      if (t.type === 'file') { var fl = t.files && t.files[0]; t.value = ''; if (fl) readInto(a, fl); return; }
+      if (t.type === 'file') { var fl = t.files && t.files[0]; t.value = ''; if (fl) { if (a === 'logo') loadLogo(t.getAttribute('data-b'), fl); else readInto(a, fl); } return; }
       /* the calendar fills the typed date box next to it */
       if (t.classList.contains('pk')) { var box = t.parentNode.querySelector('input[data-fdate]'); if (box && t.value) { box.value = dateFromPicker(t.value); setVal(box); } return; }
       if (t.id === 'mtBpreset') return;
@@ -11676,11 +11981,10 @@ window.MTData=M;})();
       if (a === 'addrToggle') { if (window.MTAddr) MTAddr.setOff(!MTAddr.isOff()); renderForm(); return; }
       if (a === 'nav') { pageEdit(false); cur = t.getAttribute('data-k'); ensure(cur); renderNav(); renderForm(); refresh(true); return; }
       if (a === 'classic') { close(); V14.__mtbOrig.call(V14, cur === 'addendum' ? 'v14AddModal' : 'v14LeaseModal'); return; }
-      if (a === 'paystub') { close(); if (typeof window.switchTab === 'function' && document.getElementById('subpanel-docs-paystub')) { window.switchTab('paystub'); } else if (window.V15 && V15.openPay) V15.openPay(); else location.href = 'income-calculator.html?tab=paystub'; return; }
       if (a === 'reset') { if (!confirm('Start this ' + B[cur].label.toLowerCase() + ' over from the loan file? Your changes to it are cleared.')) return; pageEdit(false); drafts[cur] = B[cur].init(); persist(); renderForm(); refresh(true); return; }
       if (a === 'print') { var fr = $('mtBframe'); unfit(function () { try { fr.contentWindow.focus(); fr.contentWindow.print(); } catch (x) {} }); return; }
       if (a === 'pdf') return unfit(pdf);
-      if (a === 'add') { var b = t.getAttribute('data-b'), L = t.getAttribute('data-list'), arr = drafts[b][L]; arr.push(L === 'items' ? {trade: '', desc: '', qty: '', unit: '', labor: '', materials: ''} : L === 'custom' ? '' : (L === 'income' || L === 'cogs' || L === 'expenses') ? {label: L === 'expenses' ? (PL_EXP.filter(function (x) { return !arr.some(function (r) { return r.label === x; }); })[0] || 'Other') : '', amt: ''} : {name: ''}); persist(); renderForm(); refresh(); return; }
+      if (a === 'add') { var b = t.getAttribute('data-b'), L = t.getAttribute('data-list'), arr = drafts[b][L]; arr.push(L === 'items' ? {trade: '', desc: '', qty: '', unit: '', labor: '', materials: ''} : L === 'custom' ? '' : (L === 'earn' || L === 'post') ? {label: '', amt: ''} : (L === 'income' || L === 'cogs' || L === 'expenses') ? {label: L === 'expenses' ? (PL_EXP.filter(function (x) { return !arr.some(function (r) { return r.label === x; }); })[0] || 'Other') : '', amt: ''} : {name: ''}); persist(); renderForm(); refresh(); return; }
       if (a === 'rm') { var b2 = t.getAttribute('data-b'), L2 = t.getAttribute('data-list'); drafts[b2][L2].splice(+t.getAttribute('data-i'), 1); persist(); renderForm(); refresh(); return; }
       if (a === 'psearch') return psearch(t.getAttribute('data-b'), t.getAttribute('data-p') || '');
       if (a === 'ppick') return ppick(t.getAttribute('data-b'), t.getAttribute('data-p') || '', +t.getAttribute('data-i'));
@@ -11694,6 +11998,9 @@ window.MTData=M;})();
       if (a === 'estUse') { var c = B.estimate.calc(drafts.estimate); sendLoan([['reno.baseCost', c.sub + c.ohp + c.tax], ['reno.permits', c.permits]], 'Contractor estimate'); return; }
       if (a === 'leaseRent') { if (N(drafts.lease.rent)) sendLoan([['rental.mainUnit.gross', N(drafts.lease.rent)]], 'Lease'); return; }
       if (a === 'plUse') return plUse();
+      if (a === 'payToCalc') return payToCalc();
+      if (a === 'logoRm') { var lb = t.getAttribute('data-b'); drafts[lb].logo = ''; persist(); renderForm(); refresh(true); return; }
+      if (a === 'logoReuse') { var lb2 = t.getAttribute('data-b'); drafts[lb2].logo = savedLogo(); drafts[lb2].logoSize = drafts[lb2].logoSize || '52'; persist(); renderForm(); refresh(true); return; }
       if (/^cond/.test(a)) return condAct(a, t);
     });
     w.addEventListener('dragover', function (e) { var z = e.target.closest && e.target.closest('[data-drop]'); if (z) { e.preventDefault(); z.classList.add('over'); } });
@@ -11825,7 +12132,7 @@ window.MTData=M;})();
     if (/203\s*\(?k/i.test(T)) o.renoProgram = '203k'; else if (/homestyle/i.test(T)) o.renoProgram = 'homestyle';
     return o;
   }
-  var SID = {contract: 'mtBcontract', leasefile: 'mtBleasefile', approval: 'mtBapproval', estfile: 'mtBestfile', plfile: 'mtBplfile', mifile: 'mtBmifile'};
+  var SID = {contract: 'mtBcontract', leasefile: 'mtBleasefile', approval: 'mtBapproval', estfile: 'mtBestfile', plfile: 'mtBplfile', mifile: 'mtBmifile', payfile: 'mtBpayfile'};
   function readInto(kind, fl) {
     var sid = SID[kind] || 'mtB' + kind;
     status(sid, 'Reading ' + esc(fl.name) + '… scanned pages use OCR and can take a minute.');
@@ -11863,6 +12170,17 @@ window.MTData=M;})();
         if (P.business) { s4.business = P.business; g4.push('business name'); } if (P.from) { s4.from = P.from; s4.to = P.to; g4.push('period'); } if (P.basis) s4.basis = P.basis;
         ['income', 'cogs', 'expenses'].forEach(function (k) { if (P[k].length) { s4[k] = P[k]; g4.push(P[k].length + ' ' + (k === 'cogs' ? 'cost' : k === 'income' ? 'income' : 'expense') + ' line(s)'); } });
         done(g4, 'statement');
+      } else if (kind === 'payfile') {
+        var Y = parsePay(text), s6 = drafts.pay, g6 = [];
+        [['empName', 'employer'], ['eeName', 'employee'], ['eeId', 'employee ID'], ['empEin', 'EIN'], ['payDate', 'pay date'], ['pStart', 'period start'], ['pEnd', 'period end'], ['freq', 'frequency']].forEach(function (r) { if (Y[r[0]]) { s6[r[0]] = Y[r[0]]; g6.push(r[1]); } });
+        if (Y.rate) { s6.payType = 'hourly'; s6.rate = String(Y.rate); g6.push('rate ' + usd(Y.rate)); } if (Y.hours) { s6.hours = String(Y.hours); g6.push(Y.hours + ' hours'); }
+        if (!Y.rate && Y.current && s6.freq) { s6.payType = 'salary'; s6.salary = (Y.current * (PAY_PPY[s6.freq] || 26)).toFixed(2); g6.push('salary from the current pay'); }
+        if (Y.otHrs) { s6.otHrs = String(Y.otHrs); if (Y.otMult) s6.otMult = String(Y.otMult); }
+        if (Y.rate || Y.current || Y.gross) s6.earn = [];
+        if (Y.commission || Y.bonus) { s6.earn = []; if (Y.commission) s6.earn.push({label: 'Commission', amt: Y.commission.toFixed(2)}); if (Y.bonus) s6.earn.push({label: 'Bonus', amt: Y.bonus.toFixed(2)}); }
+        if (Y.ytdBase || Y.ytdGross) { s6.ytdMode = 'manual'; s6.ytdBase = String(Y.ytdBase || (Y.ytdGross - (Y.ytdOt || 0) - (Y.ytdComm || 0) - (Y.ytdBonus || 0))); s6.ytdOt = String(Y.ytdOt || ''); s6.ytdComm = String(Y.ytdComm || ''); s6.ytdBonus = String(Y.ytdBonus || ''); s6.ytdOther = ''; g6.push('year-to-date earnings'); }
+        if (Y.gross) { var cg = B.pay.calc(s6).gross; g6.push('gross ' + usd(Y.gross) + (Math.abs(cg - Y.gross) > 1 ? ' (the stub rebuilt here shows ' + usd(cg) + ' - check hours and other pay)' : ' (matches)')); }
+        done(g6, 'stub');
       } else if (kind === 'mifile') {
         var M = parseMIdoc(text), s5 = drafts.mi, g5 = [];
         [['program', 'program'], ['price', 'price'], ['value', 'value'], ['base', 'loan amount'], ['term', 'term', 'termYears'], ['miRate', 'MI rate'], ['ufmip', 'UFMIP'], ['down', 'down payment', 'downPct'], ['renoCost', 'renovation cost'], ['contingency', 'contingency'], ['draws', 'draws'], ['feePerDraw', 'inspection fee'], ['titlePerDraw', 'title update fee'], ['consultant', 'consultant fee'], ['permits', 'permits'], ['architect', 'architect'], ['payment', 'payment'], ['renoProgram', 'renovation program']].forEach(function (r) {
@@ -11915,12 +12233,13 @@ window.MTData=M;})();
       var o = V14.open, w = function (id) { if (id === 'v14AddModal' && !w.classic) return open('addendum'); if (id === 'v14LeaseModal' && !w.classic) return open('lease'); return o.apply(this, arguments); };
       w.__mtb = true; V14.__mtbOrig = o; V14.open = w;
     }
+    if (window.V15 && V15.openPay && !V15.openPay.__mtb) { var op = function () { open('pay'); }; op.__mtb = true; V15.openPay = op; }
     /* a Build button on the Income Calculator's Documents tab and the Loan Suite's Documents pages */
     ['panel-docs', 'v50UnifiedDocuments'].forEach(function (id) {
       var host = $(id); if (!host || host.querySelector('.mt-build-entry')) return;
       var d = document.createElement('div'); d.className = 'mt-build-entry no-print';
       d.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin:0 0 14px;padding:12px 14px;border-radius:12px;border:1px solid rgba(90,162,255,.45);background:rgba(90,162,255,.08)';
-      d.innerHTML = '<div><b style="font-size:14px">Document builder</b><div style="font-size:12.5px;opacity:.8">Addendum, lease, contractor estimate, profit and loss, commitment letter, MI and renovation fees, pay statement.</div></div><div style="display:flex;flex-wrap:wrap;gap:6px">' +
+      d.innerHTML = '<div><b style="font-size:14px">Document builder</b><div style="font-size:12.5px;opacity:.8">Addendum, lease, contractor estimate, profit and loss, pay statement, commitment letter, MI and renovation fees.</div></div><div style="display:flex;flex-wrap:wrap;gap:6px">' +
         ORDER.map(function (k) { return '<button type="button" class="btn btn-light btn-sm" data-mtb="' + k + '" style="cursor:pointer">' + B[k].label + '</button>'; }).join('') + '</div>';
       d.addEventListener('click', function (e) { var b = e.target.closest('[data-mtb]'); if (b) open(b.getAttribute('data-mtb')); });
       var head = host.querySelector(':scope > .section-head, :scope > header'); head && head.nextSibling ? host.insertBefore(d, head.nextSibling) : host.insertBefore(d, host.firstChild);
