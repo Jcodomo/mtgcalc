@@ -10586,7 +10586,7 @@ window.MTData=M;})();
 
 </script>
 <script>/* doc-builder.js (inlined) */
-/* Mortgage Suite 56.1 - Document Builder (Income Calculator, Full Suite and the Loan Suite pages).
+/* Mortgage Suite 56.2 - Document Builder (Income Calculator, Full Suite and the Loan Suite pages).
    Builds, previews, prints and saves as PDF: contract addenda (five styles, up to 4 buyers and 4 sellers, a seller-concession
    and transfer-tax calculator, 203(k) / HomeStyle / FHA / VA clauses, a contract dropped in to fill the parties), residential
    leases (four styles), contractor estimates, profit and loss statements, commitment letters (filled from a lender's
@@ -10608,9 +10608,14 @@ window.MTData=M;})();
   function longDate(s) { var d = parseDate(s); return d ? d.toLocaleDateString('en-US', {month: 'long', day: 'numeric', year: 'numeric'}) : (s || ''); }
   function ordDate(s) { var d = parseDate(s); if (!d) return s || ''; var n = d.getDate(), suf = n % 10 === 1 && n !== 11 ? 'ST' : n % 10 === 2 && n !== 12 ? 'ND' : n % 10 === 3 && n !== 13 ? 'RD' : 'TH'; return d.toLocaleDateString('en-US', {month: 'long'}).toUpperCase() + ' ' + n + suf; }
   function slashDate(s) { var d = parseDate(s); return d ? (d.getMonth() + 1) + '/' + d.getDate() + '/' + d.getFullYear() : (s || ''); }
-  function parseDate(s) { if (!s) return null; var m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})/); if (m) return new Date(+m[1], +m[2] - 1, +m[3]); m = String(s).match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/); if (m) return new Date(+m[3] < 100 ? 2000 + +m[3] : +m[3], +m[1] - 1, +m[2]); var d = new Date(s); return isNaN(d) ? null : d; }
+  function parseDate(s) { if (!s) return null; s = String(s).trim(); var m = s.match(/^(\d{4})-(\d{2})-(\d{2})/); if (m) return new Date(+m[1], +m[2] - 1, +m[3]); m = s.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})$/); if (m) return new Date(+m[3] < 100 ? 2000 + +m[3] : +m[3], +m[1] - 1, +m[2]);
+    if (!/^[A-Za-z]{3,9}\.?\s+\d{1,2}(st|nd|rd|th)?,?\s+\d{4}$|^\d{1,2}\s+[A-Za-z]{3,9}\.?,?\s+\d{4}$/.test(s)) return null; var d = new Date(s.replace(/(\d)(st|nd|rd|th)/, '$1').replace('.', '')); return isNaN(d) ? null : d; }
   function iso(d) { d = d || new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
   function addDays(s, n) { var d = parseDate(s) || new Date(); d.setDate(d.getDate() + n); return iso(d); }
+  /* dates are typed freely ("3/15/2026", "March 15, 2026", "on or before April 30, 2026", "TBD"); phrases are printed as typed */
+  function isPhrase(s) { return !!s && !parseDate(s) || /^\s*(on|by|no later|within|prior|before|after|tbd|to be)/i.test(String(s || '')); }
+  function when(s, fmt) { return isPhrase(s) ? String(s).trim() : (fmt || longDate)(s); }
+  function occNorm(o) { return /invest/i.test(o) ? 'Investment' : /second|vacation/i.test(o) ? 'Second Home' : 'Primary Residence'; }
   function joinNames(a, last) { a = a.filter(Boolean); if (a.length < 2) return a.join(''); return a.slice(0, -1).join(', ') + (last || ' and ') + a[a.length - 1]; }
   function uid() { return 'b' + Math.random().toString(36).slice(2, 9); }
   function store() { try { return window.mortgageSuite && window.mortgageSuite.store; } catch (e) { return null; } }
@@ -10693,6 +10698,11 @@ window.MTData=M;})();
     '#mtB .sr{margin-top:6px;border:1px solid #1c3a66;border-radius:9px;overflow:hidden}#mtB .sr button{all:unset;box-sizing:border-box;display:block;width:100%;padding:7px 9px;font-size:12.5px;cursor:pointer;border-top:1px solid #142d52}#mtB .sr button:first-child{border-top:0}#mtB .sr button:hover{background:#0c2550}',
     '#mtB .cond{display:grid;grid-template-columns:auto 1fr auto;gap:6px;align-items:start;padding:6px 0;border-top:1px solid #142d52}#mtB .cond textarea{min-height:44px;font-size:12.5px}#mtB .cond select{width:auto;font-size:12px;padding:4px 6px}',
     '@media (max-width:980px){#mtB .mb{grid-template-columns:1fr;grid-template-rows:auto auto auto 1fr;inset:0;border-radius:0}#mtB .mb-nav{display:flex;overflow:auto;border-right:0;border-bottom:1px solid #123058}#mtB .mb-nav button{width:auto;flex:none}#mtB .mb-nav button small{display:none}#mtB .mb-form{border-right:0;max-height:none}#mtB .mb-prev{min-height:70vh}}',
+    '#mtB .dtw{display:flex;gap:4px;position:relative}#mtB .dtw input[type=text]{flex:1}#mtB .pkb{all:unset;box-sizing:border-box;display:grid;place-items:center;width:34px;border:1px solid #23446f;border-radius:8px;cursor:pointer;color:#9fc4ff}#mtB .pkb:hover{border-color:#5aa2ff}#mtB .pkb:focus-visible{outline:2px solid #5aa2ff}',
+    '#mtB .dtw input.pk{position:absolute;right:0;bottom:0;width:34px;height:2px;opacity:0;pointer-events:none;border:0;padding:0}',
+    '#mtB .sync{display:grid;grid-template-columns:1fr auto 1fr;gap:6px;align-items:end}#mtB .sync .eq{padding-bottom:9px;color:#8ea3c0;font-weight:700}#mtB .man{font-size:11.5px;color:#f0b357;font-weight:600}',
+    '#mtB .wd .it textarea{min-height:52px;font-size:12.5px}#mtB .wd .it .hd b{font-size:12px}#mtB .wd .ed{color:#f0b357;font-size:11px;font-weight:600}',
+    '#mtB .mb-top .btn[aria-pressed="true"]{background:#f0b357;border-color:#f0b357;color:#1d1300}#mtB .mb-prev .pe{padding:6px 12px;font-size:12px;background:#f0b357;color:#1d1300;font-weight:600}',
     '@media print{#mtB{display:none!important}}'
   ].join('\n');
 
@@ -10702,8 +10712,15 @@ window.MTData=M;})();
     if (t === 'select') return '<label class="' + cls + '">' + label + '<select' + a + '>' + opt.options.map(function (o) { o = Array.isArray(o) ? o : [o, o]; return '<option value="' + esc(o[0]) + '"' + (String(o[0]) === String(v) ? ' selected' : '') + '>' + esc(o[1]) + '</option>'; }).join('') + '</select></label>';
     if (t === 'textarea') return '<label class="' + cls + '">' + label + '<textarea' + a + ' rows="' + (opt.rows || 3) + '" placeholder="' + esc(opt.ph || '') + '">' + esc(v) + '</textarea></label>';
     if (t === 'check') return '<label class="ck' + (opt.wide ? ' w' : '') + '"><input type="checkbox"' + a + (v ? ' checked' : '') + '><span>' + label + '</span></label>';
-    return '<label class="' + cls + '">' + label + '<input type="' + (t === 'date' ? 'date' : 'text') + '"' + (t === 'money' || t === 'num' || t === 'pct' ? ' inputmode="decimal"' : '') + a + ' value="' + esc(v) + '" placeholder="' + esc(opt.ph || '') + '"></label>';
+    /* dates: typed freely, with a calendar button that fills the box */
+    if (t === 'date') return '<label class="' + cls + '">' + label + '<span class="dtw"><input type="text" data-fdate="1"' + a + ' value="' + esc(v) + '" placeholder="' + esc(opt.ph || '3/15/2026, March 15, 2026 or a phrase') + '" autocomplete="off">' +
+      '<button type="button" class="pkb" data-a="pick" aria-label="Pick ' + esc(label) + ' from a calendar" title="Calendar"><svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path fill="currentColor" d="M4 1h1.5v1.5h5V1H12v1.5h1.5A1.5 1.5 0 0 1 15 4v9.5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 1 13.5V4a1.5 1.5 0 0 1 1.5-1.5H4zM2.5 6v7.5h11V6z"/></svg></button><input type="date" class="pk" tabindex="-1" aria-hidden="true"></span></label>';
+    /* open lists: pick a suggestion or type anything */
+    var list = opt.list ? ' list="mtBdl-' + b + '-' + k + '"' : '', dl = opt.list ? '<datalist id="mtBdl-' + b + '-' + k + '">' + opt.list.map(function (o) { return '<option value="' + esc(o) + '">'; }).join('') + '</datalist>' : '';
+    return '<label class="' + cls + '">' + label + '<input type="text"' + (t === 'money' || t === 'num' || t === 'pct' ? ' inputmode="decimal"' : '') + list + a + ' value="' + esc(v) + '" placeholder="' + esc(opt.ph || (opt.list ? 'Pick or type' : '')) + '" autocomplete="off">' + dl + '</label>';
   }
+  function dateFromPicker(isoStr) { var d = parseDate(isoStr); return d ? (d.getMonth() + 1) + '/' + d.getDate() + '/' + d.getFullYear() : ''; }
+  function dropZone(kind, title, desc) { return '<div class="drop" data-drop="' + kind + '"><div><b>' + title + '</b><div class="note" style="margin:2px 0 0">' + desc + ' Scanned pages and photos are read with OCR.</div></div><label class="btn">Choose file<input type="file" accept=".pdf,image/*,.txt" data-a="' + kind + '"></label></div><div id="mtB' + kind + '" class="note"></div>'; }
   function people(b, k, label, max, opt) {
     opt = opt || {}; var arr = drafts[b][k] = drafts[b][k] || ['']; var h = '<fieldset><legend>' + label + ' (up to ' + max + ')</legend>';
     arr.forEach(function (p, i) {
@@ -10720,8 +10737,9 @@ window.MTData=M;})();
   /* --------------------------------------------- property search (OSM + Google) */
   function propertyBlock(b, prefix) {
     prefix = prefix || ''; var s = drafts[b];
-    return '<fieldset><legend>Property</legend><div class="g">' + field(b, prefix + 'address', 'Street address', {wide: 1, ph: '106 Main St'}) + field(b, prefix + 'city', 'City') +
-      field(b, prefix + 'state', 'State', {type: 'select', options: [''].concat(STATE_NAMES)}) + field(b, prefix + 'zip', 'ZIP') + field(b, prefix + 'county', 'County') + '</div>' +
+    return '<fieldset><legend>Property</legend><div class="g">' + field(b, prefix + 'address', 'Street address', {wide: 1, ph: '106 Main St, Unit 2'}) + field(b, prefix + 'city', 'City / town') +
+      field(b, prefix + 'state', 'State', {list: STATE_NAMES, ph: 'NY or New York'}) + field(b, prefix + 'zip', 'ZIP') + field(b, prefix + 'county', 'County') +
+      field(b, prefix + 'addrFree', 'Address exactly as it should print (optional - replaces the lines above in the document)', {type: 'textarea', wide: 1, rows: 2, ph: 'e.g. 106 Main Street a/k/a Section 12 Block 4 Lot 22, Town of Hempstead, NY 11550'}) + '</div>' +
       '<div class="row" style="margin-top:8px"><button type="button" class="btn" data-a="psearch" data-b="' + b + '" data-p="' + prefix + '">Search address</button>' +
       '<button type="button" class="btn" data-a="pgoogle" data-b="' + b + '" data-p="' + prefix + '">Check on Google</button><button type="button" class="btn" data-a="pfile" data-b="' + b + '" data-p="' + prefix + '">Use loan file address</button></div>' +
       '<div class="sr" id="mtBsr-' + b + prefix + '" hidden></div><p class="note">Search looks the address up on OpenStreetMap and fills the city, state, ZIP and county; Google opens a search in a new tab so you can confirm it.</p></fieldset>';
@@ -10745,7 +10763,7 @@ window.MTData=M;})();
     persist(); renderForm(); refresh();
   }
   function pfile(b, p) { var f = file(), s = drafts[b]; s[p + 'address'] = f.address; s[p + 'city'] = f.city; s[p + 'state'] = stateName(f.state); s[p + 'zip'] = f.zip; s[p + 'county'] = f.county; persist(); renderForm(); refresh(); }
-  function addrOf(s, p) { p = p || ''; return fullAddress({address: s[p + 'address'], city: s[p + 'city'], state: s[p + 'state'], zip: s[p + 'zip']}); }
+  function addrOf(s, p) { p = p || ''; var free = String(s[p + 'addrFree'] || '').trim(); if (free) return free.replace(/\s*\n\s*/g, ', '); return fullAddress({address: s[p + 'address'], city: s[p + 'city'], state: s[p + 'state'], zip: s[p + 'zip']}); }
 
   /* ================================================================= ADDENDUM */
   var ADD_STYLES = [['master', 'Amendment to Contract of Sale - classic (Times)'], ['clean', 'Amendment to Contract of Sale - clean (Arial)'], ['numbered', 'Addendum #__ to Contract of Sale - numbered paragraphs'],
@@ -10759,60 +10777,121 @@ window.MTData=M;})();
   B.addendum = {
     label: 'Addendum', sub: 'Price, concession, parties, clauses',
     init: function () {
-      var f = file(), d = {style: 'master', date: iso(), contractDate: '', number: '1', priorDocs: '', title: '', caps: true, shortMoney: false,
+      var f = file(), d = {style: 'master', date: dateFromPicker(iso()), contractDate: '', number: '1', priorDocs: '', title: '', caps: true, shortMoney: false,
         buyers: f.borrowers.length ? f.borrowers.map(function (n) { return {name: n}; }) : [{name: ''}], sellers: [{name: '', by: ''}],
-        address: f.address, city: f.city, state: stateName(f.state), zip: f.zip, county: f.county,
-        doPrice: !!f.price, fromPrice: f.price || '', toPrice: f.price || '', doConc: !!f.concession, concMode: 'dollar', concValue: f.concession || '', priceUp: false,
+        address: f.address, city: f.city, state: stateName(f.state), zip: f.zip, county: f.county, addrFree: '',
+        doPrice: !!f.price, fromPrice: f.price || '', toPrice: '', priceManual: false, doConc: !!f.concession, concDrv: 'amt', concAmt: f.concession || '', concPct: '', concOnTop: false, concShowPct: false, roundTo: '0',
+        ttOn: true, ttRate: '', ttPayer: '', ttCover: true, doTT: false,
         program: f.program || 'FHA', occupancy: f.occupancy, downPct: f.downPct ? (f.downPct * 100).toFixed(2) : '3.5', nyc: false,
         doAddBuyer: false, addBuyerName: '', doRemoveBuyer: false, removeBuyerName: '', doClosing: false, closingDate: f.closingDate || '', doMortgage: false, mortgageDate: '',
         doAppraisal: false, appraisalValue: '', doRepairs: false, repairsText: '', doEmd: false, emd: f.emd || '',
-        k203: /203|fha/i.test(f.program) && f.renovation, homestyle: false, fhaClause: false, vaClause: false, custom: [''], remain: true};
+        k203: /203|fha/i.test(f.program) && f.renovation, homestyle: false, fhaClause: false, vaClause: false, custom: [''], remain: true, leadText: '', remainText: '', over: {}};
       if (d.k203 && !/fha/i.test(f.program)) d.k203 = false;
+      B.addendum.sync(d);
       return d;
     },
+    /* drafts from 56.1 kept the concession as one value plus a mode */
+    fix: function (s) {
+      if (s.concDrv == null) { if (s.concMode === 'percent') { s.concDrv = 'pct'; s.concPct = s.concValue || ''; } else { s.concDrv = 'amt'; s.concAmt = s.concValue || ''; } s.concOnTop = !!s.priceUp; s.priceManual = false; }
+      if (s.ttOn == null) { s.ttOn = true; s.ttCover = true; s.ttPayer = ''; s.ttRate = ''; }
+      if (!s.over) s.over = {}; if (s.roundTo == null) s.roundTo = '0';
+    },
     form: function () {
-      var b = 'addendum', s = drafts[b];
-      return '<div class="drop" data-drop="contract"><div><b>Drop the purchase contract</b><div class="note" style="margin:2px 0 0">PDF, photo or text. Buyers, sellers, address, price, date and concession are read into the form (OCR for scans).</div></div><label class="btn">Choose file<input type="file" accept=".pdf,image/*,.txt" data-a="contract"></label></div><div id="mtBcontract" class="note"></div>' +
+      var b = 'addendum', s = drafts[b], c = B.addendum.calc(s), ny = stateName(s.state) === 'New York';
+      return dropZone('contract', 'Drop the purchase contract or an earlier addendum', 'PDF, photo or text. Buyers, sellers, address, price, date, deposit and concession are read into the form.') +
         '<fieldset><legend>Document</legend><div class="g">' + field(b, 'style', 'Style', {type: 'select', options: ADD_STYLES, wide: 1}) + field(b, 'date', 'Addendum date', {type: 'date'}) + field(b, 'contractDate', 'Contract dated', {type: 'date'}) +
         (s.style === 'numbered' ? field(b, 'number', 'Addendum number') + field(b, 'priorDocs', 'Earlier documents it amends', {type: 'textarea', wide: 1, rows: 2, ph: 'Attorney Review Addendum dated February 5, 2026; Addendum #1 dated February 10, 2026'}) : '') +
-        field(b, 'title', 'Custom title (optional)', {wide: 1, ph: 'Leave blank for the style\'s title'}) + field(b, 'caps', 'Terms in capitals (classic style)', {type: 'check'}) + field(b, 'shortMoney', 'Short amounts ($400K)', {type: 'check'}) + '</div></fieldset>' +
+        field(b, 'title', 'Title (blank = the style\'s title)', {wide: 1, ph: 'e.g. RIDER TO CONTRACT OF SALE'}) + field(b, 'caps', 'Terms in capitals (classic styles)', {type: 'check'}) + field(b, 'shortMoney', 'Short amounts ($400K)', {type: 'check'}) + '</div></fieldset>' +
         people(b, 'buyers', 'Buyers', 4) + people(b, 'sellers', 'Sellers', 4, {extra: ['by', 'Signing for (optional)', 'By: name, Executor']}) + propertyBlock(b) +
-        '<fieldset><legend>Seller concession & price calculator</legend><div class="g">' + field(b, 'fromPrice', 'Base purchase price', {type: 'money'}) + field(b, 'concMode', 'Concession entered as', {type: 'select', options: [['dollar', 'Dollar amount'], ['percent', 'Percent of price']]}) +
-        field(b, 'concValue', s.concMode === 'percent' ? 'Concession (%)' : 'Concession ($)', {type: 'money'}) + field(b, 'priceUp', 'Raise the price by the concession', {type: 'check'}) +
-        field(b, 'toPrice', 'New purchase price', {type: 'money', ph: 'Same as base'}) + field(b, 'program', 'Loan program', {type: 'select', options: ['FHA', 'Conventional', 'VA', 'USDA']}) +
-        field(b, 'occupancy', 'Occupancy', {type: 'select', options: ['Primary Residence', 'Second Home', 'Investment']}) + field(b, 'downPct', 'Down payment (%)', {type: 'pct'}) +
-        (stateName(s.state) === 'New York' ? field(b, 'nyc', 'Property is in New York City', {type: 'check', wide: 1}) : '') + '</div><div id="mtBconc"></div>' +
-        '<div class="row" style="margin-top:8px"><button type="button" class="btn" data-a="concUse">Use in this addendum</button><button type="button" class="btn" data-a="concLoan">Send price and concession to the Loan Suite</button></div></fieldset>' +
+        '<fieldset><legend>Purchase price & seller concession</legend><div class="g">' + field(b, 'fromPrice', 'Purchase price basis (contract price)', {type: 'money', wide: 1, ph: '400,000'}) + '</div>' +
+        '<div class="sync" style="margin-top:8px"><label class="f">Concession (%)<input type="text" inputmode="decimal" data-b="addendum" data-k="concPct" value="' + esc(s.concPct) + '" placeholder="3" autocomplete="off"></label><span class="eq" aria-hidden="true">=</span><label class="f">Concession ($)<input type="text" inputmode="decimal" data-b="addendum" data-k="concAmt" value="' + esc(s.concAmt) + '" placeholder="12,000" autocomplete="off"></label></div>' +
+        '<p class="note" style="margin-top:4px">Type either box - the other follows. The percent is of the final purchase price. You typed the <b id="mtBdrv">' + (s.concDrv === 'pct' ? 'percent' : 'dollar amount') + '</b>, so it stays fixed when the price changes.</p>' +
+        '<div class="g" style="margin-top:8px">' + field(b, 'concOnTop', 'Add the concession on top of the price (unticked: the concession is included in the price)', {type: 'check', wide: 1}) +
+        field(b, 'ttOn', 'Include transfer tax', {type: 'check', wide: 1}) +
+        (s.ttOn ? field(b, 'ttRate', 'Transfer tax rate (%) - blank uses the state table', {type: 'pct', ph: c.ttTable != null ? (c.ttTable * 100).toFixed(4).replace(/0+$/, '').replace(/\.$/, '') : 'No table entry'}) +
+          field(b, 'ttPayer', 'Paid by', {type: 'select', options: [['', 'As the state table says' + (c.ttTablePayer ? ' (' + c.ttTablePayer + ')' : '')], ['Seller', 'Seller'], ['Buyer', 'Buyer'], ['Split', 'Split 50/50']]}) +
+          (s.concOnTop ? field(b, 'ttCover', 'Raise the price to cover the seller\'s added transfer tax (seller nets the same)', {type: 'check', wide: 1}) : '') : '') +
+        (s.concOnTop ? field(b, 'roundTo', 'Round the new price up to', {type: 'select', options: [['0', 'No rounding (to the cent)'], ['1', 'Whole dollar'], ['100', '$100'], ['500', '$500'], ['1000', '$1,000']]}) : '') + '</div>' +
+        '<div class="g" style="margin-top:8px"><label class="f w">New purchase price <span class="man" id="mtBman"' + (s.priceManual ? '' : ' hidden') + '>typed by you</span><span id="mtBcalcd"' + (s.priceManual ? ' hidden' : '') + '>(calculated - type to set it yourself)</span><input type="text" inputmode="decimal" data-b="addendum" data-k="toPrice" value="' + esc(s.priceManual ? s.toPrice : (c.price ? c.price.toFixed(2) : '')) + '" autocomplete="off"></label>' +
+        '<div class="w" id="mtBpc"' + (s.priceManual ? '' : ' hidden') + '><button type="button" class="btn" data-a="priceCalc">Use the calculated price</button></div>' +
+        field(b, 'program', 'Loan program', {list: ['FHA', 'FHA 203(k)', 'Conventional', 'HomeStyle', 'VA', 'USDA']}) + field(b, 'occupancy', 'Occupancy', {list: ['Primary Residence', 'Second Home', 'Investment']}) + field(b, 'downPct', 'Down payment (%)', {type: 'pct'}) +
+        '<span id="mtBnyc" class="w"' + (ny ? '' : ' hidden') + '>' + field(b, 'nyc', 'Property is in New York City', {type: 'check'}) + '</span></div><div id="mtBconc"></div>' +
+        '<div class="row" style="margin-top:8px"><button type="button" class="btn" data-a="concUse">Put price and concession in the addendum</button><button type="button" class="btn" data-a="concLoan">Send price and concession to the Loan Suite</button></div></fieldset>' +
         '<fieldset><legend>What the addendum changes</legend><div class="g">' +
-        field(b, 'doPrice', 'Purchase price', {type: 'check', wide: 1}) + field(b, 'doConc', 'Seller concession', {type: 'check', wide: 1}) +
+        field(b, 'doPrice', 'Purchase price', {type: 'check'}) + field(b, 'doConc', 'Seller concession', {type: 'check'}) + field(b, 'concShowPct', 'Show the concession percent too', {type: 'check'}) + field(b, 'doTT', 'Who pays the transfer tax', {type: 'check'}) +
         field(b, 'doAddBuyer', 'Add a purchaser', {type: 'check'}) + field(b, 'addBuyerName', 'Name to add') + field(b, 'doRemoveBuyer', 'Remove a purchaser', {type: 'check'}) + field(b, 'removeBuyerName', 'Name to remove') +
-        field(b, 'doClosing', 'Closing date', {type: 'check'}) + field(b, 'closingDate', 'New closing date', {type: 'date'}) + field(b, 'doMortgage', 'Mortgage commitment date', {type: 'check'}) + field(b, 'mortgageDate', 'Commitment due by', {type: 'date'}) +
+        field(b, 'doClosing', 'Closing date', {type: 'check'}) + field(b, 'closingDate', 'New closing date', {type: 'date', ph: 'on or about May 1, 2026'}) + field(b, 'doMortgage', 'Mortgage commitment date', {type: 'check'}) + field(b, 'mortgageDate', 'Commitment due by', {type: 'date'}) +
         field(b, 'doAppraisal', 'Appraisal gap / value', {type: 'check'}) + field(b, 'appraisalValue', 'Appraised value', {type: 'money'}) + field(b, 'doEmd', 'Earnest money', {type: 'check'}) + field(b, 'emd', 'Deposit amount', {type: 'money'}) +
         field(b, 'doRepairs', 'Repairs / credit', {type: 'check', wide: 1}) + field(b, 'repairsText', 'Repairs or credit terms', {type: 'textarea', wide: 1, rows: 2}) + '</div></fieldset>' +
         '<fieldset><legend>Financing clauses</legend>' + field(b, 'k203', 'FHA 203(k) verbiage (lender-required wording)', {type: 'check'}) + field(b, 'homestyle', 'Fannie Mae HomeStyle renovation verbiage', {type: 'check'}) +
         field(b, 'fhaClause', 'FHA amendatory clause', {type: 'check'}) + field(b, 'vaClause', 'VA escape clause', {type: 'check'}) + field(b, 'remain', '"All other terms remain the same" line', {type: 'check'}) + '</fieldset>' +
         '<fieldset><legend>Other terms</legend><div class="list">' + s.custom.map(function (c, i) { return '<div class="it"><div class="hd"><b style="flex:1">Term ' + (i + 1) + '</b>' + (s.custom.length > 1 ? '<button type="button" class="x" data-a="rm" data-b="addendum" data-list="custom" data-i="' + i + '">Remove</button>' : '') + '</div><textarea data-b="addendum" data-list="custom" data-i="' + i + '" rows="2" placeholder="Any other change, in your words">' + esc(c) + '</textarea></div>'; }).join('') +
-        '</div><button type="button" class="btn" data-a="add" data-b="addendum" data-list="custom">+ Add a term</button></fieldset>';
+        '</div><button type="button" class="btn" data-a="add" data-b="addendum" data-list="custom">+ Add a term</button></fieldset>' +
+        '<fieldset class="wd"><legend>Wording - edit any section</legend><p class="note" style="margin:0 0 8px">Each section prints exactly as it reads here. Change the words freely; Reset brings back the wording built from the form.</p>' +
+        field(b, 'leadText', 'Opening line', {wide: 1, ph: 'THE CONTRACT OF SALE SHALL BE AMENDED AS FOLLOWS:'}) + '<div id="mtBwording" class="list" style="margin-top:8px"></div>' +
+        field(b, 'remainText', 'Closing line', {type: 'textarea', wide: 1, rows: 2, ph: 'ALL OTHER TERMS AND CONDITIONS OF THE CONTRACT OF SALE REMAIN THE SAME.'}) + '</fieldset>';
+    },
+    /* transfer tax: the rate typed here, or the state table at that price */
+    ttAt: function (s, price) {
+      if (s.ttRate !== '' && s.ttRate != null && isFinite(parseFloat(s.ttRate))) return N(s.ttRate) / 100;
+      var t = transferTax(s.state, price, s.nyc); return t ? t.rate : 0;
     },
     calc: function (s) {
-      var base = N(s.fromPrice), cv = N(s.concValue), conc = s.concMode === 'percent' ? (s.priceUp ? 0 : base * cv / 100) : cv;
-      var newPrice = N(s.toPrice) || base;
-      if (s.priceUp) { if (s.concMode === 'percent') { newPrice = base / (1 - cv / 100); conc = newPrice * cv / 100; } else { newPrice = base + cv; } newPrice = Math.round(newPrice * 100) / 100; conc = Math.round(conc * 100) / 100; }
-      else if (s.concMode === 'percent') conc = newPrice * cv / 100;
-      var down = N(s.downPct) / 100, loan = newPrice * (1 - down), ltv = newPrice ? loan / newPrice : 0, lim = concessionLimit(s.program, s.occupancy, ltv), max = newPrice * lim.limitPct;
-      var tt0 = transferTax(s.state, base, s.nyc), tt1 = transferTax(s.state, newPrice, s.nyc), m0 = mansionTax(s.state, base), m1 = mansionTax(s.state, newPrice);
-      return {base: base, price: newPrice, conc: conc, concPct: newPrice ? conc / newPrice : 0, netToSeller: newPrice - conc, netBefore: base, ltv: ltv, loan: loan, limit: lim, max: max, over: conc - max,
-        tt0: tt0 ? base * tt0.rate : null, tt1: tt1 ? newPrice * tt1.rate : null, tt: tt1, m0: m0 ? base * m0.rate : 0, m1: m1 ? newPrice * m1.rate : 0, mansion: m1};
+      var basis = N(s.fromPrice), p = N(s.concPct) / 100, a = N(s.concAmt), drv = s.concDrv === 'pct' ? 'pct' : 'amt', top = !!s.concOnTop, A = B.addendum;
+      var tab = transferTax(s.state, basis, s.nyc), payer = s.ttPayer || (tab ? tab.payer : 'Seller') || 'Seller';
+      var sellerShare = !s.ttOn ? 0 : /^buyer/i.test(payer) ? 0 : /split/i.test(payer) ? .5 : tab && !s.ttPayer && tab.buyerShare ? 1 - tab.buyerShare : 1;
+      var price = basis, cover = top && s.ttOn && s.ttCover !== false, manual = !!s.priceManual && N(s.toPrice) > 0;
+      if (manual) price = N(s.toPrice);
+      else if (top) {
+        var r0 = cover ? A.ttAt(s, basis) * sellerShare : 0;
+        for (var k = 0; k < 6; k++) { var r = cover ? A.ttAt(s, price) * sellerShare : 0; price = drv === 'pct' ? (1 - p - r > 0 ? basis * (1 - r0) / (1 - p - r) : basis) : (1 - r > 0 ? (basis * (1 - r0) + a) / (1 - r) : basis + a); }
+        var rt = N(s.roundTo); price = rt ? Math.ceil(price / rt - 1e-9) * rt : Math.round(price * 100) / 100;
+      }
+      var conc = Math.round((drv === 'pct' ? price * p : a) * 100) / 100;
+      var down = N(s.downPct) / 100, loan = price * (1 - down), ltv = price ? loan / price : 0, lim = concessionLimit(s.program, occNorm(s.occupancy), ltv), max = price * lim.limitPct;
+      var rate0 = s.ttOn ? A.ttAt(s, basis) : 0, rate1 = s.ttOn ? A.ttAt(s, price) : 0, tt0 = basis * rate0, tt1 = price * rate1;
+      var m0 = mansionTax(s.state, basis), m1 = mansionTax(s.state, price);
+      return {base: basis, price: price, conc: conc, concPct: price ? conc / price : 0, drv: drv, top: top, manual: manual, ltv: ltv, loan: loan, limit: lim, max: max, over: conc - max,
+        ttOn: !!s.ttOn, rate0: rate0, rate1: rate1, tt0: tt0, tt1: tt1, payer: payer, sellerShare: sellerShare, sellerTT0: tt0 * sellerShare, sellerTT1: tt1 * sellerShare, buyerTT1: tt1 * (1 - sellerShare),
+        ttTable: tab ? tab.rate : null, ttTablePayer: tab ? tab.payer : '', ttNote: tab ? tab.note : '',
+        net0: basis - tt0 * sellerShare, net1: price - conc - tt1 * sellerShare, m0: m0 ? basis * m0.rate : 0, m1: m1 ? price * m1.rate : 0, mansion: m1};
+    },
+    /* keeps the % and $ boxes and the new price in step with each other */
+    sync: function (s) {
+      var c = B.addendum.calc(s), pctTxt = c.price ? String(+(c.concPct * 100).toFixed(4)) : '';
+      if (c.drv === 'pct') s.concAmt = s.concPct === '' ? '' : c.conc.toFixed(2); else s.concPct = s.concAmt === '' ? '' : pctTxt;
+      if (!s.priceManual) s.toPrice = c.price ? c.price.toFixed(2) : '';
+      var ae = document.activeElement;
+      ['concAmt', 'concPct', 'toPrice'].forEach(function (k) { var el = document.querySelector('#mtB [data-b="addendum"][data-k="' + k + '"]'); if (el && el !== ae) el.value = s[k]; });
+      var d = $('mtBdrv'); if (d) d.textContent = c.drv === 'pct' ? 'percent' : 'dollar amount';
+      var tr = document.querySelector('#mtB [data-b="addendum"][data-k="ttRate"]'); if (tr) tr.placeholder = c.ttTable != null ? String(+(c.ttTable * 100).toFixed(4)) : 'No table entry';
+      var nyc = $('mtBnyc'); if (nyc) nyc.hidden = stateName(s.state) !== 'New York';
+      [['mtBman', !s.priceManual], ['mtBcalcd', !!s.priceManual], ['mtBpc', !s.priceManual]].forEach(function (x) { var e = $(x[0]); if (e) e.hidden = x[1]; });
+      return c;
     },
     side: function () {
       var s = drafts.addendum, c = B.addendum.calc(s), el = $('mtBconc'); if (!el) return;
-      var tt = c.tt, ttLine = tt ? '<span>Transfer tax at ' + usd(c.base, 0) + ' (' + pct(tt.rate, 3) + ')</span><b>' + usd(c.tt0) + '</b><span>Transfer tax at ' + usd(c.price, 0) + '</span><b>' + usd(c.tt1) + '</b><span>Change in transfer tax</span><b class="' + (c.tt1 - c.tt0 > 0 ? 'warn' : '') + '">' + usd(c.tt1 - c.tt0) + '</b><span>Usually paid by</span><b>' + esc(tt.payer || '-') + (tt.buyerShare ? ' (buyer ' + pct(tt.buyerShare, 0) + ')' : '') + '</b>' : '<span>Transfer tax</span><b>' + (s.state ? 'No table entry' : 'Pick the state') + '</b>';
-      el.innerHTML = '<div class="kv"><span>New purchase price</span><b>' + usd(c.price) + '</b><span>Seller concession</span><b>' + usd(c.conc) + ' (' + pct(c.concPct) + ')</b><span>Price less concession (seller nets before costs)</span><b>' + usd(c.netToSeller) + '</b>' +
-        '<span>Loan ' + pct(c.ltv) + ' LTV</span><b>' + usd(c.loan) + '</b><span>Maximum concession (' + pct(c.limit.limitPct, 0) + ')</span><b class="' + (c.over > 0.005 ? 'bad' : 'ok') + '">' + usd(c.max) + (c.over > 0.005 ? ' - over by ' + usd(c.over) : '') + '</b>' + ttLine +
+      var ttLine = !c.ttOn ? '<span>Transfer tax</span><b>Not included</b>' : !c.rate0 && !c.rate1 ? '<span>Transfer tax</span><b>' + (s.state ? 'No table entry - type a rate' : 'Enter the state') + '</b>' :
+        '<span>Transfer tax at ' + usd(c.base, 0) + ' (' + pct(c.rate0, 3) + ')</span><b>' + usd(c.tt0) + '</b><span>Transfer tax at ' + usd(c.price, 0) + ' (' + pct(c.rate1, 3) + ')</span><b>' + usd(c.tt1) + '</b><span>Change in transfer tax</span><b class="' + (c.tt1 - c.tt0 > 0.005 ? 'warn' : '') + '">' + usd(c.tt1 - c.tt0) + '</b>' +
+        '<span>Paid by</span><b>' + esc(c.payer) + (c.sellerShare > 0 && c.sellerShare < 1 ? ' (seller ' + pct(c.sellerShare, 0) + ')' : '') + '</b>';
+      el.innerHTML = '<div class="kv"><span>Purchase price basis</span><b>' + usd(c.base) + '</b><span>New purchase price' + (c.manual ? ' (typed)' : c.top ? ' (concession on top)' : ' (concession included)') + '</span><b>' + usd(c.price) + '</b><span>Price change</span><b>' + usd(c.price - c.base) + '</b>' +
+        '<span>Seller concession</span><b>' + usd(c.conc) + ' (' + pct(c.concPct, 3) + ')</b>' + ttLine +
+        '<span>Seller nets before (price' + (c.sellerTT0 ? ' less transfer tax' : '') + ')</span><b>' + usd(c.net0) + '</b><span>Seller nets after (less concession' + (c.sellerTT1 ? ' and transfer tax' : '') + ')</span><b class="' + (c.net1 - c.net0 < -0.005 ? 'warn' : 'ok') + '">' + usd(c.net1) + '</b>' +
+        '<span>Loan ' + pct(c.ltv) + ' LTV</span><b>' + usd(c.loan) + '</b><span>Maximum concession (' + pct(c.limit.limitPct, 0) + ')</span><b class="' + (c.over > 0.005 ? 'bad' : 'ok') + '">' + usd(c.max) + (c.over > 0.005 ? ' - over by ' + usd(c.over) : '') + '</b>' +
         (c.m1 || c.m0 ? '<span>Mansion tax (' + esc(c.mansion ? c.mansion.payer : 'Buyer') + ')</span><b>' + usd(c.m0) + ' → ' + usd(c.m1) + '</b>' : '') + '</div>' +
-        '<p class="note">' + esc(c.limit.note || '') + (tt && tt.note ? ' · Transfer tax: ' + esc(tt.note) + '. Local or county transfer taxes may be added.' : '') + '</p>';
+        '<p class="note">' + esc(c.limit.note || '') + (c.ttOn && c.ttNote ? ' · Transfer tax: ' + esc(c.ttNote) + '. Local or county transfer taxes may be added.' : '') + '</p>';
+      B.addendum.wording();
     },
-    concUse: function () { var s = drafts.addendum, c = B.addendum.calc(s); s.toPrice = c.price; s.doPrice = c.price !== c.base || !!s.doPrice; s.doConc = c.conc > 0; s.concFinal = c.conc; persist(); renderForm(); refresh(); say('Price ' + usd(c.price) + ' and concession ' + usd(c.conc) + ' are in the addendum.'); },
+    /* the Wording list: every section the addendum prints, each one editable */
+    wording: function () {
+      var box = $('mtBwording'), s = drafts.addendum; if (!box || box.contains(document.activeElement)) return;
+      var classic = s.style === 'master' || s.style === 'clean', T = B.addendum.terms(s, true);
+      box.innerHTML = T.length ? T.map(function (t) { var ov = s.over && s.over[t.key] != null && s.over[t.key] !== '';
+        return '<div class="it"><div class="hd"><b style="flex:1">' + esc(t.h) + (ov ? ' <span class="ed">edited</span>' : '') + '</b>' + (ov ? '<button type="button" class="x" data-a="overReset" data-key="' + t.key + '">Reset</button>' : '') + '</div>' +
+          '<textarea data-b="addendum" data-over="' + t.key + '" rows="' + (classic ? 2 : 3) + '" aria-label="' + esc(t.h) + ' wording">' + esc(ov ? s.over[t.key] : classic ? t.short0 : t.t0) + '</textarea></div>'; }).join('') :
+        '<p class="note" style="margin:0">Tick a change above (price, concession, closing date…) and its wording appears here to edit.</p>';
+    },
+    concUse: function () { var s = drafts.addendum, c = B.addendum.calc(s); s.doPrice = Math.abs(c.price - c.base) > 0.004 || !!s.doPrice; s.doConc = c.conc > 0; persist(); renderForm(); refresh(); say('Price ' + usd(c.price) + ' and concession ' + usd(c.conc) + ' are in the addendum.'); },
     concLoan: function () {
       var s = drafts.addendum, c = B.addendum.calc(s), st = store();
       if (st && st.setField) { st.setField('basePurchasePrice', c.price, 'Addendum'); st.setField('sellerConcessionAmount', c.conc, 'Addendum'); say('Loan Suite: price ' + usd(c.price) + ', concession ' + usd(c.conc) + '.'); return; }
@@ -10821,24 +10900,27 @@ window.MTData=M;})();
       try { localStorage.setItem('mt.docs.queue.v1', JSON.stringify(q)); } catch (e) {}
       say('Price and concession will be placed when the Loan Suite opens.');
     },
-    terms: function (s) {
+    terms: function (s, raw) {
       var c = B.addendum.calc(s), out = [], money = function (v) { return s.shortMoney ? short$(v) : usd(v); }, buyers = names(s.buyers);
-      var price = N(s.toPrice) || c.price, conc = s.concFinal != null && s.doConc ? N(s.concFinal) : c.conc;
-      if (s.doAddBuyer && s.addBuyerName) out.push({h: 'Addition of Purchaser', t: 'The parties agree to add ' + s.addBuyerName + ' as an additional purchaser under the Agreement. All rights and obligations of the Buyer shall be held jointly and severally by ' + joinNames(buyers.indexOf(s.addBuyerName) < 0 ? buyers.concat(s.addBuyerName) : buyers) + '.', short: 'ADD ' + s.addBuyerName + ' AS A PURCHASER'});
-      if (s.doRemoveBuyer && s.removeBuyerName) out.push({h: 'Removal of Purchaser', t: 'The parties agree to remove ' + s.removeBuyerName + ' as a purchaser under the Agreement. The remaining Buyer(s) assume all rights and obligations of the Buyer.', short: 'REMOVE ' + s.removeBuyerName + ' AS A PURCHASER'});
-      if (s.doPrice && price) out.push({h: 'Purchase Price', t: 'The parties agree to amend the Purchase Price in the Agreement ' + (N(s.fromPrice) && N(s.fromPrice) !== price ? 'from ' + usd(s.fromPrice) + ' to ' : 'to ') + usd(price) + '.', short: 'ADJUST PURCHASE PRICE TO ' + money(price), price: price});
-      if (s.doConc && conc) out.push({h: 'Seller Concession', t: 'Seller agrees to credit Buyer at closing the amount of ' + usd(conc) + ' toward Buyer\'s closing costs, prepaid items and other costs allowed by Buyer\'s lender.', short: money(conc) + ' SELLER CONCESSION', conc: conc});
-      if (s.doEmd && N(s.emd)) out.push({h: 'Earnest Money', t: 'The earnest money deposit shall be ' + usd(s.emd) + ', to be held in escrow as provided in the Agreement.', short: 'EARNEST MONEY DEPOSIT OF ' + money(s.emd)});
-      if (s.doClosing && s.closingDate) out.push({h: 'Closing Date', t: 'The closing date is amended to on or about ' + longDate(s.closingDate) + '.', short: 'CLOSING DATE ON OR ABOUT ' + longDate(s.closingDate).toUpperCase()});
-      if (s.doMortgage && s.mortgageDate) out.push({h: 'Mortgage Commitment', t: 'The date by which Buyer must obtain a mortgage commitment is extended to ' + longDate(s.mortgageDate) + '.', short: 'MORTGAGE COMMITMENT DATE EXTENDED TO ' + longDate(s.mortgageDate).toUpperCase()});
-      if (s.doAppraisal && N(s.appraisalValue)) out.push({h: 'Appraisal', t: 'The property has appraised at ' + usd(s.appraisalValue) + '. The parties agree that the Purchase Price stated in this Addendum governs, and Buyer waives any appraisal contingency to the extent of that value.', short: 'APPRAISED VALUE OF ' + money(s.appraisalValue) + ' ACKNOWLEDGED'});
-      if (s.doRepairs && s.repairsText) out.push({h: 'Repairs / Credit', t: s.repairsText, short: s.repairsText});
-      if (s.k203) out.push({h: 'FHA 203(k) Financing', t: CLAUSES.k203, short: CLAUSES.k203});
-      if (s.homestyle) out.push({h: 'HomeStyle Renovation Financing', t: CLAUSES.homestyle, short: CLAUSES.homestyle});
-      if (s.fhaClause) out.push({h: 'FHA Amendatory Clause', t: CLAUSES.fha.replace('{value}', usd(price || c.price)), short: CLAUSES.fha.replace('{value}', usd(price || c.price))});
-      if (s.vaClause) out.push({h: 'VA Escape Clause', t: CLAUSES.va, short: CLAUSES.va});
-      (s.custom || []).filter(function (x) { return x && x.trim(); }).forEach(function (x) { out.push({h: 'Additional Terms', t: x, short: x}); });
-      return out;
+      var price = c.price, conc = c.conc, cp = s.concShowPct && price ? +(c.concPct * 100).toFixed(3) + '% of the Purchase Price, ' : '', cps = s.concShowPct && price ? +(c.concPct * 100).toFixed(3) + '% (' : '';
+      var push = function (key, h, t, short, extra) { var o = {key: key, h: h, t0: t, short0: short, t: t, short: short}; if (!raw && s.over && s.over[key] != null && s.over[key] !== '') { o.t = o.short = s.over[key]; o.edited = true; } for (var x in extra || {}) o[x] = extra[x]; out.push(o); };
+      if (s.doAddBuyer && s.addBuyerName) push('addBuyer', 'Addition of Purchaser', 'The parties agree to add ' + s.addBuyerName + ' as an additional purchaser under the Agreement. All rights and obligations of the Buyer shall be held jointly and severally by ' + joinNames(buyers.indexOf(s.addBuyerName) < 0 ? buyers.concat(s.addBuyerName) : buyers) + '.', 'ADD ' + s.addBuyerName + ' AS A PURCHASER');
+      if (s.doRemoveBuyer && s.removeBuyerName) push('removeBuyer', 'Removal of Purchaser', 'The parties agree to remove ' + s.removeBuyerName + ' as a purchaser under the Agreement. The remaining Buyer(s) assume all rights and obligations of the Buyer.', 'REMOVE ' + s.removeBuyerName + ' AS A PURCHASER');
+      if (s.doPrice && price) push('price', 'Purchase Price', 'The parties agree to amend the Purchase Price in the Agreement ' + (c.base && Math.abs(c.base - price) > 0.004 ? 'from ' + usd(c.base) + ' to ' : 'to ') + usd(price) + '.', 'ADJUST PURCHASE PRICE TO ' + money(price), {price: price});
+      if (s.doConc && conc) push('conc', 'Seller Concession', 'Seller agrees to credit Buyer at closing ' + cp + 'the amount of ' + usd(conc) + ', toward Buyer\'s closing costs, prepaid items and other costs allowed by Buyer\'s lender' + (c.top ? '' : ', which credit is included in the Purchase Price') + '.', (cps ? cps + money(conc) + ')' : money(conc)) + ' SELLER CONCESSION', {conc: conc});
+      if (s.doTT && c.ttOn) { var who = /buyer/i.test(c.payer) ? 'Buyer' : /split/i.test(c.payer) ? 'Buyer and Seller in equal shares' : 'Seller';
+        push('tt', 'Transfer Tax', 'The ' + (stateName(s.state) || 'state') + ' real property transfer tax' + (c.tt1 ? ', estimated at ' + usd(c.tt1) + ' on the Purchase Price,' : '') + ' shall be paid by ' + who + ' at closing.', 'TRANSFER TAX' + (c.tt1 ? ' OF ' + money(c.tt1) : '') + ' TO BE PAID BY ' + who.toUpperCase()); }
+      if (s.doEmd && N(s.emd)) push('emd', 'Earnest Money', 'The earnest money deposit shall be ' + usd(s.emd) + ', to be held in escrow as provided in the Agreement.', 'EARNEST MONEY DEPOSIT OF ' + money(s.emd));
+      if (s.doClosing && s.closingDate) { var cd = when(s.closingDate), ph = isPhrase(s.closingDate); push('closing', 'Closing Date', 'The closing date is amended to ' + (ph ? '' : 'on or about ') + cd + '.', 'CLOSING DATE ' + (ph ? '' : 'ON OR ABOUT ') + cd.toUpperCase()); }
+      if (s.doMortgage && s.mortgageDate) push('mortgage', 'Mortgage Commitment', 'The date by which Buyer must obtain a mortgage commitment is extended to ' + when(s.mortgageDate) + '.', 'MORTGAGE COMMITMENT DATE EXTENDED TO ' + when(s.mortgageDate).toUpperCase());
+      if (s.doAppraisal && N(s.appraisalValue)) push('appraisal', 'Appraisal', 'The property has appraised at ' + usd(s.appraisalValue) + '. The parties agree that the Purchase Price stated in this Addendum governs, and Buyer waives any appraisal contingency to the extent of that value.', 'APPRAISED VALUE OF ' + money(s.appraisalValue) + ' ACKNOWLEDGED');
+      if (s.doRepairs && s.repairsText) push('repairs', 'Repairs / Credit', s.repairsText, s.repairsText);
+      if (s.k203) push('k203', 'FHA 203(k) Financing', CLAUSES.k203, CLAUSES.k203);
+      if (s.homestyle) push('homestyle', 'HomeStyle Renovation Financing', CLAUSES.homestyle, CLAUSES.homestyle);
+      if (s.fhaClause) push('fha', 'FHA Amendatory Clause', CLAUSES.fha.replace('{value}', usd(price)), CLAUSES.fha.replace('{value}', usd(price)));
+      if (s.vaClause) push('va', 'VA Escape Clause', CLAUSES.va, CLAUSES.va);
+      (s.custom || []).forEach(function (x, i) { if (x && x.trim()) out.push({key: 'custom' + i, h: 'Additional Terms', t: x, short: x, t0: x, short0: x, custom: true}); });
+      return raw ? out.filter(function (t) { return !t.custom; }) : out;
     },
     doc: function (s) {
       var T = B.addendum.terms(s), buyers = names(s.buyers), sellers = (s.sellers || []).filter(function (p) { return p && p.name; }), addr = addrOf(s), st = s.style;
@@ -10849,41 +10931,41 @@ window.MTData=M;})();
         var price = T.filter(function (t) { return t.price; })[0], conc = T.filter(function (t) { return t.conc; })[0], lines = [];
         if (price || conc) lines.push('PLEASE ' + (price ? price.short : '') + (price && conc ? ' WITH A ' : conc ? 'PROVIDE A ' : '') + (conc ? conc.short : ''));
         T.forEach(function (t) { if (t !== price && t !== conc) lines.push(t.short); });
-        if (s.remain) lines.push('ALL OTHER TERMS AND CONDITIONS OF THE CONTRACT OF SALE REMAIN THE SAME.');
+        if (s.remain) lines.push(s.remainText || 'ALL OTHER TERMS AND CONDITIONS OF THE CONTRACT OF SALE REMAIN THE SAME.');
         return page(st === 'master' ? 'tnr' : 'ari', '<h1 class="u">' + esc(s.title || 'AMENDMENT TO CONTRACT OF SALE') + '</h1>' +
-          '<table class="hdr"><tr><td><u>DATE:</u></td><td>' + esc(caps(ordDate(s.date))) + '</td></tr><tr><td><u>SELLERS:</u></td><td>' + esc(caps(sellers.map(function (p) { return p.name + (p.by ? ' (by ' + p.by + ')' : ''); }).join(', '))) + '</td></tr>' +
-          '<tr><td><u>BUYERS:</u></td><td>' + esc(caps(joinNames(buyers))) + '</td></tr><tr><td><u>PREMISES:</u></td><td>' + esc(caps(addr)) + '</td></tr>' + (s.contractDate ? '<tr><td><u>CONTRACT:</u></td><td>' + esc(caps('Dated ' + longDate(s.contractDate))) + '</td></tr>' : '') + '</table>' +
-          '<p class="lead">' + caps('THE CONTRACT OF SALE SHALL BE AMENDED AS FOLLOWS:') + '</p>' + lines.map(function (l) { return '<p class="term">' + esc(caps(l)) + '</p>'; }).join('') +
+          '<table class="hdr"><tr><td><u>DATE:</u></td><td>' + esc(caps(when(s.date, ordDate))) + '</td></tr><tr><td><u>SELLERS:</u></td><td>' + esc(caps(sellers.map(function (p) { return p.name + (p.by ? ' (by ' + p.by + ')' : ''); }).join(', '))) + '</td></tr>' +
+          '<tr><td><u>BUYERS:</u></td><td>' + esc(caps(joinNames(buyers))) + '</td></tr><tr><td><u>PREMISES:</u></td><td>' + esc(caps(addr)) + '</td></tr>' + (s.contractDate ? '<tr><td><u>CONTRACT:</u></td><td>' + esc(caps('Dated ' + when(s.contractDate))) + '</td></tr>' : '') + '</table>' +
+          '<p class="lead">' + esc(caps(s.leadText || 'THE CONTRACT OF SALE SHALL BE AMENDED AS FOLLOWS:')) + '</p>' + lines.map(function (l) { return '<p class="term">' + esc(caps(l)) + '</p>'; }).join('') +
           '<div class="sigs">' + sigs('Purchaser', bl, Math.max(2, bl.length)) + sigs('Seller', sellers, Math.max(2, sellers.length)) + '</div>', CSS_ADD_MASTER);
       }
       if (st === 'numbered') {
-        var docs = [s.contractDate ? 'The Contract of Sale dated ' + longDate(s.contractDate) : 'The Contract of Sale'].concat((s.priorDocs || '').split(/;|\n/).map(function (x) { return x.trim(); }).filter(Boolean));
-        var items = T.map(function (t) { return t.t; }); if (s.remain) items.push('Unless modified herein, all other provisions of ' + joinNames(docs).replace(/^The /, 'the ') + ' shall remain in full force and effect.');
+        var docs = [s.contractDate ? 'The Contract of Sale dated ' + when(s.contractDate) : 'The Contract of Sale'].concat((s.priorDocs || '').split(/;|\n/).map(function (x) { return x.trim(); }).filter(Boolean));
+        var items = T.map(function (t) { return t.t; }); if (s.remain) items.push(s.remainText || 'Unless modified herein, all other provisions of ' + joinNames(docs).replace(/^The /, 'the ') + ' shall remain in full force and effect.');
         return page('tnr', '<h1 class="b">' + esc(s.title || 'ADDENDUM #' + (s.number || '1') + ' TO CONTRACT OF SALE') + '</h1><table class="hdr b"><tr><td>BUYER' + (buyers.length > 1 ? 'S' : '') + ':</td><td>' + esc(joinNames(buyers)) + '</td></tr><tr><td>SELLER' + (sellers.length > 1 ? 'S' : '') + ':</td><td>' + esc(sellers.map(function (p) { return p.name; }).join(', ')) + '</td></tr><tr><td>PROPERTY:</td><td>' + esc(addr) + '</td></tr></table>' +
-          '<p>' + esc(joinNames(docs)) + (docs.length > 1 ? ' are' : ' is') + ' hereby amended as follows:</p><ol>' + items.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ol>' +
-          '<div class="sig2">' + bl.map(function (p) { return '<div class="r"><div><div class="sl"></div>' + esc(p.name) + '</div><div>Buyer</div></div>'; }).join('') + sellers.map(function (p) { return '<div class="r"><div><div class="sl"></div>' + esc(p.name) + (p.by ? '<br>By: ' + esc(p.by) : '') + '</div><div>Seller</div></div>'; }).join('') + '</div><p style="margin-top:28px">Dated: ' + esc(longDate(s.date)) + '</p>', CSS_ADD_NUM);
+          '<p>' + esc(s.leadText || joinNames(docs) + (docs.length > 1 ? ' are' : ' is') + ' hereby amended as follows:') + '</p><ol>' + items.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ol>' +
+          '<div class="sig2">' + bl.map(function (p) { return '<div class="r"><div><div class="sl"></div>' + esc(p.name) + '</div><div>Buyer</div></div>'; }).join('') + sellers.map(function (p) { return '<div class="r"><div><div class="sl"></div>' + esc(p.name) + (p.by ? '<br>By: ' + esc(p.by) : '') + '</div><div>Seller</div></div>'; }).join('') + '</div><p style="margin-top:28px">Dated: ' + esc(when(s.date)) + '</p>', CSS_ADD_NUM);
       }
       if (st === 'purchase') {
-        var it = T.map(function (t) { return '<p><b>' + esc(t.h) + '.</b> ' + esc(t.t) + '</p>'; }); if (s.remain) it.push('<p><b>All Other Terms.</b> All other terms and conditions of the Agreement shall remain in full force and effect.</p>');
+        var it = T.map(function (t) { return '<p><b>' + esc(t.h) + '.</b> ' + esc(t.t) + '</p>'; }); if (s.remain) it.push('<p><b>All Other Terms.</b> ' + esc(s.remainText || 'All other terms and conditions of the Agreement shall remain in full force and effect.') + '</p>');
         it = it.map(function (x, i) { return x.replace('<p><b>', '<p><b>' + (i + 1) + '. '); });
         var rows = Math.max(bl.length, sellers.length, 1), tr = '';
         for (var i = 0; i < rows; i++) tr += '<tr><td>' + (bl[i] ? '<div class="sl"></div>' + esc(bl[i].name) : '') + '</td><td>' + (sellers[i] ? '<div class="sl"></div>' + esc(sellers[i].name) + (sellers[i].by ? '<br>By: ' + esc(sellers[i].by) : '') : '') + '</td></tr>';
-        return page('tnr', '<h1 class="big">' + esc(s.title || 'ADDENDUM TO PURCHASE AGREEMENT') + '</h1><p><b>DATE:</b> ' + esc(longDate(s.date)) + '</p><p><b>BUYER:</b> ' + esc(buyers.join(', ')) + '</p><p><b>SELLER:</b> ' + esc(sellers.map(function (p) { return p.name; }).join(', ')) + '</p><p><b>PROPERTY ADDRESS:</b> ' + esc(addr) + '</p>' +
-          '<p>This Addendum is made a part of the Purchase Agreement' + (s.contractDate ? ' dated ' + esc(longDate(s.contractDate)) : '') + ' (the "Agreement"), for the property identified above.</p>' + it.join('') +
+        return page('tnr', '<h1 class="big">' + esc(s.title || 'ADDENDUM TO PURCHASE AGREEMENT') + '</h1><p><b>DATE:</b> ' + esc(when(s.date)) + '</p><p><b>BUYER:</b> ' + esc(buyers.join(', ')) + '</p><p><b>SELLER:</b> ' + esc(sellers.map(function (p) { return p.name; }).join(', ')) + '</p><p><b>PROPERTY ADDRESS:</b> ' + esc(addr) + '</p>' +
+          '<p>' + esc(s.leadText || 'This Addendum is made a part of the Purchase Agreement' + (s.contractDate ? ' dated ' + when(s.contractDate) : '') + ' (the "Agreement"), for the property identified above.') + '</p>' + it.join('') +
           '<table class="st"><tr><th>BUYER' + (bl.length > 1 ? 'S' : '') + '</th><th>SELLER' + (sellers.length > 1 ? 'S' : '') + '</th></tr>' + tr + '<tr><td>Date: ______________________</td><td>Date: ______________________</td></tr></table>', CSS_ADD_PURCHASE);
       }
       if (st === 'fillin') {
         var body = T.map(function (t) { return t.t; }).join('\n\n');
-        return page('tnr', '<h1 class="bu">' + esc(s.title || 'ADDENDUM TO REAL ESTATE PURCHASE AND SALE AGREEMENT') + '</h1><p class="ind">The undersigned parties to a Purchase and Sale Agreement dated <span class="fl">' + esc(longDate(s.contractDate) || ' ') + '</span>, by and between <span class="fl">' + esc(joinNames(buyers)) + '</span> ("Purchaser"), and <span class="fl">' + esc(sellers.map(function (p) { return p.name; }).join(', ')) + '</span> ("Seller"), for the purchase and sale of that certain property municipally known as <span class="fl">' + esc(addr) + '</span> ("Property"), hereby mutually agree to amend said Agreement as follows:</p>' +
-          '<div class="big">' + esc(body).replace(/\n/g, '<br>') + '</div>' + (s.remain ? '<p class="ind">All other terms and conditions of the Sales Contract to remain the same.</p>' : '') +
+        return page('tnr', '<h1 class="bu">' + esc(s.title || 'ADDENDUM TO REAL ESTATE PURCHASE AND SALE AGREEMENT') + '</h1><p class="ind">The undersigned parties to a Purchase and Sale Agreement dated <span class="fl">' + esc(when(s.contractDate) || ' ') + '</span>, by and between <span class="fl">' + esc(joinNames(buyers)) + '</span> ("Purchaser"), and <span class="fl">' + esc(sellers.map(function (p) { return p.name; }).join(', ')) + '</span> ("Seller"), for the purchase and sale of that certain property municipally known as <span class="fl">' + esc(addr) + '</span> ("Property"), hereby mutually agree to amend said Agreement as follows:</p>' +
+          '<div class="big">' + esc(body).replace(/\n/g, '<br>') + '</div>' + (s.remain ? '<p class="ind">' + esc(s.remainText || 'All other terms and conditions of the Sales Contract to remain the same.') + '</p>' : '') +
           '<p><b>BUYER(S):</b></p>' + bl.concat(bl.length ? [] : [{}]).map(function (p) { return '<div class="r2"><span class="sl2">' + esc(p.name || '') + '</span>Date: <span class="sl3"></span></div>'; }).join('') +
           '<p><b>SELLER(S):</b></p>' + (sellers.length ? sellers : [{}]).map(function (p) { return '<div class="r2"><span class="sl2">' + esc(p.name || '') + '</span>Date: <span class="sl3"></span></div>'; }).join(''), CSS_ADD_FILL);
       }
       /* letter: formal recitals */
       return page('geo', '<div class="lh">' + esc(addr) + '</div><h1>' + esc(s.title || 'ADDENDUM TO CONTRACT OF SALE') + '</h1>' +
-        '<p>This Addendum is entered into on ' + esc(longDate(s.date)) + ' by and between ' + esc(joinNames(buyers)) + ' ("Buyer") and ' + esc(sellers.map(function (p) { return p.name; }).join(', ')) + ' ("Seller").</p>' +
-        '<p><b>RECITALS.</b> Buyer and Seller are parties to a contract of sale' + (s.contractDate ? ' dated ' + esc(longDate(s.contractDate)) : '') + ' for the premises known as ' + esc(addr) + ' (the "Contract"), and now wish to amend the Contract as set out below.</p>' +
-        '<p><b>NOW, THEREFORE,</b> the parties agree as follows:</p><ol>' + T.map(function (t) { return '<li><b>' + esc(t.h) + '.</b> ' + esc(t.t) + '</li>'; }).join('') + (s.remain ? '<li><b>Ratification.</b> Except as amended here, the Contract remains unchanged and in full force and effect. If this Addendum and the Contract conflict, this Addendum controls.</li>' : '') + '</ol>' +
+        '<p>This Addendum is entered into on ' + esc(when(s.date)) + ' by and between ' + esc(joinNames(buyers)) + ' ("Buyer") and ' + esc(sellers.map(function (p) { return p.name; }).join(', ')) + ' ("Seller").</p>' +
+        '<p><b>RECITALS.</b> Buyer and Seller are parties to a contract of sale' + (s.contractDate ? ' dated ' + esc(when(s.contractDate)) : '') + ' for the premises known as ' + esc(addr) + ' (the "Contract"), and now wish to amend the Contract as set out below.</p>' +
+        '<p>' + (s.leadText ? esc(s.leadText) : '<b>NOW, THEREFORE,</b> the parties agree as follows:') + '</p><ol>' + T.map(function (t) { return '<li><b>' + esc(t.h) + '.</b> ' + esc(t.t) + '</li>'; }).join('') + (s.remain ? '<li><b>Ratification.</b> ' + esc(s.remainText || 'Except as amended here, the Contract remains unchanged and in full force and effect. If this Addendum and the Contract conflict, this Addendum controls.') + '</li>' : '') + '</ol>' +
         '<div class="grid2"><div><b>BUYER' + (bl.length > 1 ? 'S' : '') + '</b>' + bl.map(function (p) { return '<div class="sl"></div>' + esc(p.name) + '<br><span class="d">Date: __________</span>'; }).join('') + '</div><div><b>SELLER' + (sellers.length > 1 ? 'S' : '') + '</b>' + sellers.map(function (p) { return '<div class="sl"></div>' + esc(p.name) + (p.by ? '<br>By: ' + esc(p.by) : '') + '<br><span class="d">Date: __________</span>'; }).join('') + '</div></div>', CSS_ADD_LETTER);
     }
   };
@@ -10912,16 +10994,16 @@ window.MTData=M;})();
     },
     form: function () {
       var b = 'lease', s = drafts[b];
-      return '<div class="drop" data-drop="lease"><div><b>Drop an existing lease</b><div class="note" style="margin:2px 0 0">Reads the parties, address, dates, rent and deposit (OCR for scans).</div></div><label class="btn">Choose file<input type="file" accept=".pdf,image/*,.txt" data-a="leasefile"></label></div><div id="mtBleasefile" class="note"></div>' +
+      return dropZone('leasefile', 'Drop an existing lease', 'Reads the landlord, tenants, address, term dates, rent and deposit.') +
         '<fieldset><legend>Document</legend><div class="g">' + field(b, 'style', 'Style', {type: 'select', options: LEASE_STYLES, wide: 1}) + field(b, 'date', 'Agreement date', {type: 'date'}) + '</div></fieldset>' +
         people(b, 'landlords', 'Landlords', 2, {extra: ['mail', 'Mailing address', 'Street, city, state ZIP']}) + people(b, 'tenants', 'Tenants', 4, {extra: ['mail', 'Mailing address', 'Street, city, state ZIP']}) + propertyBlock(b) +
-        '<fieldset><legend>Premises</legend><div class="g">' + field(b, 'unit', 'Unit / apartment') + field(b, 'residence', 'Residence type', {type: 'select', options: ['Apartment', 'House', 'Condo', 'Other']}) +
+        '<fieldset><legend>Premises</legend><div class="g">' + field(b, 'unit', 'Unit / apartment') + field(b, 'residence', 'Residence type', {list: ['Apartment', 'House', 'Condo', 'Two-family house', 'Townhouse', 'Basement apartment', 'Room']}) +
         (s.residence === 'Other' ? field(b, 'residenceOther', 'Describe') : '') + field(b, 'beds', 'Bedrooms') + field(b, 'baths', 'Bathrooms') + '</div></fieldset>' +
         '<fieldset><legend>Term</legend><div class="g">' + field(b, 'leaseType', 'Lease type', {type: 'select', options: [['fixed', 'Fixed term'], ['monthly', 'Month-to-month']]}) +
         field(b, 'start', 'Starts', {type: 'date'}) + (s.leaseType === 'fixed' ? field(b, 'end', 'Ends', {type: 'date'}) : field(b, 'noticeDays', 'Notice to end (days)')) + '</div></fieldset>' +
-        '<fieldset><legend>Payment</legend><div class="g">' + field(b, 'rent', 'Monthly rent', {type: 'money'}) + field(b, 'dueDay', 'Due on the') + field(b, 'depOn', 'Security deposit', {type: 'check'}) + field(b, 'deposit', 'Deposit amount', {type: 'money'}) +
+        '<fieldset><legend>Payment</legend><div class="g">' + field(b, 'rent', 'Monthly rent', {type: 'money'}) + field(b, 'dueDay', 'Due on the', {list: ['1st', '5th', '10th', '15th', 'last']}) + field(b, 'depOn', 'Security deposit', {type: 'check'}) + field(b, 'deposit', 'Deposit amount', {type: 'money'}) +
         field(b, 'lastOn', 'Last month\'s rent at signing', {type: 'check'}) + field(b, 'last', 'Last month amount', {type: 'money'}) + field(b, 'otherOn', 'Other charge', {type: 'check'}) + field(b, 'other', 'Describe') + '</div></fieldset>' +
-        '<fieldset><legend>Utilities and terms</legend><div class="g">' + field(b, 'utilities', 'Tenant pays all utilities except', {wide: 1, ph: 'Gas, electric'}) + field(b, 'additional', 'Additional terms', {type: 'textarea', wide: 1, rows: 2}) +
+        '<fieldset><legend>Utilities and terms</legend><div class="g">' + field(b, 'utilities', 'Tenant pays all utilities except', {wide: 1, ph: 'Gas, electric', list: ['None', 'Water and sewer', 'Gas and electric', 'Heat and hot water', 'Water, sewer and trash']}) + field(b, 'additional', 'Additional terms', {type: 'textarea', wide: 1, rows: 2}) +
         (s.style === 'detailed' || s.style === 'unit' ? field(b, 'lateFee', 'Late fee ($)', {type: 'money'}) + field(b, 'graceDays', 'Grace period (days)') + field(b, 'occupants', 'Maximum occupants') + field(b, 'parking', 'Parking') + field(b, 'pets', 'Pets', {wide: 1}) : '') +
         (s.style === 'unit' ? field(b, 'shared', 'Shared areas', {type: 'textarea', wide: 1, rows: 2}) : '') + '</div></fieldset>' +
         '<div class="row"><button type="button" class="btn" data-a="leaseRent">Send the rent to the Loan Suite rental</button></div>';
@@ -10936,7 +11018,7 @@ window.MTData=M;})();
       S('THE PARTIES', 'This ' + (s.style === 'monthly' ? 'Rental' : 'Lease') + ' Agreement ("Agreement") is made on ' + u(longDate(s.date), 1.8) + ' between:');
       sec.push(party('Landlord', ll, '"Landlord"') + '<p class="ind2">and</p>' + party('Tenant(s)', tt, '"Tenant"'));
       S('PREMISES', 'The Landlord rents to the Tenant, in exchange for the payments in Section IV, the following property:');
-      sec.push('<p class="ind">a.) <u>Property Address</u>: ' + u(addr, 4) + '.</p><p class="ind">b.) <u>Residence Type</u>: ' + ['Apartment', 'House', 'Condo'].map(function (t) { return box(s.residence === t) + ' ' + t; }).join(' &nbsp;') + ' &nbsp;' + box(s.residence === 'Other') + ' Other: ' + u(s.residence === 'Other' ? s.residenceOther : '', 1.3) + '</p>' +
+      sec.push('<p class="ind">a.) <u>Property Address</u>: ' + u(addr, 4) + '.</p><p class="ind">b.) <u>Residence Type</u>: ' + ['Apartment', 'House', 'Condo'].map(function (t) { return box(s.residence === t) + ' ' + t; }).join(' &nbsp;') + ' &nbsp;' + box(!!s.residence && ['Apartment', 'House', 'Condo'].indexOf(s.residence) < 0) + ' Other: ' + u(s.residence === 'Other' ? s.residenceOther : ['Apartment', 'House', 'Condo'].indexOf(s.residence) < 0 ? s.residence : '', 1.3) + '</p>' +
         '<p class="ind">c.) <u>Bedroom(s)</u>: ' + u(s.beds, .5) + ' &nbsp;<u>Bathroom(s)</u>: ' + u(s.baths, .5) + '</p>');
       S('LEASE TYPE', 'This Agreement is a: (check one)');
       sec.push('<p class="ind2">' + box(!monthly) + ' - <u>Fixed Lease</u>. The Tenant may occupy the Premises from ' + u(!monthly ? longDate(s.start) : '', 1.6) + ' through ' + u(!monthly ? longDate(s.end) : '', 1.6) + ' (the "Lease Term"). Before the Lease Term ends the Landlord and Tenant will discuss renewal; if no renewal is agreed, the Tenant must vacate the Premises at the end of the Lease Term.</p>' +
@@ -10968,43 +11050,91 @@ window.MTData=M;})();
   var CSS_LEASE = '.pg{padding:.75in .85in .7in}h1{text-align:center;font-size:17pt;margin:0 0 .2in}p{margin:0 0 .09in;line-height:1.32;font-size:11.5pt}p.sh{margin-top:.14in}p.ind{margin-left:.35in}p.ind2{margin-left:.55in}.fl{display:inline-block;border-bottom:1px solid #000;font-size:8.5pt;padding:0 3px;vertical-align:baseline;line-height:1.3}u{text-underline-offset:2px}table.sg{width:100%;margin-top:.2in;font-size:11.5pt;border-collapse:collapse}table.sg td{padding:6px 10px 14px 0;width:50%;line-height:1.7}.bl{display:inline-block;width:1.7in;border-bottom:2px solid #2f6fd6;vertical-align:baseline}';
 
   /* ======================================================= CONTRACTOR ESTIMATE */
-  var TRADES = ['Kitchen', 'Bathroom', 'Roofing', 'Electrical', 'Plumbing', 'HVAC', 'Windows and doors', 'Flooring', 'Painting', 'Siding / exterior', 'Foundation / structural', 'Drywall', 'Insulation', 'Decks / porches', 'Landscaping / site work', 'Demolition and debris', 'Permits and plans', 'Other'];
+  var TRADES = ['Kitchen', 'Bathroom', 'Roofing', 'Electrical', 'Plumbing', 'HVAC', 'Windows and doors', 'Flooring', 'Painting', 'Siding / exterior', 'Gutters and downspouts', 'Masonry', 'Foundation / structural', 'Drywall / plaster', 'Insulation', 'Trim and carpentry', 'Stairs and railings', 'Appliances', 'Decks / porches', 'Walks and driveways', 'Landscaping / site work', 'Demolition and debris', 'Lead paint / health and safety', 'Well / septic', 'Permits and plans', 'Other'];
+  var EST_STYLES = [['classic', 'Classic proposal - labor and materials'], ['modern', 'Modern itemized - color header'], ['qty', 'Detailed bid - quantity, unit and unit price'], ['reno', 'Renovation loan bid - 203(k) / HomeStyle'], ['lump', 'Lump-sum bid - one page, scope and total'], ['letter', 'Proposal letter and contract - acceptance block']];
+  var EST_PRESETS = {
+    kitchen: ['Kitchen remodel', [['Demolition and debris', 'Remove existing cabinets, counters, flooring and fixtures; haul away debris'], ['Kitchen', 'Supply and install base and wall cabinets, hardware and countertops'], ['Plumbing', 'Sink, faucet, dishwasher and supply/drain connections'], ['Electrical', 'GFCI receptacles, under-cabinet and recessed lighting, appliance circuits'], ['Flooring', 'Install new kitchen flooring with underlayment'], ['Painting', 'Patch, prime and paint walls and ceiling'], ['Appliances', 'Range, refrigerator, dishwasher and range hood']]],
+    bath: ['Bathroom remodel', [['Demolition and debris', 'Remove tub/shower, vanity, toilet, tile and flooring'], ['Plumbing', 'New valve, tub/shower, toilet, vanity sink and faucet'], ['Bathroom', 'Cement board, waterproofing, wall and floor tile'], ['Electrical', 'GFCI receptacle, vanity light and exhaust fan vented to exterior'], ['Painting', 'Prime and paint walls, ceiling and trim']]],
+    roof: ['Roof replacement', [['Demolition and debris', 'Tear off existing roofing to the deck; dumpster and disposal'], ['Roofing', 'Replace damaged sheathing as needed; ice and water shield, underlayment, architectural shingles, ridge vent, flashing'], ['Gutters and downspouts', 'New seamless gutters and downspouts']]],
+    cosmetic: ['Cosmetic refresh', [['Painting', 'Interior paint throughout - walls, ceilings and trim'], ['Flooring', 'Refinish hardwood; new LVP in kitchen and baths'], ['Electrical', 'Replace light fixtures, switches and receptacles; smoke and CO detectors'], ['Trim and carpentry', 'Replace interior doors and hardware; repair trim']]],
+    exterior: ['Exterior, siding and windows', [['Siding / exterior', 'Remove and replace siding, house wrap, trim and soffit'], ['Windows and doors', 'Replace windows and exterior doors, capped and sealed'], ['Painting', 'Exterior paint and caulking'], ['Walks and driveways', 'Repair walks, steps and driveway']]],
+    full: ['Full renovation (FHA 203(k) / HomeStyle)', [['Permits and plans', 'Building permits, plans and inspections'], ['Demolition and debris', 'Interior demolition and debris removal'], ['Roofing', 'Roof replacement'], ['Electrical', 'Upgrade service to 200 amp; rewire as needed to code'], ['Plumbing', 'Replace supply and drain lines; new water heater'], ['HVAC', 'New furnace / boiler and distribution'], ['Kitchen', 'New kitchen cabinets, counters and appliances'], ['Bathroom', 'Remodel bathroom(s)'], ['Flooring', 'New flooring throughout'], ['Drywall / plaster', 'Repair or replace drywall'], ['Painting', 'Interior and exterior paint'], ['Lead paint / health and safety', 'Lead-safe work practices; handrails, smoke and CO detectors']]]
+  };
   B.estimate = {
-    label: 'Contractor estimate', sub: 'Line items, O&P, draws',
-    init: function () { var f = file(); return {style: 'classic', company: '', license: '', phone: '', email: '', companyAddr: '', number: 'EST-' + iso().replace(/-/g, '').slice(2), date: iso(), validDays: '30', customer: f.borrowers.join(' & '),
-      address: f.address, city: f.city, state: stateName(f.state), zip: f.zip, county: f.county, items: [{trade: 'Kitchen', desc: '', labor: '', materials: ''}], permits: '', ohp: '10', contingency: '0', deposit: '10', draws: '4', notes: 'Price includes labor, materials and cleanup. Work to be completed in a workmanlike manner and to code. Owner to choose finishes before ordering.', signer: ''}; },
-    calc: function (s) { var lab = 0, mat = 0; (s.items || []).forEach(function (i) { lab += N(i.labor); mat += N(i.materials); }); var sub = lab + mat, ohp = sub * N(s.ohp) / 100, cont = (sub + ohp) * N(s.contingency) / 100, total = sub + ohp + cont + N(s.permits);
-      return {labor: lab, materials: mat, sub: sub, ohp: ohp, cont: cont, permits: N(s.permits), total: total, deposit: total * N(s.deposit) / 100}; },
+    label: 'Contractor estimate', sub: 'Six layouts, line items, draws',
+    init: function () { var f = file(); return {style: 'classic', title: '', company: '', license: '', phone: '', email: '', companyAddr: '', number: 'EST-' + iso().replace(/-/g, '').slice(2), date: dateFromPicker(iso()), validDays: '30', customer: f.borrowers.join(' & '), custPhone: '', custEmail: '',
+      address: f.address, city: f.city, state: stateName(f.state), zip: f.zip, county: f.county, addrFree: '', lender: '', loanNo: '', consultant: '', program: f.renovation ? (/fha/i.test(f.program) ? 'FHA 203(k)' : 'Fannie Mae HomeStyle') : '',
+      startDate: '', duration: '', items: [{trade: 'Kitchen', desc: '', qty: '', unit: '', labor: '', materials: ''}], permits: '', ohp: '10', contingency: '0', tax: '0', deposit: '10', draws: '4', warranty: '1 year on workmanship; manufacturer warranties on materials.',
+      intro: 'We propose to furnish all labor and materials to complete the work described below, in accordance with the drawings, specifications and the lender\'s work write-up where applicable.',
+      notes: 'Price includes labor, materials and cleanup. Work to be completed in a workmanlike manner and to code. Owner to choose finishes before ordering.', accept: 'The above prices, specifications and conditions are satisfactory and are hereby accepted. You are authorized to do the work as specified. Payment will be made as outlined above.', signer: ''}; },
+    fix: function (s) { (s.items || []).forEach(function (i) { if (i.qty == null) { i.qty = ''; i.unit = ''; } }); if (s.tax == null) s.tax = '0'; },
+    calc: function (s) { var lab = 0, mat = 0; (s.items || []).forEach(function (i) { lab += N(i.labor); mat += N(i.materials); }); var sub = lab + mat, ohp = sub * N(s.ohp) / 100, tax = mat * N(s.tax) / 100, cont = (sub + ohp) * N(s.contingency) / 100, total = sub + ohp + tax + cont + N(s.permits);
+      return {labor: lab, materials: mat, sub: sub, ohp: ohp, tax: tax, cont: cont, permits: N(s.permits), total: total, deposit: total * N(s.deposit) / 100}; },
     form: function () {
-      var b = 'estimate', s = drafts[b];
-      return '<fieldset><legend>Contractor</legend><div class="g">' + field(b, 'style', 'Style', {type: 'select', options: [['classic', 'Classic proposal'], ['modern', 'Modern itemized']]}) + field(b, 'number', 'Estimate #') +
-        field(b, 'company', 'Company', {wide: 1}) + field(b, 'license', 'License #') + field(b, 'phone', 'Phone') + field(b, 'email', 'Email') + field(b, 'companyAddr', 'Company address') + field(b, 'date', 'Date', {type: 'date'}) + field(b, 'validDays', 'Valid for (days)') + '</div></fieldset>' +
-        '<fieldset><legend>Customer</legend><div class="g">' + field(b, 'customer', 'Customer / bill to', {wide: 1}) + '</div></fieldset>' + propertyBlock(b) +
-        '<fieldset><legend>Scope of work</legend><div class="list">' + (s.items || []).map(function (it, i) {
-          return '<div class="it"><div class="hd"><select data-b="estimate" data-list="items" data-i="' + i + '" data-f="trade" style="flex:1" aria-label="Trade">' + TRADES.map(function (t) { return '<option' + (t === it.trade ? ' selected' : '') + '>' + t + '</option>'; }).join('') + '</select>' + (s.items.length > 1 ? '<button type="button" class="x" data-a="rm" data-b="estimate" data-list="items" data-i="' + i + '">Remove</button>' : '') + '</div>' +
-            '<textarea data-b="estimate" data-list="items" data-i="' + i + '" data-f="desc" rows="2" placeholder="Describe the work" style="margin-top:6px" aria-label="Description">' + esc(it.desc || '') + '</textarea><div class="g" style="margin-top:6px"><label class="f">Labor<input inputmode="decimal" data-b="estimate" data-list="items" data-i="' + i + '" data-f="labor" value="' + esc(it.labor || '') + '"></label><label class="f">Materials<input inputmode="decimal" data-b="estimate" data-list="items" data-i="' + i + '" data-f="materials" value="' + esc(it.materials || '') + '"></label></div></div>'; }).join('') +
-        '</div><button type="button" class="btn" data-a="add" data-b="estimate" data-list="items">+ Add a line</button></fieldset>' +
-        '<fieldset><legend>Totals</legend><div class="g">' + field(b, 'permits', 'Permits and fees ($)', {type: 'money'}) + field(b, 'ohp', 'Overhead & profit (%)', {type: 'pct'}) + field(b, 'contingency', 'Contingency (%)', {type: 'pct'}) + field(b, 'deposit', 'Deposit at signing (%)', {type: 'pct'}) + field(b, 'draws', 'Number of draws') + field(b, 'signer', 'Signed by (contractor)') + field(b, 'notes', 'Terms and notes', {type: 'textarea', wide: 1, rows: 3}) + '</div><div id="mtBest"></div>' +
-        '<div class="row" style="margin-top:8px"><button type="button" class="btn" data-a="estUse">Use total as the renovation cost</button></div></fieldset>';
+      var b = 'estimate', s = drafts[b], q = s.style === 'qty';
+      return dropZone('estfile', 'Drop a contractor\'s bid or estimate', 'Reads the company, phone, email, license, estimate number, date, customer and each priced line.') +
+        '<fieldset><legend>Version</legend><div class="g">' + field(b, 'style', 'Estimate version', {type: 'select', options: EST_STYLES, wide: 1}) +
+        '<label class="f w">Start from a sample scope<span class="row" style="flex-wrap:nowrap"><select id="mtBpreset" aria-label="Sample scope" style="flex:1"><option value="">Choose a scope…</option>' + Object.keys(EST_PRESETS).map(function (k) { return '<option value="' + k + '">' + EST_PRESETS[k][0] + '</option>'; }).join('') + '</select><button type="button" class="btn" data-a="estPreset">Replace lines</button><button type="button" class="btn" data-a="estPresetAdd">Add lines</button></span></label>' +
+        field(b, 'title', 'Heading (blank = the version\'s heading)', {wide: 1, ph: s.style === 'reno' ? 'RENOVATION BID / WORK WRITE-UP' : s.style === 'letter' ? 'PROPOSAL AND CONTRACT' : 'ESTIMATE'}) + '</div></fieldset>' +
+        '<fieldset><legend>Contractor</legend><div class="g">' + field(b, 'company', 'Company', {wide: 1}) + field(b, 'number', 'Estimate #') + field(b, 'license', 'License #') + field(b, 'phone', 'Phone') + field(b, 'email', 'Email') + field(b, 'companyAddr', 'Company address', {wide: 1}) + field(b, 'date', 'Date', {type: 'date'}) + field(b, 'validDays', 'Valid for (days)') + '</div></fieldset>' +
+        '<fieldset><legend>Customer</legend><div class="g">' + field(b, 'customer', 'Customer / bill to', {wide: 1}) + field(b, 'custPhone', 'Customer phone') + field(b, 'custEmail', 'Customer email') +
+        (s.style === 'reno' ? field(b, 'program', 'Renovation program', {list: ['FHA 203(k)', 'FHA Limited 203(k)', 'Fannie Mae HomeStyle', 'Freddie Mac CHOICERenovation', 'VA Renovation']}) + field(b, 'lender', 'Lender') + field(b, 'loanNo', 'Loan / FHA case #') + field(b, 'consultant', '203(k) consultant') : '') + '</div></fieldset>' + propertyBlock(b) +
+        '<fieldset><legend>Schedule</legend><div class="g">' + field(b, 'startDate', 'Start', {type: 'date', ph: 'Within 10 days of closing'}) + field(b, 'duration', 'Time to complete', {list: ['30 days', '60 days', '90 days', '6 months'], ph: '90 days'}) + '</div></fieldset>' +
+        '<fieldset><legend>Scope of work</legend><datalist id="mtBtrades">' + TRADES.map(function (t) { return '<option value="' + esc(t) + '">'; }).join('') + '</datalist><div class="list">' + (s.items || []).map(function (it, i) {
+          var a = function (f) { return ' data-b="estimate" data-list="items" data-i="' + i + '" data-f="' + f + '"'; };
+          return '<div class="it"><div class="hd"><input list="mtBtrades"' + a('trade') + ' value="' + esc(it.trade || '') + '" style="flex:1;font-weight:700" aria-label="Trade or category" placeholder="Trade - pick or type" autocomplete="off">' + (s.items.length > 1 ? '<button type="button" class="x" data-a="rm" data-b="estimate" data-list="items" data-i="' + i + '">Remove</button>' : '') + '</div>' +
+            '<textarea' + a('desc') + ' rows="2" placeholder="Describe the work" style="margin-top:6px" aria-label="Description">' + esc(it.desc || '') + '</textarea><div class="g' + (q ? ' g3' : '') + '" style="margin-top:6px">' +
+            (q ? '<label class="f">Quantity<input inputmode="decimal"' + a('qty') + ' value="' + esc(it.qty || '') + '"></label><label class="f">Unit<input list="mtBunits"' + a('unit') + ' value="' + esc(it.unit || '') + '" placeholder="sq ft" autocomplete="off"></label><span></span>' : '') +
+            '<label class="f">Labor<input inputmode="decimal"' + a('labor') + ' value="' + esc(it.labor || '') + '"></label><label class="f">Materials<input inputmode="decimal"' + a('materials') + ' value="' + esc(it.materials || '') + '"></label></div></div>'; }).join('') +
+        '</div><datalist id="mtBunits"><option value="sq ft"><option value="lin ft"><option value="each"><option value="lot"><option value="hours"><option value="squares"><option value="sq yd"></datalist><button type="button" class="btn" data-a="add" data-b="estimate" data-list="items">+ Add a line</button></fieldset>' +
+        '<fieldset><legend>Totals and payment</legend><div class="g">' + field(b, 'permits', 'Permits and fees ($)', {type: 'money'}) + field(b, 'ohp', 'Overhead & profit (%)', {type: 'pct'}) + field(b, 'tax', 'Sales tax on materials (%)', {type: 'pct'}) + field(b, 'contingency', 'Contingency (%)', {type: 'pct'}) + field(b, 'deposit', 'Deposit at signing (%)', {type: 'pct'}) + field(b, 'draws', 'Number of draws') + field(b, 'signer', 'Signed by (contractor)') + '</div><div id="mtBest"></div>' +
+        '<div class="row" style="margin-top:8px"><button type="button" class="btn" data-a="estUse">Use total as the renovation cost</button></div></fieldset>' +
+        '<fieldset><legend>Wording</legend><div class="g">' + (s.style === 'letter' || s.style === 'reno' ? field(b, 'intro', 'Opening paragraph', {type: 'textarea', wide: 1, rows: 3}) : '') + field(b, 'notes', 'Terms and notes', {type: 'textarea', wide: 1, rows: 3}) + field(b, 'warranty', 'Warranty', {type: 'textarea', wide: 1, rows: 2}) +
+        (s.style === 'letter' || s.style === 'lump' || s.style === 'reno' ? field(b, 'accept', 'Acceptance wording', {type: 'textarea', wide: 1, rows: 3}) : '') + '</div></fieldset>';
     },
-    side: function () { var c = B.estimate.calc(drafts.estimate), el = $('mtBest'); if (el) el.innerHTML = '<div class="kv"><span>Labor</span><b>' + usd(c.labor) + '</b><span>Materials</span><b>' + usd(c.materials) + '</b><span>Overhead & profit</span><b>' + usd(c.ohp) + '</b><span>Contingency</span><b>' + usd(c.cont) + '</b><span>Permits</span><b>' + usd(c.permits) + '</b><span>Total</span><b>' + usd(c.total) + '</b></div>'; },
+    preset: function (k, add) { var p = EST_PRESETS[k], s = drafts.estimate; if (!p) return; var rows = p[1].map(function (r) { return {trade: r[0], desc: r[1], qty: '', unit: '', labor: '', materials: ''}; });
+      var keep = (s.items || []).filter(function (i) { return i.desc || N(i.labor) || N(i.materials); }); s.items = add ? keep.concat(rows) : rows; if (k === 'full' && !add) s.style = 'reno'; persist(); renderForm(); refresh(); say(p[0] + ': ' + rows.length + ' lines ' + (add ? 'added' : 'in place') + ' - enter the labor and materials for each.'); },
+    side: function () { var c = B.estimate.calc(drafts.estimate), el = $('mtBest'); if (el) el.innerHTML = '<div class="kv"><span>Labor</span><b>' + usd(c.labor) + '</b><span>Materials</span><b>' + usd(c.materials) + '</b><span>Overhead & profit</span><b>' + usd(c.ohp) + '</b>' + (c.tax ? '<span>Sales tax</span><b>' + usd(c.tax) + '</b>' : '') + '<span>Contingency</span><b>' + usd(c.cont) + '</b><span>Permits</span><b>' + usd(c.permits) + '</b><span>Total</span><b>' + usd(c.total) + '</b><span>Deposit / each draw</span><b>' + usd(c.deposit) + ' / ' + usd((c.total - c.deposit) / Math.min(50, Math.max(1, Math.round(N(drafts.estimate.draws) || 1)))) + '</b></div>'; },
     doc: function (s) {
-      var c = B.estimate.calc(s), addr = addrOf(s), draws = Math.max(1, Math.round(N(s.draws) || 1)), modern = s.style === 'modern';
-      var rows = (s.items || []).filter(function (i) { return i.desc || N(i.labor) || N(i.materials); }).map(function (i, k) { return '<tr><td class="c">' + (k + 1) + '</td><td><b>' + esc(i.trade) + '</b>' + (i.desc ? '<br>' + esc(i.desc).replace(/\n/g, '<br>') : '') + '</td><td class="n">' + usd(i.labor) + '</td><td class="n">' + usd(i.materials) + '</td><td class="n">' + usd(N(i.labor) + N(i.materials)) + '</td></tr>'; }).join('');
+      var c = B.estimate.calc(s), addr = addrOf(s), draws = Math.min(50, Math.max(1, Math.round(N(s.draws) || 1))), st = s.style || 'classic', lines = (s.items || []).filter(function (i) { return i.trade || i.desc || N(i.labor) || N(i.materials); });
+      var title = s.title || (st === 'reno' ? 'RENOVATION BID' : st === 'letter' ? 'PROPOSAL AND CONTRACT' : st === 'lump' ? 'BID PROPOSAL' : 'ESTIMATE');
+      var info = [s.companyAddr, s.phone, s.email, s.license ? 'License # ' + s.license : ''].filter(Boolean).map(esc).join(' &middot; '), amt = function (i) { return N(i.labor) + N(i.materials); };
       var after = c.total - c.deposit, sched = ''; for (var d = 1; d <= draws; d++) sched += '<tr><td>Draw ' + d + (d === draws ? ' (final, on completion and inspection)' : '') + '</td><td class="n">' + usd(after / draws) + '</td></tr>';
-      return page('cal', '<div class="hd ' + (modern ? 'm' : '') + '"><div><div class="co">' + esc(s.company || 'Contractor name') + '</div><div class="ci">' + [s.companyAddr, s.phone, s.email, s.license ? 'License # ' + s.license : ''].filter(Boolean).map(esc).join(' &middot; ') + '</div></div><div class="tt">ESTIMATE<br><span>' + esc(s.number) + '</span></div></div>' +
-        '<table class="meta"><tr><td><b>Customer</b><br>' + esc(s.customer || '') + '</td><td><b>Job site</b><br>' + esc(addr) + '</td><td><b>Date</b><br>' + esc(longDate(s.date)) + '<br><b>Valid</b> ' + esc(s.validDays || '30') + ' days</td></tr></table>' +
-        '<table class="it"><thead><tr><th>#</th><th>Scope of work</th><th>Labor</th><th>Materials</th><th>Amount</th></tr></thead><tbody>' + (rows || '<tr><td colspan="5" class="c">Add scope lines</td></tr>') + '</tbody></table>' +
-        '<table class="tot"><tr><td>Labor</td><td class="n">' + usd(c.labor) + '</td></tr><tr><td>Materials</td><td class="n">' + usd(c.materials) + '</td></tr><tr><td>Subtotal</td><td class="n">' + usd(c.sub) + '</td></tr>' + (c.ohp ? '<tr><td>Overhead & profit (' + esc(s.ohp) + '%)</td><td class="n">' + usd(c.ohp) + '</td></tr>' : '') + (c.cont ? '<tr><td>Contingency (' + esc(s.contingency) + '%)</td><td class="n">' + usd(c.cont) + '</td></tr>' : '') + (c.permits ? '<tr><td>Permits and fees</td><td class="n">' + usd(c.permits) + '</td></tr>' : '') + '<tr class="g"><td>TOTAL</td><td class="n">' + usd(c.total) + '</td></tr></table>' +
-        '<h3>Payment schedule</h3><table class="ps"><tr><td>Deposit at signing (' + esc(s.deposit || 0) + '%)</td><td class="n">' + usd(c.deposit) + '</td></tr>' + sched + '</table>' +
-        '<h3>Terms</h3><p class="terms">' + esc(s.notes || '').replace(/\n/g, '<br>') + '</p>' +
-        '<div class="sigs"><div><div class="sl"></div>Contractor' + (s.signer ? ' - ' + esc(s.signer) : '') + ' &nbsp; Date</div><div><div class="sl"></div>Customer acceptance &nbsp; Date</div></div>', CSS_EST);
+      var payTbl = '<h3>Payment schedule</h3><table class="ps"><tr><td>Deposit at signing (' + esc(s.deposit || 0) + '%)</td><td class="n">' + usd(c.deposit) + '</td></tr>' + sched + '</table>';
+      var totTbl = '<table class="tot"><tr><td>Labor</td><td class="n">' + usd(c.labor) + '</td></tr><tr><td>Materials</td><td class="n">' + usd(c.materials) + '</td></tr><tr><td>Subtotal</td><td class="n">' + usd(c.sub) + '</td></tr>' + (c.ohp ? '<tr><td>Overhead & profit (' + esc(s.ohp) + '%)</td><td class="n">' + usd(c.ohp) + '</td></tr>' : '') + (c.tax ? '<tr><td>Sales tax on materials (' + esc(s.tax) + '%)</td><td class="n">' + usd(c.tax) + '</td></tr>' : '') + (c.cont ? '<tr><td>Contingency (' + esc(s.contingency) + '%)</td><td class="n">' + usd(c.cont) + '</td></tr>' : '') + (c.permits ? '<tr><td>Permits and fees</td><td class="n">' + usd(c.permits) + '</td></tr>' : '') + '<tr class="g"><td>TOTAL</td><td class="n">' + usd(c.total) + '</td></tr></table>';
+      var sched2 = (s.startDate || s.duration ? '<p class="terms"><b>Schedule:</b> ' + (s.startDate ? 'Work to start ' + esc(isPhrase(s.startDate) ? s.startDate : 'on or about ' + longDate(s.startDate)) + '. ' : '') + (s.duration ? 'Estimated time to complete: ' + esc(s.duration) + '.' : '') + '</p>' : '');
+      var terms = '<h3>Terms</h3><p class="terms">' + esc(s.notes || '').replace(/\n/g, '<br>') + '</p>' + (s.warranty ? '<p class="terms"><b>Warranty:</b> ' + esc(s.warranty) + '</p>' : '') + sched2;
+      var sigs = '<div class="sigs"><div><div class="sl"></div>Contractor' + (s.signer ? ' - ' + esc(s.signer) : '') + ' &nbsp; Date</div><div><div class="sl"></div>Customer acceptance &nbsp; Date</div></div>';
+      var meta = '<table class="meta"><tr><td><b>Customer</b><br>' + esc(s.customer || '') + (s.custPhone ? '<br>' + esc(s.custPhone) : '') + (s.custEmail ? '<br>' + esc(s.custEmail) : '') + '</td><td><b>Job site</b><br>' + esc(addr) + '</td><td><b>Date</b><br>' + esc(when(s.date)) + '<br><b>Valid</b> ' + esc(s.validDays || '30') + ' days</td></tr></table>';
+      var head = function (cls) { return '<div class="hd ' + (cls || '') + '"><div><div class="co">' + esc(s.company || 'Contractor name') + '</div><div class="ci">' + info + '</div></div><div class="tt">' + esc(title) + '<br><span>' + esc(s.number) + '</span></div></div>'; };
+      if (st === 'lump') {
+        return page('cal', head() + meta + '<h3>Scope of work</h3><ul class="sc">' + (lines.map(function (i) { return '<li><b>' + esc(i.trade) + '</b>' + (i.desc ? ' - ' + esc(i.desc).replace(/\n/g, '<br>') : '') + '</li>'; }).join('') || '<li>Add scope lines</li>') + '</ul>' +
+          '<div class="lump"><span>Total price for the work above</span><b>' + usd(c.total) + '</b></div>' + payTbl + terms + (s.accept ? '<p class="terms">' + esc(s.accept) + '</p>' : '') + sigs, CSS_EST);
+      }
+      if (st === 'letter') {
+        return page('geo', '<div class="lh"><div class="co">' + esc(s.company || 'Contractor name') + '</div><div class="ci">' + info + '</div></div><p>' + esc(when(s.date)) + '</p><p>' + esc(s.customer || '') + '<br>' + esc(addr) + '</p><h1 class="lt">' + esc(title) + (s.number ? ' <span>No. ' + esc(s.number) + '</span>' : '') + '</h1>' +
+          '<p>' + esc(s.intro || '') + '</p><ol class="lt">' + lines.map(function (i) { return '<li><b>' + esc(i.trade) + '.</b> ' + esc(i.desc || '').replace(/\n/g, '<br>') + (amt(i) ? ' <span class="amt">' + usd(amt(i)) + '</span>' : '') + '</li>'; }).join('') + '</ol>' +
+          '<p>We propose to do the work above for the sum of <b>' + usd(c.total) + '</b>' + (c.ohp || c.cont || c.permits || c.tax ? ' (including ' + [c.ohp ? 'overhead and profit' : '', c.tax ? 'sales tax' : '', c.cont ? 'a ' + esc(s.contingency) + '% contingency' : '', c.permits ? 'permits and fees' : ''].filter(Boolean).join(', ') + ')' : '') + ', payable ' + esc(s.deposit || 0) + '% (' + usd(c.deposit) + ') at signing and the balance in ' + draws + ' draw' + (draws > 1 ? 's' : '') + ' of ' + usd(after / draws) + ' as the work is completed.</p>' +
+          terms + '<p>This proposal may be withdrawn if not accepted within ' + esc(s.validDays || '30') + ' days.</p><div class="sigs"><div><div class="sl"></div>' + esc(s.signer || 'Authorized signature') + ', ' + esc(s.company || '') + '</div><div></div></div><h3>Acceptance of proposal</h3><p class="terms">' + esc(s.accept || '') + '</p>' + '<div class="sigs"><div><div class="sl"></div>Customer &nbsp; Date</div><div><div class="sl"></div>Customer &nbsp; Date</div></div>', CSS_EST);
+      }
+      var cols = st === 'qty' ? '<th>#</th><th>Description</th><th>Qty</th><th>Unit</th><th>Unit price</th><th>Labor</th><th>Materials</th><th>Amount</th>' : st === 'reno' ? '<th>#</th><th>Category / work item</th><th>Labor</th><th>Materials</th><th>Total</th>' : '<th>#</th><th>Scope of work</th><th>Labor</th><th>Materials</th><th>Amount</th>';
+      var rows = lines.map(function (i, k) { var a = amt(i), q = N(i.qty); return '<tr><td class="c">' + (k + 1) + '</td><td><b>' + esc(i.trade) + '</b>' + (i.desc ? '<br>' + esc(i.desc).replace(/\n/g, '<br>') : '') + '</td>' +
+        (st === 'qty' ? '<td class="n">' + (i.qty ? esc(i.qty) : '') + '</td><td>' + esc(i.unit || '') + '</td><td class="n">' + (q ? usd(a / q) : '') + '</td>' : '') + '<td class="n">' + usd(i.labor) + '</td><td class="n">' + usd(i.materials) + '</td><td class="n">' + usd(a) + '</td></tr>'; }).join('');
+      var n = st === 'qty' ? 8 : 5;
+      if (st === 'reno') {
+        return page('cal', head('r') + '<table class="meta"><tr><td><b>Borrower / owner</b><br>' + esc(s.customer || '') + '</td><td><b>Property</b><br>' + esc(addr) + '</td><td><b>Date</b><br>' + esc(when(s.date)) + '</td></tr><tr><td><b>Program</b><br>' + esc(s.program || '') + '</td><td><b>Lender / loan #</b><br>' + esc([s.lender, s.loanNo].filter(Boolean).join(' / ')) + '</td><td><b>Consultant</b><br>' + esc(s.consultant || '') + '</td></tr></table>' +
+          (s.intro ? '<p class="terms">' + esc(s.intro) + '</p>' : '') + '<table class="it"><thead><tr>' + cols + '</tr></thead><tbody>' + (rows || '<tr><td colspan="5" class="c">Add work items</td></tr>') + '</tbody></table>' + totTbl +
+          '<h3>Draw schedule</h3><table class="ps"><tr><td>Deposit / materials draw (' + esc(s.deposit || 0) + '%)</td><td class="n">' + usd(c.deposit) + '</td></tr>' + sched + '</table><p class="terms">Draws are released by the lender after each inspection. A holdback may be retained until the final inspection and lien waivers are received.' + (c.cont ? ' The contingency reserve is released only for documented additional work approved by the lender.' : '') + '</p>' + terms +
+          '<h3>Contractor certification</h3><p class="terms">I certify that this bid covers all work in the work write-up, that the work will be completed in compliance with local codes and the lender\'s requirements, and that I hold the licenses and insurance required for this work.</p>' + (s.accept ? '<p class="terms">' + esc(s.accept) + '</p>' : '') + sigs.replace('Customer acceptance', 'Borrower'), CSS_EST);
+      }
+      return page('cal', head(st === 'modern' ? 'm' : '') + meta + '<table class="it' + (st === 'qty' ? ' q' : '') + '"><thead><tr>' + cols + '</tr></thead><tbody>' + (rows || '<tr><td colspan="' + n + '" class="c">Add scope lines</td></tr>') + '</tbody></table>' + totTbl + payTbl + terms + sigs, CSS_EST);
     }
   };
-  var CSS_EST = '.pg{padding:.6in .7in}.hd{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #1f3a5f;padding-bottom:10px;margin-bottom:14px}.hd.m{border:0;background:#1f3a5f;color:#fff;margin:-.6in -.7in 14px;padding:.4in .7in .25in}.co{font-size:19pt;font-weight:700}.ci{font-size:9pt;color:#555;margin-top:3px}.hd.m .ci{color:#d6e2f2}.tt{text-align:right;font-size:18pt;font-weight:700;color:#1f3a5f;letter-spacing:.08em}.hd.m .tt{color:#fff}.tt span{font-size:10pt;letter-spacing:0;color:#666}.hd.m .tt span{color:#d6e2f2}' +
-    'table{width:100%;border-collapse:collapse;font-size:10pt}table.meta td{vertical-align:top;padding:4px 8px 10px 0;width:33%}table.it th{background:#1f3a5f;color:#fff;padding:5px 6px;text-align:left}table.it td{border-bottom:1px solid #ccd5e0;padding:6px;vertical-align:top}.n{text-align:right;white-space:nowrap}.c{text-align:center}table.tot{width:3.2in;margin:10px 0 0 auto}table.tot td{padding:3px 6px}table.tot tr.g td{border-top:2px solid #1f3a5f;font-weight:700;font-size:11.5pt}' +
-    'h3{font-size:11pt;color:#1f3a5f;margin:16px 0 6px}table.ps{width:4.2in}table.ps td{padding:3px 6px;border-bottom:1px solid #e3e8ef}.terms{font-size:9.5pt;line-height:1.4}.sigs{display:grid;grid-template-columns:1fr 1fr;gap:.5in;margin-top:.45in;font-size:9.5pt}.sigs .sl{border-bottom:1px solid #000;height:28px;margin-bottom:3px}';
-
+  var CSS_EST = '.pg{padding:.6in .7in}.hd{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #1f3a5f;padding-bottom:10px;margin-bottom:14px}.hd.m{border:0;background:#1f3a5f;color:#fff;margin:-.6in -.7in 14px;padding:.4in .7in .25in}.hd.r{border-bottom:3px double #2d5a27}.hd.r .tt,.hd.r .co{color:#2d5a27}.co{font-size:19pt;font-weight:700}.ci{font-size:9pt;color:#555;margin-top:3px}.hd.m .ci{color:#d6e2f2}.tt{text-align:right;font-size:18pt;font-weight:700;color:#1f3a5f;letter-spacing:.08em}.hd.m .tt{color:#fff}.tt span{font-size:10pt;letter-spacing:0;color:#666}.hd.m .tt span{color:#d6e2f2}' +
+    'table{width:100%;border-collapse:collapse;font-size:10pt}table.meta td{vertical-align:top;padding:4px 8px 10px 0;width:33%}table.it th{background:#1f3a5f;color:#fff;padding:5px 6px;text-align:left}table.it td{border-bottom:1px solid #ccd5e0;padding:6px;vertical-align:top}table.it.q{font-size:9pt}.n{text-align:right;white-space:nowrap}.c{text-align:center}table.tot{width:3.4in;margin:10px 0 0 auto}table.tot td{padding:3px 6px}table.tot tr.g td{border-top:2px solid #1f3a5f;font-weight:700;font-size:11.5pt}' +
+    'h3{font-size:11pt;color:#1f3a5f;margin:16px 0 6px}table.ps{width:4.2in}table.ps td{padding:3px 6px;border-bottom:1px solid #e3e8ef}.terms{font-size:9.5pt;line-height:1.4;margin:0 0 6px}.sigs{display:grid;grid-template-columns:1fr 1fr;gap:.5in;margin-top:.45in;font-size:9.5pt}.sigs .sl{border-bottom:1px solid #000;height:28px;margin-bottom:3px}' +
+    'ul.sc{margin:4px 0 10px;padding-left:.25in;font-size:10.5pt;line-height:1.45}.lump{display:flex;justify-content:space-between;align-items:center;border:2px solid #1f3a5f;border-radius:6px;padding:10px 14px;margin:12px 0;font-size:12pt}.lump b{font-size:16pt;color:#1f3a5f}' +
+    '.lh{border-bottom:2px solid #1f3a5f;padding-bottom:8px;margin-bottom:18px}.geo p{line-height:1.45;margin:0 0 10px}h1.lt{font-size:14pt;letter-spacing:.06em;color:#1f3a5f;margin:14px 0 10px}h1.lt span{font-size:10pt;color:#666;letter-spacing:0}ol.lt li{margin:0 0 6px;line-height:1.4}ol.lt .amt{float:right;font-weight:700;padding-left:12px}';
   /* ==================================================================== P & L */
   var PL_EXP = ['Advertising', 'Car and truck', 'Contract labor', 'Insurance', 'Interest', 'Legal and professional', 'Office expense', 'Rent or lease', 'Repairs and maintenance', 'Supplies', 'Taxes and licenses', 'Travel', 'Meals', 'Utilities', 'Wages', 'Other'];
   B.pl = {
@@ -11015,9 +11145,10 @@ window.MTData=M;})();
       var months = from && to ? Math.max(1, Math.round(((to - from) / 86400000 + 1) / 30.4375)) : 12; return {inc: inc, cogs: cogs, gp: gp, exp: exp, net: net, months: months, monthly: net / months * N(s.own) / 100}; },
     form: function () {
       var b = 'pl', s = drafts[b], list = function (k, title, addLabel) { return '<fieldset><legend>' + title + '</legend><div class="list">' + (s[k] || []).map(function (r, i) { return '<div class="g" style="grid-template-columns:1fr 130px auto;margin-bottom:5px"><input data-b="pl" data-list="' + k + '" data-i="' + i + '" data-f="label" value="' + esc(r.label) + '" aria-label="Line"><input inputmode="decimal" data-b="pl" data-list="' + k + '" data-i="' + i + '" data-f="amt" value="' + esc(r.amt) + '" placeholder="0.00" aria-label="Amount"><button type="button" class="x" data-a="rm" data-b="pl" data-list="' + k + '" data-i="' + i + '" aria-label="Remove">×</button></div>'; }).join('') + '</div><button type="button" class="btn" data-a="add" data-b="pl" data-list="' + k + '">' + addLabel + '</button></fieldset>'; };
-      return '<fieldset><legend>Business</legend><div class="g">' + field(b, 'style', 'Layout', {type: 'select', options: [['summary', 'Accountant summary'], ['detailed', 'Detailed statement (% of income)'], ['condensed', 'Condensed one-page']], wide: 1}) +
+      return dropZone('plfile', 'Drop a profit and loss statement', 'Reads the business name, period and each income, cost and expense line with its amount.') +
+        '<fieldset><legend>Business</legend><div class="g">' + field(b, 'style', 'Layout', {type: 'select', options: [['summary', 'Accountant summary'], ['detailed', 'Detailed statement (% of income)'], ['condensed', 'Condensed one-page']], wide: 1}) +
         field(b, 'business', 'Business name', {wide: 1}) + field(b, 'owner', 'Owner(s)') + field(b, 'own', 'Ownership (%)', {type: 'pct'}) + field(b, 'bizAddr', 'Business address', {wide: 1}) + field(b, 'from', 'Period from', {type: 'date'}) + field(b, 'to', 'Period to', {type: 'date'}) +
-        field(b, 'basis', 'Accounting basis', {type: 'select', options: ['Cash', 'Accrual']}) + field(b, 'preparer', 'Prepared by') + field(b, 'prepTitle', 'Title') + field(b, 'prepDate', 'Date prepared', {type: 'date'}) + '</div></fieldset>' +
+        field(b, 'basis', 'Accounting basis', {list: ['Cash', 'Accrual', 'Modified cash']}) + field(b, 'preparer', 'Prepared by') + field(b, 'prepTitle', 'Title', {list: ['Owner', 'Member', 'President', 'CPA', 'Bookkeeper', 'Tax preparer']}) + field(b, 'prepDate', 'Date prepared', {type: 'date'}) + '</div></fieldset>' +
         list('income', 'Income', '+ Add income line') + list('cogs', 'Cost of goods sold', '+ Add cost line') + list('expenses', 'Operating expenses', '+ Add expense') + '<div id="mtBpl"></div>' +
         '<div class="row" style="margin-top:8px"><button type="button" class="btn" data-a="plUse">Send to Non-QM profit and loss income</button></div>';
     },
@@ -11081,13 +11212,13 @@ window.MTData=M;})();
             '<div style="display:grid;gap:4px"><select data-cond="' + c.id + '" data-f="group" aria-label="When"><option value="prior"' + (c.group === 'prior' ? ' selected' : '') + '>Prior to closing</option><option value="closing"' + (c.group === 'closing' ? ' selected' : '') + '>At closing</option></select><button type="button" class="x" data-a="condDel" data-id="' + c.id + '">Delete</button></div></div>';
         }).join('') + '<div class="row" style="margin-top:6px"><button type="button" class="btn" data-a="condAdd" data-g="' + g + '">+ Add condition</button></div></fieldset>';
       };
-      return '<div class="drop" data-drop="approval"><div><b>Drop the lender\'s conditional approval</b><div class="note" style="margin:2px 0 0">PDF or image (scanned approvals are read with OCR). Fills the loan terms, borrowers and property, and lists every condition so you choose which stay.</div></div><label class="btn">Choose file<input type="file" accept=".pdf,image/*,.txt" data-a="approval"></label></div><div id="mtBapproval" class="note"></div>' +
+      return dropZone('approval', 'Drop the lender\'s conditional approval', 'PDF or image. Fills the loan terms, borrowers and property, and lists every condition so you choose which stay.') +
         '<fieldset><legend>Issued by (your company)</legend><div class="g">' + field(b, 'company', 'Company name', {wide: 1}) + field(b, 'short', 'Short name used in the text', {ph: 'e.g. the Lender'}) + field(b, 'nmls', 'Company NMLS #') +
-        field(b, 'companyAddr1', 'Street address') + field(b, 'companyAddr2', 'City, state ZIP') + field(b, 'phone', 'Toll-free / main phone') + field(b, 'stateCode', 'State on the title', {ph: 'NY'}) + field(b, 'mortgagee', 'Mortgagee clause (blank = company, ISAOA/ATIMA and address)', {type: 'textarea', wide: 1, rows: 2}) + '</div></fieldset>' +
+        field(b, 'companyAddr1', 'Street address') + field(b, 'companyAddr2', 'City, state ZIP') + field(b, 'phone', 'Toll-free / main phone') + field(b, 'stateCode', 'Title prefix (state)', {ph: 'NY'}) + field(b, 'mortgagee', 'Mortgagee clause (blank = company, ISAOA/ATIMA and address)', {type: 'textarea', wide: 1, rows: 2}) + '</div></fieldset>' +
         people(b, 'borrowers', 'Borrowers', 4) + '<fieldset><legend>Borrower mailing address</legend><div class="g">' + field(b, 'mail1', 'Street') + field(b, 'mail2', 'City, state ZIP') + '</div></fieldset>' + propertyBlock(b) +
-        '<fieldset><legend>Loan terms</legend><div class="g">' + field(b, 'date', 'Commitment date', {type: 'date'}) + field(b, 'loanNumber', 'Loan number') + field(b, 'loanType', 'Loan type', {type: 'select', options: ['Fixed Rate', 'Adjustable Rate', 'FHA Fixed Rate', 'FHA 203(k) Fixed Rate', 'VA Fixed Rate', 'USDA Fixed Rate', 'Fannie Mae HomeStyle']}) + field(b, 'lien', 'Lien', {type: 'select', options: ['first mortgage', 'second mortgage']}) +
-        field(b, 'amount', 'Loan amount', {type: 'money'}) + field(b, 'rate', 'Interest rate (%)', {type: 'pct'}) + field(b, 'apr', 'APR (%)', {type: 'pct'}) + field(b, 'term', 'Loan term (months)') + field(b, 'payment', 'Monthly payment (P&I)', {type: 'money'}) + field(b, 'purpose', 'Loan purpose', {type: 'select', options: ['Purchase', 'Refinance', 'Cash-Out Refinance', 'Rate/Term Refinance']}) +
-        field(b, 'occupancy', 'Occupancy', {type: 'select', options: ['Primary Residence', 'Second Home', 'Investment']}) + field(b, 'balloon', 'Balloon', {type: 'select', options: ['N', 'Y']}) + field(b, 'negAm', 'Negative amortization', {type: 'select', options: ['N', 'Y']}) + field(b, 'locked', 'Rate locked on', {type: 'date'}) + field(b, 'lockExpires', 'Lock expires', {type: 'date'}) +
+        '<fieldset><legend>Loan terms</legend><div class="g">' + field(b, 'date', 'Commitment date', {type: 'date'}) + field(b, 'loanNumber', 'Loan number') + field(b, 'loanType', 'Loan type', {list: ['Fixed Rate', 'Adjustable Rate', 'FHA Fixed Rate', 'FHA 203(k) Fixed Rate', 'VA Fixed Rate', 'USDA Fixed Rate', 'Fannie Mae HomeStyle', 'Non-QM Fixed Rate', 'Jumbo Fixed Rate']}) + field(b, 'lien', 'Lien', {list: ['first mortgage', 'second mortgage']}) +
+        field(b, 'amount', 'Loan amount', {type: 'money'}) + field(b, 'rate', 'Interest rate (%)', {type: 'pct'}) + field(b, 'apr', 'APR (%)', {type: 'pct'}) + field(b, 'term', 'Loan term (months)') + field(b, 'payment', 'Monthly payment (P&I)', {type: 'money'}) + field(b, 'purpose', 'Loan purpose', {list: ['Purchase', 'Refinance', 'Cash-Out Refinance', 'Rate/Term Refinance', 'Streamline Refinance', 'Construction']}) +
+        field(b, 'occupancy', 'Occupancy', {list: ['Primary Residence', 'Second Home', 'Investment']}) + field(b, 'balloon', 'Balloon', {list: ['N', 'Y']}) + field(b, 'negAm', 'Negative amortization', {list: ['N', 'Y']}) + field(b, 'locked', 'Rate locked on', {type: 'date'}) + field(b, 'lockExpires', 'Lock expires', {type: 'date'}) +
         field(b, 'points', 'Total points paid by borrower') + field(b, 'origination', 'Origination fee') + field(b, 'commitFee', 'Commitment fee') + field(b, 'acceptDays', 'Days to accept') + field(b, 'expires', 'Must close by', {type: 'date'}) + field(b, 'returnDays', 'Days to sign and return') + '</div></fieldset>' +
         '<fieldset><legend>Insurance and escrow</legend><div class="g">' + field(b, 'pmiReq', 'PMI is required', {type: 'check'}) + field(b, 'escrow', 'Escrow account will be established', {type: 'check'}) + field(b, 'escTaxes', 'Monthly taxes', {type: 'money'}) + field(b, 'escHaz', 'Monthly hazard insurance', {type: 'money'}) + field(b, 'escMI', 'Monthly mortgage insurance', {type: 'money'}) + field(b, 'flood', 'Property is in a flood zone', {type: 'check'}) + '</div></fieldset>' +
         '<fieldset><legend>Amounts used in conditions</legend><div class="g">' + field(b, 'price', 'Sales price', {type: 'money'}) + field(b, 'value', 'Appraised value', {type: 'money'}) + field(b, 'pitia', 'Maximum PITIA', {type: 'money'}) + field(b, 'cash', 'Maximum cash to close', {type: 'money'}) + '</div></fieldset>' +
@@ -11110,17 +11241,17 @@ window.MTData=M;})();
       var ol = function (l) { return '<ol>' + l.map(function (c) { return '<li>' + (c.cat ? esc(c.cat) + '- ' : '') + F(c.text) + '</li>'; }).join('') + '</ol>'; };
       var mort = s.mortgagee ? esc(s.mortgagee).replace(/\n/g, '<br>') : esc(co) + '<br>ISAOA/ATIMA<br><b>' + esc(s.companyAddr1 || '') + '</b><br><b>' + esc(s.companyAddr2 || '') + '</b>' + (s.phone ? '<br>Toll Free: ' + esc(s.phone) : '');
       var body = head +
-        '<p>' + esc(slashDate(s.date)) + '</p><div class="two"><div>' + bor.map(esc).join('<br>') + '<br>' + esc(s.mail1 || '') + '<br>' + esc(s.mail2 || '') + '</div><div>Loan Number: ' + esc(s.loanNumber || '') + '</div></div>' +
-        '<div class="two" style="margin-top:14px"><div><b>Subject Property:</b><br>' + esc(s.address || '') + '<br>' + esc([s.city, [stateAbbr(s.state), s.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ')) + '</div><div><b>Loan Type:</b> ' + esc(s.loanType) + '</div></div>' +
+        '<p>' + esc(when(s.date, slashDate)) + '</p><div class="two"><div>' + bor.map(esc).join('<br>') + '<br>' + esc(s.mail1 || '') + '<br>' + esc(s.mail2 || '') + '</div><div>Loan Number: ' + esc(s.loanNumber || '') + '</div></div>' +
+        '<div class="two" style="margin-top:14px"><div><b>Subject Property:</b><br>' + (String(s.addrFree || '').trim() ? esc(s.addrFree).replace(/\n/g, '<br>') : esc(s.address || '') + '<br>' + esc([s.city, [stateAbbr(s.state), s.zip].filter(Boolean).join(' ')].filter(Boolean).join(', '))) + '</div><div><b>Loan Type:</b> ' + esc(s.loanType) + '</div></div>' +
         '<p style="margin-top:16px">Dear Borrower(s):</p><p>' + esc(co) + ' is pleased to advise you that your application for a loan secured by a <b>' + esc(s.lien) + '</b> on the above referenced subject property has been approved subject to the following terms and conditions:</p>' +
         '<table class="terms"><tr><td>Loan Amount:</td><td>' + (N(s.amount) ? usd(s.amount) : '') + '</td><td>Interest Rate/APR</td><td>' + (s.rate ? N(s.rate).toFixed(3) + '%' : '') + (s.apr ? ' / ' + N(s.apr).toFixed(3) + '%' : '') + (/adjust/i.test(s.loanType) ? ' (ARM)' : ' (Fixed)') + '</td></tr>' +
-        '<tr><td>Loan Term:</td><td>' + esc(s.term) + '</td><td>Interest Rate Locked:</td><td>' + esc(s.locked ? slashDate(s.locked) : '') + '</td></tr><tr><td>Balloon:</td><td>' + esc(s.balloon) + '</td><td>ARM - Initial Fixed Period:</td><td></td></tr>' +
+        '<tr><td>Loan Term:</td><td>' + esc(s.term) + '</td><td>Interest Rate Locked:</td><td>' + esc(s.locked ? when(s.locked, slashDate) : '') + '</td></tr><tr><td>Balloon:</td><td>' + esc(s.balloon) + '</td><td>ARM - Initial Fixed Period:</td><td></td></tr>' +
         '<tr><td>Negative Amortization:</td><td>' + esc(s.negAm) + '</td><td>ARM - Adjustment Period:</td><td></td></tr><tr><td>Monthly Payment:</td><td>' + (N(s.payment) ? usd(s.payment) : '') + '</td><td>ARM - Periodic/Life Caps:</td><td>&nbsp;/</td></tr>' +
         '<tr><td>Loan Purpose:</td><td>' + esc(s.purpose) + '</td><td>ARM - Margin/Index/Source:</td><td>&nbsp;/ /</td></tr><tr><td>Occupancy:</td><td>' + esc(s.occupancy) + '</td><td>Total Points paid by Borrower:</td><td>' + esc(s.points || '$ (%)') + '</td></tr>' +
         '<tr><td></td><td></td><td>Origination Fee:</td><td>' + esc(s.origination || '') + '</td></tr><tr><td></td><td></td><td>Commitment Fee:</td><td>' + esc(s.commitFee || '$') + '</td></tr></table>' +
         '<p><b>Commitment</b>: The commitment fee is not included in the origination, discount or total points shown above. You have ' + esc(s.acceptDays || '7') + ' calendar days from the date of this commitment agreement to accept this commitment by signing and returning it to us.</p>' +
-        '<p><b>Expiration:</b> If your closing does not take place prior to ' + esc(slashDate(s.expires)) + ', we have no obligation to honor the terms of this agreement. You may request an extension; however, we are not obligated to accept this request.</p>' +
-        '<p><b>Rate Lock:</b> If your rate is locked, your rate lock and points expire on ' + esc(s.lockExpires ? slashDate(s.lockExpires) : '//') + '. You may request a rate lock extension; however, in no event will the interest rate and points be less than those stated in this commitment. There may be a cost to extend the lock at the same terms, or your lock may be subject to prevailing market rates and points at the time of the extension request. If your rate is not locked or expires, your interest rate will be determined at or before closing. The maximum interest rate at closing cannot be more than 1% higher than the rate disclosed in this commitment. If the prevailing rate and points exceed your current lock, this commitment will be subject to requalification and may become null and void.</p>' +
+        '<p><b>Expiration:</b> If your closing does not take place prior to ' + esc(when(s.expires, slashDate)) + ', we have no obligation to honor the terms of this agreement. You may request an extension; however, we are not obligated to accept this request.</p>' +
+        '<p><b>Rate Lock:</b> If your rate is locked, your rate lock and points expire on ' + esc(s.lockExpires ? when(s.lockExpires, slashDate) : '//') + '. You may request a rate lock extension; however, in no event will the interest rate and points be less than those stated in this commitment. There may be a cost to extend the lock at the same terms, or your lock may be subject to prevailing market rates and points at the time of the extension request. If your rate is not locked or expires, your interest rate will be determined at or before closing. The maximum interest rate at closing cannot be more than 1% higher than the rate disclosed in this commitment. If the prevailing rate and points exceed your current lock, this commitment will be subject to requalification and may become null and void.</p>' +
         '<p><b>Private Mortgage Insurance</b> (PMI): PMI ' + yn(s.pmiReq) + ' is or ' + yn(!s.pmiReq) + ' is not required as a condition of making this loan. If PMI is required you may request that your servicer terminate your PMI when the unpaid principal balance represents 80% or less of the sales price or appraised value at the time of loan origination, if you meet certain criteria. Your PMI will be canceled automatically when the principal balance represents 78% of the sales price or appraised value at the time of loan origination, if you are current on your payments on the anticipated cancellation date.</p>' +
         '<p><b>Escrow</b>: At closing an escrow account ' + yn(s.escrow) + 'will or ' + yn(!s.escrow) + 'will not be established. If established, you will be required to make an initial deposit into this account at closing. Your total monthly payment will include monies to be deposited so that these funds will be used by the servicer of your mortgage to pay taxes and insurance on the subject property when due. Based on current information, your escrow payment will consist of the following:</p>' +
         '<table class="esc"><tr><td>Taxes:</td><td>' + usd(s.escTaxes) + '</td></tr><tr><td>Hazard Insurance:</td><td>' + usd(s.escHaz) + '</td></tr><tr><td>Mortgage Insurance:</td><td>' + usd(s.escMI) + '</td></tr></table>' +
@@ -11222,7 +11353,8 @@ window.MTData=M;})();
     },
     form: function () {
       var b = 'mi', s = drafts[b];
-      return '<fieldset><legend>Loan</legend><div class="g">' + field(b, 'program', 'Program', {type: 'select', options: ['FHA', 'Conventional', 'VA']}) + field(b, 'termYears', 'Term (years)') + field(b, 'price', 'Purchase price', {type: 'money'}) + field(b, 'value', 'Appraised / as-is value', {type: 'money'}) + field(b, 'ltvValue', 'Value for LTV (renovation: value basis; blank = lower of price and value)', {type: 'money', wide: 1}) +
+      return dropZone('mifile', 'Drop an MI quote, Loan Estimate, fee sheet or renovation budget', 'Reads the price, value, loan amount, term, MI or MIP rate, UFMIP, renovation cost, contingency, draws and fees.') +
+        '<fieldset><legend>Loan</legend><div class="g">' + field(b, 'program', 'Program', {type: 'select', options: ['FHA', 'Conventional', 'VA']}) + field(b, 'termYears', 'Term (years)') + field(b, 'price', 'Purchase price', {type: 'money'}) + field(b, 'value', 'Appraised / as-is value', {type: 'money'}) + field(b, 'ltvValue', 'Value for LTV (renovation: value basis; blank = lower of price and value)', {type: 'money', wide: 1}) +
         field(b, 'downPct', 'Down payment (%)', {type: 'pct'}) + field(b, 'base', 'Base loan (blank = price less down)', {type: 'money'}) + (s.program === 'FHA' ? field(b, 'ufmip', 'UFMIP (%)', {type: 'pct'}) : '') +
         field(b, 'miRate', s.program === 'FHA' ? 'Annual MIP (%) - blank uses the HUD table' : 'Annual PMI (%) - from the MI quote', {type: 'pct'}) + field(b, 'payment', 'Monthly payment (for reserves)', {type: 'money'}) + '</div></fieldset>' +
         '<fieldset><legend>Renovation</legend><div class="g">' + field(b, 'renoOn', 'Renovation loan', {type: 'check', wide: 1}) + field(b, 'renoProgram', 'Renovation program', {type: 'select', options: [['203k', 'FHA 203(k)'], ['homestyle', 'Fannie Mae HomeStyle']]}) + field(b, 'renoCost', 'Renovation / contractor cost', {type: 'money'}) +
@@ -11246,13 +11378,13 @@ window.MTData=M;})();
 
   /* ================================================================ shell / UI */
   var ORDER = ['addendum', 'lease', 'estimate', 'pl', 'commit', 'mi'];
-  var RERENDER = {style: 1, concMode: 1, state: 1, leaseType: 1, residence: 1, program: 1, renoOn: 0};
+  var RERENDER = {style: 1, leaseType: 1, program: 1, concOnTop: 1, ttOn: 1, renoOn: 0};
   function mount() {
     if ($('mtB')) return;
     if (!$('mtBcss')) { var st = document.createElement('style'); st.id = 'mtBcss'; st.textContent = CSS; document.head.appendChild(st); }
     var w = document.createElement('div'); w.id = 'mtB'; w.className = 'no-print'; w.setAttribute('role', 'dialog'); w.setAttribute('aria-modal', 'true'); w.setAttribute('aria-label', 'Document builder');
-    w.innerHTML = '<div class="mb"><div class="mb-top"><h2>Document builder<span class="sub" id="mtBsub"></span></h2><button type="button" class="btn" data-a="reset">Start over from the loan file</button><button type="button" class="btn" data-a="print">Print</button><button type="button" class="btn pri" data-a="pdf">Download PDF</button><button type="button" class="btn" data-a="close" aria-label="Close the document builder">Close</button></div>' +
-      '<nav class="mb-nav" aria-label="Documents"></nav><div class="mb-form"></div><div class="mb-prev"><iframe title="Document preview" id="mtBframe"></iframe></div></div>';
+    w.innerHTML = '<div class="mb"><div class="mb-top"><h2>Document builder<span class="sub" id="mtBsub"></span></h2><button type="button" class="btn" data-a="reset">Start over from the loan file</button><button type="button" class="btn" data-a="pageEdit" aria-pressed="false" title="Type straight onto the document before printing">Edit on page</button><button type="button" class="btn" data-a="print">Print</button><button type="button" class="btn pri" data-a="pdf">Download PDF</button><button type="button" class="btn" data-a="close" aria-label="Close the document builder">Close</button></div>' +
+      '<nav class="mb-nav" aria-label="Documents"></nav><div class="mb-form"></div><div class="mb-prev"><div class="pe" id="mtBpe" hidden>Editing on the page - click into the document and type. Print and Download PDF use your edits. Changing the form afterwards rebuilds the page.</div><iframe title="Document preview" id="mtBframe"></iframe></div></div>';
     document.body.appendChild(w);
     wire(w);
   }
@@ -11267,56 +11399,82 @@ window.MTData=M;})();
     restoreStatus();
   }
   var rT = 0;
-  function refresh(now) { clearTimeout(rT); rT = setTimeout(function () { var fr = $('mtBframe'); if (!fr) return; var y = 0; try { y = fr.contentWindow.scrollY; } catch (e) {} fr.srcdoc = B[cur].doc(drafts[cur]); fr.onload = function () { fit(); try { fr.contentWindow.scrollTo(0, y); } catch (e) {} }; if (B[cur].side) B[cur].side(); }, now ? 0 : 180); }
+  function refresh(now) { clearTimeout(rT); rT = setTimeout(function () { var fr = $('mtBframe'); if (!fr) return; if (editing) { editDirty = true; if (B[cur].side) B[cur].side(); return; } var y = 0; try { y = fr.contentWindow.scrollY; } catch (e) {} fr.srcdoc = B[cur].doc(drafts[cur]); fr.onload = function () { fit(); try { fr.contentWindow.scrollTo(0, y); } catch (e) {} }; if (B[cur].side) B[cur].side(); }, now ? 0 : 180); }
   /* the preview fits the pane; printing and the PDF use the full page size */
   function fit() { var fr = $('mtBframe'); if (!fr || !fr.contentDocument || !fr.contentDocument.body) return; var z = Math.min(1, (fr.clientWidth - 28) / 816); fr.contentDocument.body.style.zoom = z > 0 ? z : 1; }
   function unfit(fn) { var fr = $('mtBframe'), b = fr && fr.contentDocument && fr.contentDocument.body, z = b ? b.style.zoom : ''; if (b) b.style.zoom = ''; var r = fn(); var done = function () { if (b) b.style.zoom = z; }; if (r && r.then) r.then(done, done); else setTimeout(done, 400); return r; }
   window.addEventListener('resize', function () { if ($('mtB') && $('mtB').classList.contains('open')) fit(); });
-  function setVal(t) {
+  function setVal(t, ev) {
     var b = t.getAttribute('data-b'), v = t.type === 'checkbox' ? t.checked : t.value;
     if (t.hasAttribute('data-cond')) { var c = drafts.commit.conditions.filter(function (x) { return x.id === t.getAttribute('data-cond'); })[0]; if (c) { c[t.getAttribute('data-f')] = v; if (t.getAttribute('data-f') === 'group' || t.getAttribute('data-f') === 'on') { persist(); renderForm(); } } persist(); refresh(); return; }
     if (!b || !drafts[b]) return;
+    if (t.hasAttribute('data-over')) { var s0 = drafts[b]; s0.over = s0.over || {}; s0.over[t.getAttribute('data-over')] = v; persist(); refresh(); return; }
     if (t.hasAttribute('data-list')) { var arr = drafts[b][t.getAttribute('data-list')], i = +t.getAttribute('data-i'), f = t.getAttribute('data-f');
       if (f) { if (typeof arr[i] !== 'object') arr[i] = {name: arr[i] || ''}; arr[i][f] = v; } else arr[i] = v; persist(); refresh(); if (B[b].side) B[b].side(); return; }
-    var k = t.getAttribute('data-k'); drafts[b][k] = v;
-    if (b === 'addendum' && (k === 'concValue' || k === 'fromPrice' || k === 'priceUp' || k === 'concMode')) delete drafts.addendum.concFinal;
+    var k = t.getAttribute('data-k'), s = drafts[b]; s[k] = v;
+    if (b === 'addendum') {
+      if (k === 'concPct') s.concDrv = 'pct'; else if (k === 'concAmt') s.concDrv = 'amt';
+      if (k === 'toPrice') s.priceManual = String(v).trim() !== '';
+      B.addendum.sync(s);
+    }
     if (b === 'mi' && k === 'renoProgram') drafts.mi.feePerDraw = v === '203k' ? 375 : 150;
-    persist(); if (RERENDER[k] && t.tagName === 'SELECT') renderForm(); else if (B[b].side) B[b].side(); refresh();
+    persist();
+    if (RERENDER[k] && (t.tagName === 'SELECT' || t.type === 'checkbox')) renderForm(); else if (B[b].side) B[b].side();
+    refresh();
   }
   function wire(w) {
-    w.addEventListener('input', function (e) { if (e.target.matches('input:not([type=checkbox]):not([type=file]),textarea')) setVal(e.target); });
+    w.addEventListener('input', function (e) { if (e.target.matches('input:not([type=checkbox]):not([type=file]):not(.pk):not(#mtBpreset),textarea')) setVal(e.target, e); });
     w.addEventListener('change', function (e) {
       var t = e.target, a = t.getAttribute('data-a');
       if (t.type === 'file') { var fl = t.files && t.files[0]; t.value = ''; if (fl) readInto(a, fl); return; }
-      if (t.matches('select,input[type=checkbox],input[type=date]')) setVal(t);
+      /* the calendar fills the typed date box next to it */
+      if (t.classList.contains('pk')) { var box = t.parentNode.querySelector('input[data-fdate]'); if (box && t.value) { box.value = dateFromPicker(t.value); setVal(box); } return; }
+      if (t.id === 'mtBpreset') return;
+      if (t.matches('select,input[type=checkbox]')) setVal(t, e);
     });
     w.addEventListener('click', function (e) {
       var t = e.target.closest('[data-a]'); if (!t || t.tagName === 'INPUT' || t.tagName === 'SELECT') return; var a = t.getAttribute('data-a');
       if (a === 'close') return close();
-      if (a === 'nav') { cur = t.getAttribute('data-k'); if (!drafts[cur]) { drafts[cur] = B[cur].init(); persist(); } renderNav(); renderForm(); refresh(true); return; }
+      if (a === 'pick') { var pk = t.parentNode.querySelector('input.pk'), tx = t.parentNode.querySelector('input[data-fdate]'), d0 = parseDate(tx && tx.value); pk.value = d0 ? iso(d0) : ''; try { pk.showPicker(); } catch (x) { pk.style.pointerEvents = 'auto'; pk.focus(); pk.click(); } return; }
+      if (a === 'pageEdit') return pageEdit(!editing);
+      if (a === 'nav') { pageEdit(false); cur = t.getAttribute('data-k'); ensure(cur); renderNav(); renderForm(); refresh(true); return; }
       if (a === 'classic') { close(); V14.__mtbOrig.call(V14, cur === 'addendum' ? 'v14AddModal' : 'v14LeaseModal'); return; }
       if (a === 'paystub') { close(); if (typeof window.switchTab === 'function' && document.getElementById('subpanel-docs-paystub')) { window.switchTab('paystub'); } else if (window.V15 && V15.openPay) V15.openPay(); else location.href = 'income-calculator.html?tab=paystub'; return; }
-      if (a === 'reset') { if (!confirm('Start this ' + B[cur].label.toLowerCase() + ' over from the loan file? Your changes to it are cleared.')) return; drafts[cur] = B[cur].init(); persist(); renderForm(); refresh(true); return; }
+      if (a === 'reset') { if (!confirm('Start this ' + B[cur].label.toLowerCase() + ' over from the loan file? Your changes to it are cleared.')) return; pageEdit(false); drafts[cur] = B[cur].init(); persist(); renderForm(); refresh(true); return; }
       if (a === 'print') { var fr = $('mtBframe'); unfit(function () { try { fr.contentWindow.focus(); fr.contentWindow.print(); } catch (x) {} }); return; }
       if (a === 'pdf') return unfit(pdf);
-      if (a === 'add') { var b = t.getAttribute('data-b'), L = t.getAttribute('data-list'), arr = drafts[b][L]; arr.push(L === 'items' ? {trade: 'Other', desc: '', labor: '', materials: ''} : L === 'custom' ? '' : (L === 'income' || L === 'cogs' || L === 'expenses') ? {label: L === 'expenses' ? (PL_EXP.filter(function (x) { return !arr.some(function (r) { return r.label === x; }); })[0] || 'Other') : '', amt: ''} : {name: ''}); persist(); renderForm(); refresh(); return; }
+      if (a === 'add') { var b = t.getAttribute('data-b'), L = t.getAttribute('data-list'), arr = drafts[b][L]; arr.push(L === 'items' ? {trade: '', desc: '', qty: '', unit: '', labor: '', materials: ''} : L === 'custom' ? '' : (L === 'income' || L === 'cogs' || L === 'expenses') ? {label: L === 'expenses' ? (PL_EXP.filter(function (x) { return !arr.some(function (r) { return r.label === x; }); })[0] || 'Other') : '', amt: ''} : {name: ''}); persist(); renderForm(); refresh(); return; }
       if (a === 'rm') { var b2 = t.getAttribute('data-b'), L2 = t.getAttribute('data-list'); drafts[b2][L2].splice(+t.getAttribute('data-i'), 1); persist(); renderForm(); refresh(); return; }
       if (a === 'psearch') return psearch(t.getAttribute('data-b'), t.getAttribute('data-p') || '');
       if (a === 'ppick') return ppick(t.getAttribute('data-b'), t.getAttribute('data-p') || '', +t.getAttribute('data-i'));
       if (a === 'pfile') return pfile(t.getAttribute('data-b'), t.getAttribute('data-p') || '');
       if (a === 'pgoogle') { var s = drafts[t.getAttribute('data-b')], p = t.getAttribute('data-p') || ''; window.open('https://www.google.com/search?q=' + encodeURIComponent(addrOf(s, p)), '_blank', 'noopener'); return; }
+      if (a === 'priceCalc') { drafts.addendum.priceManual = false; B.addendum.sync(drafts.addendum); persist(); renderForm(); refresh(); return; }
+      if (a === 'overReset') { var ad = drafts.addendum; if (ad.over) delete ad.over[t.getAttribute('data-key')]; persist(); if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); B.addendum.wording(); refresh(); return; }
       if (a === 'concUse') return B.addendum.concUse();
       if (a === 'concLoan') return B.addendum.concLoan();
-      if (a === 'estUse') { var c = B.estimate.calc(drafts.estimate); sendLoan([['reno.baseCost', c.sub + c.ohp], ['reno.permits', c.permits]], 'Contractor estimate'); return; }
+      if (a === 'estPreset' || a === 'estPresetAdd') { var ps = $('mtBpreset'); if (!ps || !ps.value) { if (ps) ps.focus(); return; } return B.estimate.preset(ps.value, a === 'estPresetAdd'); }
+      if (a === 'estUse') { var c = B.estimate.calc(drafts.estimate); sendLoan([['reno.baseCost', c.sub + c.ohp + c.tax], ['reno.permits', c.permits]], 'Contractor estimate'); return; }
       if (a === 'leaseRent') { if (N(drafts.lease.rent)) sendLoan([['rental.mainUnit.gross', N(drafts.lease.rent)]], 'Lease'); return; }
       if (a === 'plUse') return plUse();
       if (/^cond/.test(a)) return condAct(a, t);
     });
     w.addEventListener('dragover', function (e) { var z = e.target.closest && e.target.closest('[data-drop]'); if (z) { e.preventDefault(); z.classList.add('over'); } });
     w.addEventListener('dragleave', function (e) { var z = e.target.closest && e.target.closest('[data-drop]'); if (z) z.classList.remove('over'); });
-    w.addEventListener('drop', function (e) { var z = e.target.closest && e.target.closest('[data-drop]'); if (!z) return; e.preventDefault(); z.classList.remove('over'); var fl = e.dataTransfer.files && e.dataTransfer.files[0]; if (fl) readInto({contract: 'contract', lease: 'leasefile', approval: 'approval'}[z.getAttribute('data-drop')], fl); });
+    w.addEventListener('drop', function (e) { var z = e.target.closest && e.target.closest('[data-drop]'); if (!z) return; e.preventDefault(); z.classList.remove('over'); var fl = e.dataTransfer.files && e.dataTransfer.files[0]; if (fl) readInto(z.getAttribute('data-drop'), fl); });
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && $('mtB') && $('mtB').classList.contains('open')) close(); });
   }
+  /* type straight onto the page: the preview holds still until editing is turned off; Print and PDF use the page as edited */
+  var editing = false, editDirty = false;
+  function pageEdit(on) {
+    var was = editing; editing = !!on; var fr = $('mtBframe'), bt = document.querySelector('#mtB [data-a="pageEdit"]'), bar = $('mtBpe');
+    try { fr.contentDocument.designMode = editing ? 'on' : 'off'; } catch (e) {}
+    if (bt) { bt.setAttribute('aria-pressed', String(editing)); bt.textContent = editing ? 'Done editing page' : 'Edit on page'; }
+    if (bar) bar.hidden = !editing;
+    if (editing) { editDirty = false; try { fr.contentWindow.focus(); } catch (e) {} }
+    else if (was && editDirty) { editDirty = false; refresh(true); }
+  }
+  function ensure(k) { if (!drafts[k]) { drafts[k] = B[k].init(); persist(); } else if (B[k].fix) B[k].fix(drafts[k]); }
   function condAct(a, t) {
     var s = drafts.commit, L = s.conditions;
     if (a === 'condAll') L.forEach(function (c) { c.on = true; });
@@ -11368,33 +11526,114 @@ window.MTData=M;})();
     var T = String(t || ''), o = {}, g = function (re) { var m = T.match(re); return m ? m[1].trim() : ''; };
     o.landlord = g(/Landlord\s*(?:Name)?\s*[:\-]\s*([A-Z][A-Za-z .'-]{2,60}?)(?=\s+with|\s*\n|\s{2,})/); o.tenant = g(/Tenant\(?s?\)?\s*(?:Name\(?s?\)?)?\s*[:\-]\s*([A-Z][A-Za-z .'&,-]{2,80}?)(?=\s+with|\s*\n|\s{2,}|\s*\()/);
     var ad = g(/Property\s*Address\s*[:\-]?\s*([^\n]{6,120}?\d{5})/i); if (ad) o.addr = splitAddr(ad);
+    var DT = '([A-Z][a-z]+\\.?\\s+\\d{1,2}(?:st|nd|rd|th)?,?\\s+\\d{4}|\\d{1,2}\\/\\d{1,2}\\/\\d{2,4})', tm = T.match(new RegExp('(?:from|commenc\\w*|beginning|starting)\\s*(?:on)?\\s*' + DT + '[\\s\\S]{0,40}?(?:through|to|until|ending(?:\\s*on)?)\\s*' + DT, 'i'));
+    if (tm) { o.start = tm[1].replace(/(\d)(st|nd|rd|th)/, '$1'); o.end = tm[2].replace(/(\d)(st|nd|rd|th)/, '$1'); }
     o.rent = N(g(/(?:Monthly\s*Rent|rent\s*of)[^$\n]{0,20}\$\s?([\d,]+(?:\.\d{2})?)/i)); o.deposit = N(g(/Security\s*Deposit[^$\n]{0,20}\$\s?([\d,]+(?:\.\d{2})?)/i));
     return o;
   }
+  /* a line that ends in an amount: "Kitchen cabinets and install ..... $12,450.00" */
+  var AMT_LINE = /^(.{2,140}?)[\s.:_-]*\(?-?(\$\s?\d+(?:,\d{3})*(?:\.\d{2})?|\d{1,3}(?:,\d{3})+(?:\.\d{2})?|\d+\.\d{2})\)?\s*$/;
+  function amtLines(T) { return String(T || '').replace(/\r/g, '').split('\n').map(function (l) { var m = l.trim().match(AMT_LINE); return m ? {label: m[1].replace(/[\s.:_$-]+$/, '').trim(), amt: N(m[2]) * (/\(\s*\$?\s?[\d,.]+\s*\)\s*$|-\$?\s?[\d,.]+\s*$/.test(l.trim()) ? -1 : 1), raw: l.trim()} : null; }).filter(function (x) { return x && x.label && /[A-Za-z]/.test(x.label); }); }
+  var TRADE_WORDS = [['Kitchen', /kitchen|cabinet|counter/i], ['Bathroom', /bath|vanity|shower|tub|tile/i], ['Roofing', /roof|shingle/i], ['Electrical', /electri|wiring|panel|amp\b|fixture|lighting/i], ['Plumbing', /plumb|water heater|pipe|drain|faucet|toilet/i], ['HVAC', /hvac|furnace|boiler|heat|a\/c|air cond|duct/i],
+    ['Windows and doors', /window|door/i], ['Flooring', /floor|carpet|lvp|hardwood|laminate/i], ['Painting', /paint|stain/i], ['Siding / exterior', /siding|soffit|fascia|exterior/i], ['Gutters and downspouts', /gutter|downspout/i], ['Masonry', /mason|brick|stucco|chimney|concrete/i], ['Foundation / structural', /foundation|structur|beam|joist|footing/i],
+    ['Drywall / plaster', /drywall|sheetrock|plaster/i], ['Insulation', /insulat/i], ['Decks / porches', /deck|porch/i], ['Walks and driveways', /walk|driveway|asphalt/i], ['Landscaping / site work', /landscap|grading|site work|tree/i], ['Demolition and debris', /demo|debris|dumpster|haul/i], ['Permits and plans', /permit|plan|architect|engineer/i], ['Appliances', /appliance|range|refrigerator|dishwasher/i]];
+  function tradeOf(t) { for (var i = 0; i < TRADE_WORDS.length; i++) if (TRADE_WORDS[i][1].test(t)) return TRADE_WORDS[i][0]; return 'Other'; }
+  function grab(T, re) { var m = String(T || '').match(re); return m ? String(m[1]).trim() : ''; }
+  function parseEstimate(text) {
+    var T = String(text || '').replace(/\r/g, ''), o = {items: []}, top = T.split('\n').map(function (l) { return l.trim(); }).filter(Boolean);
+    o.company = (top.filter(function (l) { return !/estimate|proposal|quote|invoice|bid|date|phone|tel|email|@|www\.|lic|^\d|page \d/i.test(l) && /[A-Za-z]{3}/.test(l) && l.length < 60; })[0] || '');
+    o.phone = grab(T, /(?:Phone|Tel|Ph|Cell|Office)?\.?:?\s*(\(?\d{3}\)?[\s.-]\d{3}[\s.-]\d{4})/i); o.email = grab(T, /([\w.+-]+@[\w-]+\.[\w.-]+)/);
+    o.license = grab(T, /Lic(?:ense)?\.?\s*(?:#|No\.?|Number)?\s*:?\s*([A-Z0-9][A-Z0-9-]{3,})/i); o.number = grab(T, /(?:Estimate|Proposal|Quote|Bid|Invoice)\s*(?:#|No\.?|Number)\s*:?\s*([A-Z0-9][A-Z0-9-]{1,})/i);
+    o.date = grab(T, /\bDate\s*:?\s*(\d{1,2}\/\d{1,2}\/\d{2,4}|[A-Z][a-z]+\.?\s+\d{1,2},?\s+\d{4})/); o.customer = grab(T, /(?:Customer|Client|Bill\s*To|Owner|Prepared\s*For|Homeowner)\s*:?\s*([A-Z][^\n]{2,60})/);
+    var ad = grab(T, /(?:Job\s*(?:Site|Address|Location)|Project\s*Address|Property|Site\s*Address|Location)\s*:?\s*([^\n]{6,120}?\d{5})/i); if (ad) o.addr = splitAddr(ad);
+    var SKIP = /(sub\s*-?\s*total|^total|grand total|balance|deposit|amount due|tax|payment|paid|due|draw|contingency|overhead|profit|o\s*&\s*p|valid|phone|date|estimate\s*#|license)/i;
+    amtLines(T).forEach(function (l) {
+      if (/total/i.test(l.label) && !o.total && /^(grand\s*)?total|total\s*(estimate|price|cost|bid|amount)/i.test(l.label)) o.total = l.amt;
+      if (/permit/i.test(l.label) && !/[a-z]{3,}.*and.*permit/i.test(l.label)) { o.permits = (o.permits || 0) + l.amt; return; }
+      if (SKIP.test(l.label) || l.amt <= 0) return;
+      var mat = /material|supplies|fixture|appliance/i.test(l.label) && !/labor|install/i.test(l.label);
+      o.items.push({trade: tradeOf(l.label), desc: l.label, qty: '', unit: '', labor: mat ? '' : l.amt.toFixed(2), materials: mat ? l.amt.toFixed(2) : ''});
+    });
+    return o;
+  }
+  function parsePL(text) {
+    var T = String(text || '').replace(/\r/g, ''), o = {income: [], cogs: [], expenses: []}, sec = 'income';
+    var top = T.split('\n').map(function (l) { return l.trim(); }).filter(Boolean);
+    o.business = top.filter(function (l) { return !/profit|loss|p\s*&\s*l|income statement|statement|period|through|for the|page|^\d/i.test(l) && /[A-Za-z]{3}/.test(l) && l.length < 70; })[0] || '';
+    var per = T.match(/(?:from|period|for the (?:period|year)[^\n]*?)\s*:?\s*([A-Z][a-z]+\.?\s+\d{1,2},?\s+\d{4}|\d{1,2}\/\d{1,2}\/\d{2,4})\s*(?:-|–|to|through|thru)\s*([A-Z][a-z]+\.?\s+\d{1,2},?\s+\d{4}|\d{1,2}\/\d{1,2}\/\d{2,4})/i) || T.match(/([A-Z][a-z]+\.?\s+\d{1,2},?\s+\d{4}|\d{1,2}\/\d{1,2}\/\d{2,4})\s*(?:-|–|to|through|thru)\s*([A-Z][a-z]+\.?\s+\d{1,2},?\s+\d{4}|\d{1,2}\/\d{1,2}\/\d{2,4})/);
+    if (per) { o.from = per[1]; o.to = per[2]; } else { var yr = grab(T, /(?:year|12 months)\s*(?:ended|ending)\s*(?:December\s*31,?\s*)?(\d{4})/i); if (yr) { o.from = '1/1/' + yr; o.to = '12/31/' + yr; } }
+    o.basis = /accrual/i.test(T) ? 'Accrual' : /cash basis/i.test(T) ? 'Cash' : '';
+    T.split('\n').forEach(function (raw) {
+      var l = raw.trim(); if (!l) return;
+      if (/^(cost of (goods|sales)|cogs)\b/i.test(l) && !AMT_LINE.test(l)) { sec = 'cogs'; return; }
+      if (/^(operating\s*)?expenses?\b|^(general|operating) (and|&) admin/i.test(l) && !AMT_LINE.test(l)) { sec = 'expenses'; return; }
+      if (/^(income|revenue|sales)\b/i.test(l) && !AMT_LINE.test(l)) { sec = 'income'; return; }
+      var m = l.match(AMT_LINE); if (!m) return; var lab = m[1].replace(/[\s.:_$-]+$/, '').trim(), amt = Math.abs(N(m[2]));
+      if (!/[A-Za-z]/.test(lab) || /total|net (profit|income|loss)|gross profit|ordinary (business )?income/i.test(lab)) { if (/total\s*(cost of|cogs)/i.test(lab)) sec = 'expenses'; if (/total\s*(income|revenue|sales)/i.test(lab) && !o.income.length) o.income.push({label: 'Gross receipts / sales', amt: amt.toFixed(2)}); return; }
+      if (sec === 'income' && /cost of (goods|sales)|cogs|purchases/i.test(lab)) { o.cogs.push({label: lab, amt: amt.toFixed(2)}); return; }
+      o[sec].push({label: lab, amt: amt.toFixed(2)});
+    });
+    return o;
+  }
+  function parseMIdoc(text) {
+    var T = String(text || '').replace(/\r/g, ''), o = {}, m$ = '\\$?\\s?([\\d,]+(?:\\.\\d{2})?)', g = function (re) { return grab(T, re); };
+    o.price = g(new RegExp('(?:Sales|Purchase)\\s*Price\\s*:?\\s*' + m$, 'i')); o.value = g(new RegExp('(?:Appraised|As[- ]Is|Estimated\\s*Property)\\s*Value\\s*:?\\s*' + m$, 'i'));
+    o.base = g(new RegExp('(?:Base\\s*Loan(?:\\s*Amount)?|Loan\\s*Amount)\\s*:?\\s*' + m$, 'i')); o.term = g(/(?:Loan\s*)?Term\s*:?\s*(\d{2})\s*(?:years|yrs|yr)/i) || (g(/Term\s*:?\s*(\d{3})\s*(?:months|mos)/i) ? String(N(g(/Term\s*:?\s*(\d{3})\s*(?:months|mos)/i)) / 12) : '');
+    o.miRate = g(/Annual\s*(?:MIP|PMI|MI|Mortgage\s*Insurance(?:\s*Premium)?)\s*(?:Rate|Factor)?\s*:?\s*([\d.]+)\s*%/i) || g(/(?<!UF|Up[- ]?front\s?)\b(?:MIP|PMI|MI|Mortgage\s*Insurance)\s*(?:Rate|Factor|Premium\s*Rate)?\s*:?\s*([\d.]+)\s*%/i); o.ufmip = g(/(?:UFMIP|Up[- ]?front\s*(?:MIP|Mortgage\s*Insurance\s*Premium))\s*(?:Rate)?\s*:?\s*([\d.]+)\s*%/i);
+    o.down = g(/Down\s*Payment\s*(?:\(%\))?\s*:?\s*([\d.]+)\s*%/i); o.program = /\bFHA\b|203\s*\(?k/i.test(T) ? 'FHA' : /\bVA\b/.test(T) ? 'VA' : /conventional|fannie|freddie|homestyle|PMI/i.test(T) ? 'Conventional' : '';
+    o.renoCost = g(new RegExp('(?:Total\\s*)?(?:Repair|Renovation|Rehab(?:ilitation)?|Construction|Contractor)\\s*(?:Costs?|Budget|Bid|Amount)\\s*:?\\s*' + m$, 'i')); o.contingency = g(/Contingency\s*(?:Reserve)?\s*(?:\(%\))?\s*:?\s*([\d.]+)\s*%/i);
+    o.draws = g(/(?:Number\s*of\s*)?(?:Draws|Inspections)\s*:?\s*(\d{1,2})\b/i); o.feePerDraw = g(new RegExp('(?:Inspection|Draw)\\s*Fee\\s*(?:per\\s*(?:draw|inspection))?\\s*:?\\s*' + m$, 'i'));
+    o.titlePerDraw = g(new RegExp('Title\\s*Update\\s*(?:Fee)?\\s*(?:per\\s*draw)?\\s*:?\\s*' + m$, 'i')); o.consultant = g(new RegExp('Consultant\\s*Fee\\s*:?\\s*' + m$, 'i')); o.permits = g(new RegExp('Permits?\\s*(?:and\\s*Fees)?\\s*:?\\s*' + m$, 'i'));
+    o.architect = g(new RegExp('(?:Architect|Engineer)\\w*\\s*(?:Fees?)?\\s*:?\\s*' + m$, 'i')); o.payment = g(new RegExp('(?:Total\\s*)?Monthly\\s*Payment\\s*:?\\s*' + m$, 'i'));
+    if (/203\s*\(?k/i.test(T)) o.renoProgram = '203k'; else if (/homestyle/i.test(T)) o.renoProgram = 'homestyle';
+    return o;
+  }
+  var SID = {contract: 'mtBcontract', leasefile: 'mtBleasefile', approval: 'mtBapproval', estfile: 'mtBestfile', plfile: 'mtBplfile', mifile: 'mtBmifile'};
   function readInto(kind, fl) {
-    var sid = kind === 'contract' ? 'mtBcontract' : kind === 'leasefile' ? 'mtBleasefile' : 'mtBapproval';
+    var sid = SID[kind] || 'mtB' + kind;
     status(sid, 'Reading ' + esc(fl.name) + '… scanned pages use OCR and can take a minute.');
     readText(fl).then(function (text) {
+      if (!String(text || '').trim()) { status(sid, 'No text could be read from ' + esc(fl.name) + ' - try a clearer scan or photo.', 'warn'); return; }
+      var done = function (got, what) { persist(); pageEdit(false); renderForm(); refresh(true); status(sid, got.length ? 'Read from ' + esc(fl.name) + ': ' + esc(got.join(', ')) + '. Check each against the ' + what + '.' : 'Nothing recognisable was found in ' + esc(fl.name) + ' - fill the form by hand.', got.length ? 'ok' : 'warn'); };
       if (kind === 'contract') {
         var o = parseContract(text), s = drafts.addendum, got = [];
         if (o.buyers.length) { s.buyers = o.buyers.map(function (n) { return {name: n}; }); got.push(o.buyers.length + ' buyer(s)'); }
         if (o.sellers.length) { s.sellers = o.sellers.map(function (n) { return {name: n, by: ''}; }); got.push(o.sellers.length + ' seller(s)'); }
-        if (o.addr) { s.address = o.addr.address; if (o.addr.city) { s.city = o.addr.city; s.state = o.addr.state; s.zip = o.addr.zip; } got.push('address'); }
-        if (o.price) { s.fromPrice = o.price; s.toPrice = o.newPrice || o.price; if (o.newPrice) s.doPrice = true; got.push('price ' + usd(o.price) + (o.newPrice ? ' to ' + usd(o.newPrice) : '')); }
-        if (o.concession) { s.concValue = o.concession; s.concMode = 'dollar'; got.push('concession ' + usd(o.concession)); }
+        if (o.addr) { s.address = o.addr.address; s.addrFree = ''; if (o.addr.city) { s.city = o.addr.city; s.state = o.addr.state; s.zip = o.addr.zip; } got.push('address'); }
+        if (o.price) { s.fromPrice = o.price; if (o.newPrice) { s.toPrice = o.newPrice.toFixed(2); s.priceManual = true; s.doPrice = true; } else s.priceManual = false; got.push('price ' + usd(o.price) + (o.newPrice ? ' to ' + usd(o.newPrice) : '')); }
+        if (o.concession) { s.concAmt = o.concession; s.concDrv = 'amt'; got.push('concession ' + usd(o.concession)); }
         if (o.emd) { s.emd = o.emd; got.push('deposit ' + usd(o.emd)); }
-        if (o.date) { s.contractDate = o.date; got.push('contract date'); }
-        persist(); renderForm(); refresh(true);
-        status(sid, got.length ? 'Read from ' + esc(fl.name) + ': ' + esc(got.join(', ')) + '. Check each against the contract.' : 'Nothing recognisable was found in ' + esc(fl.name) + ' - fill the form by hand.', got.length ? 'ok' : 'warn');
+        if (o.date) { s.contractDate = dateFromPicker(o.date); got.push('contract date'); }
+        B.addendum.sync(s); done(got, 'contract');
       } else if (kind === 'leasefile') {
         var L = parseLeaseDoc(text), s2 = drafts.lease, g2 = [];
         if (L.landlord) { s2.landlords = [{name: L.landlord, mail: ''}]; g2.push('landlord'); } if (L.tenant) { s2.tenants = splitNames(L.tenant).map(function (n) { return {name: n, mail: ''}; }); g2.push('tenant(s)'); }
-        if (L.addr) { s2.address = L.addr.address; if (L.addr.city) { s2.city = L.addr.city; s2.state = L.addr.state; s2.zip = L.addr.zip; } g2.push('address'); }
+        if (L.addr) { s2.address = L.addr.address; s2.addrFree = ''; if (L.addr.city) { s2.city = L.addr.city; s2.state = L.addr.state; s2.zip = L.addr.zip; } g2.push('address'); }
+        if (L.start) { s2.start = L.start; g2.push('start date'); } if (L.end) { s2.end = L.end; s2.leaseType = 'fixed'; g2.push('end date'); }
         if (L.rent) { s2.rent = L.rent; g2.push('rent ' + usd(L.rent)); } if (L.deposit) { s2.deposit = L.deposit; s2.depOn = true; g2.push('deposit'); }
-        persist(); renderForm(); refresh(true);
-        status(sid, g2.length ? 'Read: ' + esc(g2.join(', ')) + '. Check each against the lease.' : 'Nothing recognisable was found - fill the form by hand.', g2.length ? 'ok' : 'warn');
+        done(g2, 'lease');
+      } else if (kind === 'estfile') {
+        var E = parseEstimate(text), s3 = drafts.estimate, g3 = [];
+        ['company', 'phone', 'email', 'license', 'number', 'customer'].forEach(function (k) { if (E[k]) { s3[k] = E[k]; g3.push(k === 'number' ? 'estimate #' : k); } });
+        if (E.date) { s3.date = E.date; g3.push('date'); }
+        if (E.addr) { s3.address = E.addr.address; s3.addrFree = ''; if (E.addr.city) { s3.city = E.addr.city; s3.state = E.addr.state; s3.zip = E.addr.zip; } g3.push('job site'); }
+        if (E.items.length) { s3.items = E.items; s3.ohp = '0'; s3.contingency = '0'; s3.tax = '0'; s3.permits = ''; g3.push(E.items.length + ' priced line(s)'); }
+        if (E.permits) { s3.permits = E.permits.toFixed(2); g3.push('permits'); }
+        var sum = B.estimate.calc(s3).total; if (E.total) g3.push('bid total ' + usd(E.total) + (Math.abs(E.total - sum) > 1 ? ' (lines add to ' + usd(sum) + ' - check for tax or fees)' : ' (matches the lines)'));
+        done(g3, 'bid');
+      } else if (kind === 'plfile') {
+        var P = parsePL(text), s4 = drafts.pl, g4 = [];
+        if (P.business) { s4.business = P.business; g4.push('business name'); } if (P.from) { s4.from = P.from; s4.to = P.to; g4.push('period'); } if (P.basis) s4.basis = P.basis;
+        ['income', 'cogs', 'expenses'].forEach(function (k) { if (P[k].length) { s4[k] = P[k]; g4.push(P[k].length + ' ' + (k === 'cogs' ? 'cost' : k === 'income' ? 'income' : 'expense') + ' line(s)'); } });
+        done(g4, 'statement');
+      } else if (kind === 'mifile') {
+        var M = parseMIdoc(text), s5 = drafts.mi, g5 = [];
+        [['program', 'program'], ['price', 'price'], ['value', 'value'], ['base', 'loan amount'], ['term', 'term', 'termYears'], ['miRate', 'MI rate'], ['ufmip', 'UFMIP'], ['down', 'down payment', 'downPct'], ['renoCost', 'renovation cost'], ['contingency', 'contingency'], ['draws', 'draws'], ['feePerDraw', 'inspection fee'], ['titlePerDraw', 'title update fee'], ['consultant', 'consultant fee'], ['permits', 'permits'], ['architect', 'architect'], ['payment', 'payment'], ['renoProgram', 'renovation program']].forEach(function (r) {
+          if (M[r[0]]) { s5[r[2] || r[0]] = /^(program|renoProgram)$/.test(r[0]) ? M[r[0]] : String(M[r[0]]).replace(/,/g, ''); g5.push(r[1]); } });
+        if (M.renoCost) s5.renoOn = true;
+        done(g5, 'document');
       } else {
-        var o2 = applyApproval(parseApproval(text)); persist(); renderForm(); refresh(true);
+        var o2 = applyApproval(parseApproval(text)); persist(); pageEdit(false); renderForm(); refresh(true);
         var on = o2.conds.filter(function (c) { return c.on; }).length;
         status(sid, o2.conds.length || o2.amount ? 'Read from ' + esc(fl.name) + ': ' + (o2.amount ? 'loan ' + usd(o2.amount) + ', ' : '') + (o2.b1 ? esc(joinNames([o2.b1, o2.b2])) + ', ' : '') + o2.conds.length + ' conditions (' + on + ' kept; lender-internal items such as funder and disclosure tasks are unticked). Review each before printing.' : 'No approval terms were recognised in ' + esc(fl.name) + '.', o2.conds.length ? 'ok' : 'warn');
       }
@@ -11425,7 +11664,7 @@ window.MTData=M;})();
   }
   var lastFocus = null;
   function open(type) {
-    mount(); if (type && B[type]) cur = type; if (!drafts[cur]) { drafts[cur] = B[cur].init(); persist(); }
+    mount(); if (type && B[type]) cur = type; ensure(cur);
     lastFocus = document.activeElement; $('mtB').classList.add('open'); document.documentElement.style.overflow = 'hidden';
     renderNav(); renderForm(); refresh(true);
     var c = document.querySelector('#mtB [data-a="close"]'); if (c) c.focus();
