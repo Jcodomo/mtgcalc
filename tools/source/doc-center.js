@@ -25,8 +25,10 @@
     return new Promise(function (resolve) {
       var i = 0; (function next() {
         if (i >= srcs.length) return resolve(false);
+        /* 56.1: hide the Loan Suite's AMD loader so UMD libraries register as globals */
+        var d = window.define; window.define = undefined;
         var s = document.createElement('script'); s.src = srcs[i++]; s.async = true;
-        s.onload = function () { resolve(true); }; s.onerror = next; document.head.appendChild(s);
+        s.onload = function () { window.define = d; resolve(true); }; s.onerror = function () { window.define = d; next(); }; document.head.appendChild(s);
       })();
     });
   }
@@ -53,9 +55,12 @@
     }
     return out;
   }
+  /* 56.1: a text layer counts only when it reads as text - scanned PDFs can carry encoded binary that is long but unreadable */
+  function readable(t) { t = String(t || ''); var s = t.replace(/\s/g, ''); if (s.length < 40) return false; var good = (s.match(/[A-Za-z0-9$.,:;%()\/#&'"-]/g) || []).length, words = (t.match(/[A-Za-z]{3,}/g) || []).length; return good / s.length > 0.85 && words >= 8; }
+  window.MTReadable = readable;
   async function pdfText(file, prog) {
     var native = G('nativePdfText'), t = '';
-    if (typeof native === 'function') { try { t = await native(file); } catch (e) {} if (t && t.replace(/\s/g, '').length >= 40) return t; }
+    if (typeof native === 'function') { try { t = await native(file); } catch (e) {} if (readable(t)) return t; }
     var L = await pdfLib(); if (!L) { if (t) return t; throw new Error('The PDF reader could not be loaded.'); }
     var pdf = await L.getDocument({data: await file.arrayBuffer(), disableWorker: true}).promise, out = '';
     for (var p = 1; p <= pdf.numPages; p++) {
@@ -66,11 +71,11 @@
       rows.forEach(function (r) { r.items.sort(function (a, b) { return a.x - b.x; }); out += r.items.map(function (i) { return i.s; }).join(' ').replace(/\s+/g, ' ').trim() + '\n'; });
       if (prog) prog(p / pdf.numPages * 0.5);
     }
-    if (out.replace(/\s/g, '').length >= 40) return out;
+    if (readable(out)) return out;
     var imgs = [];
-    for (var k = 1; k <= Math.min(pdf.numPages, 6); k++) {
+    for (var k = 1; k <= Math.min(pdf.numPages, 12); k++) {
       var page = await pdf.getPage(k), vp = page.getViewport({scale: 2}), c = document.createElement('canvas');
-      c.width = vp.width; c.height = vp.height; await page.render({canvasContext: c.getContext('2d'), viewport: vp}).promise; imgs.push(c);
+      c.width = vp.width; c.height = vp.height; await page.render({canvasContext: c.getContext('2d'), viewport: vp, intent: 'print'}).promise; imgs.push(c);
     }
     return ocr(imgs, function (f) { if (prog) prog(0.5 + f / 2); });
   }
@@ -446,7 +451,7 @@
   function panelHtml(inline) {
     var list = mem.filter(function (d) { return view.sec === 'all' || (TYPE[d.docType] || TYPE.other).sec === view.sec; });
     return '<div class="mtd-in"><div class="mtd-head"><div><h2>Documents</h2><p>Shared by every page of the suite and kept in this browser only. Upload once; send the values to the Loan Suite and the Income Calculator.</p></div>' +
-      (inline ? '' : '<button type="button" class="mtd-x" data-a="close" aria-label="Close documents">×</button>') + '</div>' +
+      '<div style="display:flex;gap:8px;align-items:center">' + (window.MTBuild ? '<button type="button" class="mtd-btn" data-a="build">Build a document</button>' : '') + (inline ? '' : '<button type="button" class="mtd-x" data-a="close" aria-label="Close documents">×</button>') + '</div></div>' +
       '<div class="mtd-tabs" role="tablist" aria-label="Document sections">' + SECTIONS.map(function (s) { return '<button type="button" role="tab" data-a="sec" data-sec="' + s[0] + '" aria-selected="' + (view.sec === s[0]) + '">' + s[1] + ' <i>' + count(s[0]) + '</i></button>'; }).join('') + '</div>' +
       '<div class="mtd-drop" data-drop="1"><div><b>Add documents</b><span>PDF, photo or scan. Pay stubs, W-2s, returns, bank and retirement statements, gift letters, contracts, appraisals, tax bills, insurance, HOA, leases, contractor bids, credit reports, LE / CD, mortgage statements, P&amp;Ls.</span></div>' +
       '<label class="mtd-btn pri"><input type="file" multiple accept=".pdf,image/*,.txt,.csv" data-a="file">Upload</label></div>' +
@@ -494,6 +499,7 @@
       var b = e.target.closest('[data-a]'); if (!b || b.tagName === 'SELECT' || b.tagName === 'INPUT') return;
       var a = b.dataset.a, d = b.dataset.id ? find(b.dataset.id) : null;
       if (a === 'close') close();
+      else if (a === 'build') { close(); window.MTBuild && MTBuild.open(); }
       else if (a === 'sec') { view.sec = b.dataset.sec; paint(); }
       else if (a === 'del' && d) { if (confirm('Remove "' + d.name + '" from the document library in this browser?')) drop(d.id).then(paint); }
       else if (a === 'send' && d) { var msg = send(d); status[d.id] = {text: msg, kind: /could not/.test(msg) ? 'bad' : 'ok'}; paint(); }

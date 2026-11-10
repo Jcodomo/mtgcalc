@@ -677,17 +677,17 @@ table.matrix tr.meta-row td{font-size:10.5px;}
 /* ================= PRINTED WORKSHEET REPORT ================= */
 #rptStage{position:fixed;left:-12000px;top:0;width:816px;z-index:-1;}
 .rpt{background:#fff;}
-.rpt-page{width:816px;min-height:1056px;background:#fff;color:#000;padding:34px 40px 26px;
+.rpt-page{width:816px;min-height:1056px;background:#e7e7e7;color:#000;padding:34px 40px 26px;
   font-family:'Calibri','Segoe UI',Arial,Helvetica,sans-serif;font-size:11px;line-height:1.28;
   box-sizing:border-box;margin:0 auto 22px;position:relative;}
 .rpt-page *{box-sizing:border-box;}
-.rpt-title{font-size:20px;font-weight:700;letter-spacing:-.2px;margin:0;}
+.rpt-title{font-size:25px;font-weight:700;letter-spacing:-.2px;margin:0;color:#595959;}
 .rpt-sub{font-size:10.5px;color:#333;margin-top:2px;}
-.rpt-frame{border:1.5px solid #000;}
+.rpt-frame{border:3px solid #000;background:#e7e7e7;}
 .rpt-pad{padding:8px 10px;}
-.rpt-band{background:#7f7f7f;color:#fff;font-weight:700;font-size:11.5px;padding:3px 9px;letter-spacing:.2px;}
+.rpt-band{background:#5f5f5f;color:#fff;font-weight:700;font-size:15px;padding:4px 9px;letter-spacing:.2px;}
 .rpt-band.gray{background:#a6a6a6;}
-.rpt-band.light{background:#d9d9d9;color:#000;}
+.rpt-band.light{background:#8c8c8c;color:#fff;font-size:13px;margin:8px 8px 0;border:1.5px solid #2f5597;}
 .rpt-band.dark{background:#404040;}
 .rpt-row{display:flex;align-items:center;gap:8px;padding:3px 10px;}
 .rpt-lbl{font-weight:700;text-align:right;white-space:nowrap;}
@@ -3043,8 +3043,10 @@ function rptW2Page(j, idx){
       <td class="n">${rMoney(N(d.other))}</td>
       <td class="n hl-gry">${rMoney(tot)}</td></tr>`;
   };
+  /* 56.1: the method the calculation actually used - Auto follows the worksheet's recommendation, Manual the user's choice */
+  const mth = k => j.mode==='auto' ? (C[k].rec||'none') : j.m[k];
   const usedCell = k => {
-    if (j.m[k]==='none') return `<td class="n small ital">Not used</td>`;
+    if (mth(k)==='none') return `<td class="c small">${k==='base'?'N/A':'Need 2 yrs to use this amt.'}</td>`;
     const need = (k!=='base' && (!N(j.y2[k]) || !N(j.y3[k])) && N(j.y1[k]));
     return `<td class="n hl-blue"><b>${rMoney(r.parts[k])}</b>${need?'<div class="small red">2-yr history needed</div>':''}</td>`;
   };
@@ -3106,9 +3108,9 @@ function rptW2Page(j, idx){
             ${usedCell('base')}${usedCell('ot')}${usedCell('comm')}${usedCell('bonus')}${usedCell('other')}
             <td class="n hl-blue"><b>${rMoney(r.total)}</b></td></tr>
           <tr><td class="c hl-gry"><b>Method</b></td>
-            <td class="c small">${M_NAME[j.m.base]}</td><td class="c small">${M_NAME[j.m.ot]}</td>
-            <td class="c small">${M_NAME[j.m.comm]}</td><td class="c small">${M_NAME[j.m.bonus]}</td>
-            <td class="c small">${M_NAME[j.m.other]}</td><td class="c small">Monthly</td></tr>
+            <td class="c small">${M_NAME[mth('base')]||mth('base')}</td><td class="c small">${M_NAME[mth('ot')]||mth('ot')}</td>
+            <td class="c small">${M_NAME[mth('comm')]||mth('comm')}</td><td class="c small">${M_NAME[mth('bonus')]||mth('bonus')}</td>
+            <td class="c small">${M_NAME[mth('other')]||mth('other')}</td><td class="c small">-</td></tr>
         </tbody>
       </table>
 
@@ -4449,7 +4451,7 @@ async function pdfPageImages(pdf, max){
     const vp = pg.getViewport({scale:2});
     const c = document.createElement('canvas');
     c.width = vp.width; c.height = vp.height;
-    await pg.render({canvasContext:c.getContext('2d'), viewport:vp}).promise;
+    await pg.render({canvasContext:c.getContext('2d'), viewport:vp, intent:'print'}).promise;
     imgs.push(c);
   }
   return imgs;
@@ -4506,7 +4508,9 @@ async function handleFiles(files){
            reader instead of failing the entire import. */
         let nativeFirst = '';
         try { nativeFirst = await nativePdfText(f); } catch (_) {}
-        if (nativeFirst.replace(/\s/g,'').length >= 40){
+        /* 56.1: only a readable text layer skips OCR (scanned PDFs can carry long unreadable encoded text) */
+        const readableText = x => { const s = String(x||'').replace(/\s/g,''); if (s.length < 40) return false; const good = (s.match(/[A-Za-z0-9$.,:;%()\/#&'"-]/g)||[]).length, words = (String(x).match(/[A-Za-z]{3,}/g)||[]).length; return good/s.length > 0.85 && words >= 8; };
+        if (readableText(nativeFirst)){
           text = nativeFirst;
         } else {
         const hasPdf = await loadPdfJs();
@@ -8163,10 +8167,12 @@ window.__mtgcalcBridge = {
 <script src="sync-bridge.js?v=55.12"></script>
 <script src="workflow-ui.js?v=55.12"></script>
 <script src="income-features.js?v=55.16"></script>
-<script src="income-extras.js?v=56.0"></script>
+<script src="income-extras.js?v=56.1"></script>
 <script src="mt-live.js?v=56.0"></script>
 <script src="release56-income.js?v=56.0"></script>
 <script src="mt-mnd.js?v=56.0"></script>
-<script src="doc-center.js?v=56.0"></script>
+<script src="doc-center.js?v=56.1"></script>
+<script src="mt-data.js?v=56.1"></script>
+<script src="doc-builder.js?v=56.1"></script>
 </body>
 </html>

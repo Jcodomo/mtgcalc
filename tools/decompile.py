@@ -16,9 +16,9 @@ sys.path.insert(0, str(pathlib.Path(__file__).parent)); from split import scan
 
 SRC, OUT = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2])
 MIG = "<script>/* 55.15: OLED dark blue by default (once for everyone; afterwards the Look menu / theme switch decides) */(function(){try{var L=localStorage,k='mt.oledDefault.v1';if(!L.getItem(k)){L.setItem('los.v25.surface','oled');L.setItem('uwTheme','dark');['los.v251.appearanceSeeded','los.v35.appearanceSeeded','v15ThemeSeeded'].forEach(function(f){L.setItem(f,'1')});L.setItem(k,'1');}document.documentElement.setAttribute('data-mt-mode',L.getItem('los.v25.surface')==='light'&&L.getItem('uwTheme')!=='dark'?'light':'oled');}catch(e){}})();</script>"
-VER = '56.0'   # cache key for the shared assets: change it with every release
+VER = '56.1'   # cache key for the shared assets: change it with every release
 COMPANIONS = ['income-enhancements.js', 'loan-ux.js', 'sync-bridge.js', 'workflow-ui.js', 'quick-worksheet.js', 'income-features.js', 'loan-docs-ai.js', 'loan-cards.js', 'income-extras.js', 'quick-engine.js',
-              'mt-live.js', 'release56-income.js', 'release56-suite.js', 'doc-center.js', 'mt-mnd.js']
+              'mt-live.js', 'release56-income.js', 'release56-suite.js', 'doc-center.js', 'mt-mnd.js', 'mt-data.js', 'doc-builder.js']
 
 # page id, file, tab label as the app names it, group, short title
 PAGES = [
@@ -98,6 +98,7 @@ def main():
 
     for f in COMPANIONS:
         if (SRC / f).exists(): shutil.copy(SRC / f, OUT / 'assets' / f)
+    mt_data(OUT)
     for f in ['loan-suite-embed.js', 'loan-suite-embed.css', 'mtgcalc-theme.css']:
         shutil.copy(pathlib.Path(__file__).parent / f, OUT / 'assets' / f)
 
@@ -161,6 +162,22 @@ def main():
     print(f'  income-calculator-standalone.html  {len(t2.encode()):,}  (single file)')
     js = sum(f.stat().st_size for f in (OUT / 'assets').rglob('*.js'))
     print(f'shared assets: {js:,} bytes in {len(list((OUT / "assets").rglob("*.js")))} files; {len(css)} stylesheets; {nscript} scripts')
+
+def mt_data(OUT):
+    """56.1: the engine's own reference tables (state transfer taxes, NY mansion and mortgage recording taxes, seller
+    concession limits, states and counties) as a small stand-alone file, so pages without the engine (the Income
+    Calculator, Quick) use the same figures as the Loan Suite. Copied byte for byte from the engine bundle."""
+    eng = next(x for x in sorted((OUT / 'assets' / 'js').glob('*.js')) if 'define("src/core/calc/engine"' in x.read_text(encoding='utf-8'))
+    t = eng.read_text(encoding='utf-8'); blocks = []
+    for mod in ['transferTaxes', 'concessionLimits', 'luxuryTaxes', 'mortgageRecordingTax', 'states']:
+        i = t.find('define("src/core/data/' + mod + '"'); assert i >= 0, mod
+        j = t.find('define("', i + 10); body = t[i:j].rstrip().rstrip(',;')
+        assert body.endswith('})') and '["require","exports"]' in body[:80], mod
+        blocks.append(body + ';')
+    js = ('/* Mortgage Suite reference tables, copied from the Loan Suite engine at build time (tools/decompile.py mt_data). */\n'
+          '(function(){var M={};function define(n,d,f){var ex={};f(null,ex);M[n.split("/").pop()]=ex;}\n' + '\n'.join(blocks) +
+          '\nwindow.MTData=M;})();\n')
+    (OUT / 'assets' / 'mt-data.js').write_text(js, encoding='utf-8')
 
 def hub(OUT):
     """Site index: every feature page, grouped the way the app groups them."""
