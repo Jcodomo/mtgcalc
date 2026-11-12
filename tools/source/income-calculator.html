@@ -899,7 +899,7 @@ body,#calc-root,#suite-root{min-width:0}
     <button class="tab" data-tab="other" onclick="switchTab('other')"><svg class="icon"><use href="#i-coins"/></svg><span>Other Income</span><span class="cnt" id="cnt-other">0</span></button>
     <button class="tab" data-tab="assets" onclick="switchTab('assets')" title="Asset Depletion / Employment-Related Assets"><svg class="icon"><use href="#i-pig"/></svg><span>Assets</span></button>
     <button class="tab" data-tab="dti" onclick="switchTab('dti')" title="Subject Property PITIA &amp; Debt-to-Income"><svg class="icon"><use href="#i-pie"/></svg><span>PITIA &amp; DTI</span></button>
-    <button class="tab" data-tab="docs" onclick="switchTab('docs')" title="Document Import &amp; OCR"><svg class="icon"><use href="#i-scan"/></svg><span>Documents</span><span class="cnt" id="cnt-docs">0</span></button>
+    <button class="tab" data-tab="docs" onclick="goDocuments('income')" title="Documents page: library and OCR, paste text / screenshots / files, the income document reader, the Document Builder"><svg class="icon"><use href="#i-scan"/></svg><span>Documents</span><span class="cnt" id="cnt-docs">0</span></button>
     <button class="tab" data-tab="aus" onclick="switchTab('aus')" title="DU / LPA Findings"><svg class="icon"><use href="#i-shield"/></svg><span>AUS Findings</span><span class="cnt" id="cnt-aus">0</span></button>
     <button class="tab" data-tab="summary" onclick="switchTab('summary')" title="Underwriting Summary, findings and the agency guidelines that apply"><svg class="icon"><use href="#i-doc"/></svg><span>UW Summary &amp; Guidelines</span><span class="cnt" id="cnt-guide">0</span></button>
   </div>
@@ -1055,7 +1055,7 @@ body,#calc-root,#suite-root{min-width:0}
       <p>Drop a DU or LPA report on the Documents tab and it is read here — loan figures, every numbered message
          indexed to the matching guideline, and the AUS income against what this file calculates.</p>
     </div>
-    <button class="btn-link no-print" onclick="switchTab('docs');document.getElementById('docFile').click()">
+    <button class="btn-link no-print" onclick="goDocuments('income')">
       <svg class="icon"><use href="#i-upload"/></svg>Load findings</button>
   </div>
   <div id="ausBody"></div>
@@ -5922,7 +5922,7 @@ function loadMenuHTML(){
   return `
     <button onclick="closeLoadMenu();document.getElementById('loadFile').click()">
       <svg class="icon"><use href="#i-doc"/></svg>Load income file (.json)</button>
-    <button onclick="closeLoadMenu();switchTab('docs');document.getElementById('docFile').click()">
+    <button onclick="closeLoadMenu();goDocuments('income')">
       <svg class="icon"><use href="#i-scan"/></svg>Load document for OCR…</button>
     <button onclick="closeLoadMenu();openExtract()">
       <svg class="icon"><use href="#i-magic"/></svg>Paste an AI document extraction…</button>
@@ -6139,7 +6139,7 @@ function renderAUS(){
   const A = S.aus;
   setT('cnt-aus', A ? (A.findings||[]).length : 0);
   if (!A){
-    $('ausBody').innerHTML = `<div class="addblock" onclick="switchTab('docs');document.getElementById('docFile').click()">
+    $('ausBody').innerHTML = `<div class="addblock" onclick="goDocuments('income')">
       <div class="t"><svg class="icon icon-lg" style="color:var(--accent)"><use href="#i-plus"/></svg>Drop a DU or LPA findings report</div>
       <div class="s">Drag the PDF anywhere on the page, or click here to browse. The findings are read, the loan
         figures are pulled out, every numbered message is indexed against the matching guideline, and the AUS
@@ -7137,6 +7137,9 @@ function del(list,id){
 /* Tabs that were folded into another page keep working as aliases, so every
    existing switchTab('guide') / switchTab('paystub') call still lands somewhere. */
 const TAB_ALIAS = {guide:'summary', paystub:'docs'};
+/* v57.4: documents live on the Documents page (doc-organizer.html). The Documents panel here stays for the review of a
+   document handed over from that page (?mtdoc=, ?tab=docs) - the reader fills the income entries and you check them. */
+function goDocuments(sec){ location.href = 'doc-organizer.html' + (sec ? '?section=' + encodeURIComponent(sec) : ''); }
 function switchTab(t){
   const sub = t==='paystub' ? 'paystub' : null;
   t = TAB_ALIAS[t] || t;

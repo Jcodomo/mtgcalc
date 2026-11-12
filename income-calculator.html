@@ -7,7 +7,7 @@
 <title>Mortgage Income Calculator &amp; Guideline Engine</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <!-- v57: the PDF writer and reader load when a report or PDF needs them (mt-libs.js), not with the page -->
-<script src="assets/mt-libs.js?v=57.0"></script>
+<script src="assets/mt-libs.js?v=57.4"></script>
 <style>
 /* ============================================================
    NMB / UW ENGINE STYLE SYSTEM  —  light + dark themes
@@ -901,7 +901,7 @@ body,#calc-root,#suite-root{min-width:0}
     <button class="tab" data-tab="other" onclick="switchTab('other')"><svg class="icon"><use href="#i-coins"/></svg><span>Other Income</span><span class="cnt" id="cnt-other">0</span></button>
     <button class="tab" data-tab="assets" onclick="switchTab('assets')" title="Asset Depletion / Employment-Related Assets"><svg class="icon"><use href="#i-pig"/></svg><span>Assets</span></button>
     <button class="tab" data-tab="dti" onclick="switchTab('dti')" title="Subject Property PITIA &amp; Debt-to-Income"><svg class="icon"><use href="#i-pie"/></svg><span>PITIA &amp; DTI</span></button>
-    <button class="tab" data-tab="docs" onclick="switchTab('docs')" title="Document Import &amp; OCR"><svg class="icon"><use href="#i-scan"/></svg><span>Documents</span><span class="cnt" id="cnt-docs">0</span></button>
+    <button class="tab" data-tab="docs" onclick="goDocuments('income')" title="Documents page: library and OCR, paste text / screenshots / files, the income document reader, the Document Builder"><svg class="icon"><use href="#i-scan"/></svg><span>Documents</span><span class="cnt" id="cnt-docs">0</span></button>
     <button class="tab" data-tab="aus" onclick="switchTab('aus')" title="DU / LPA Findings"><svg class="icon"><use href="#i-shield"/></svg><span>AUS Findings</span><span class="cnt" id="cnt-aus">0</span></button>
     <button class="tab" data-tab="summary" onclick="switchTab('summary')" title="Underwriting Summary, findings and the agency guidelines that apply"><svg class="icon"><use href="#i-doc"/></svg><span>UW Summary &amp; Guidelines</span><span class="cnt" id="cnt-guide">0</span></button>
   </div>
@@ -1057,7 +1057,7 @@ body,#calc-root,#suite-root{min-width:0}
       <p>Drop a DU or LPA report on the Documents tab and it is read here — loan figures, every numbered message
          indexed to the matching guideline, and the AUS income against what this file calculates.</p>
     </div>
-    <button class="btn-link no-print" onclick="switchTab('docs');document.getElementById('docFile').click()">
+    <button class="btn-link no-print" onclick="goDocuments('income')">
       <svg class="icon"><use href="#i-upload"/></svg>Load findings</button>
   </div>
   <div id="ausBody"></div>
@@ -3780,7 +3780,7 @@ function nmbLoad(){
   if (window.NMBReport && window.NMB_TEMPLATE) return Promise.resolve(true);
   if (nmbLoad.p) return nmbLoad.p;
   const add = src => new Promise(res => { const s=document.createElement('script'); s.src=src; s.onload=()=>res(true); s.onerror=()=>res(false); document.head.appendChild(s); });
-  return nmbLoad.p = add('assets/nmb-template.js?v=57.2').then(a => add('assets/nmb-report.js?v=57.2').then(b => a && b));
+  return nmbLoad.p = add('assets/nmb-template.js?v=57.4').then(a => add('assets/nmb-report.js?v=57.4').then(b => a && b));
 }
 function buildReportPages(){
   const pages = [];
@@ -5924,7 +5924,7 @@ function loadMenuHTML(){
   return `
     <button onclick="closeLoadMenu();document.getElementById('loadFile').click()">
       <svg class="icon"><use href="#i-doc"/></svg>Load income file (.json)</button>
-    <button onclick="closeLoadMenu();switchTab('docs');document.getElementById('docFile').click()">
+    <button onclick="closeLoadMenu();goDocuments('income')">
       <svg class="icon"><use href="#i-scan"/></svg>Load document for OCR…</button>
     <button onclick="closeLoadMenu();openExtract()">
       <svg class="icon"><use href="#i-magic"/></svg>Paste an AI document extraction…</button>
@@ -6141,7 +6141,7 @@ function renderAUS(){
   const A = S.aus;
   setT('cnt-aus', A ? (A.findings||[]).length : 0);
   if (!A){
-    $('ausBody').innerHTML = `<div class="addblock" onclick="switchTab('docs');document.getElementById('docFile').click()">
+    $('ausBody').innerHTML = `<div class="addblock" onclick="goDocuments('income')">
       <div class="t"><svg class="icon icon-lg" style="color:var(--accent)"><use href="#i-plus"/></svg>Drop a DU or LPA findings report</div>
       <div class="s">Drag the PDF anywhere on the page, or click here to browse. The findings are read, the loan
         figures are pulled out, every numbered message is indexed against the matching guideline, and the AUS
@@ -7139,6 +7139,9 @@ function del(list,id){
 /* Tabs that were folded into another page keep working as aliases, so every
    existing switchTab('guide') / switchTab('paystub') call still lands somewhere. */
 const TAB_ALIAS = {guide:'summary', paystub:'docs'};
+/* v57.4: documents live on the Documents page (doc-organizer.html). The Documents panel here stays for the review of a
+   document handed over from that page (?mtdoc=, ?tab=docs) - the reader fills the income entries and you check them. */
+function goDocuments(sec){ location.href = 'doc-organizer.html' + (sec ? '?section=' + encodeURIComponent(sec) : ''); }
 function switchTab(t){
   const sub = t==='paystub' ? 'paystub' : null;
   t = TAB_ALIAS[t] || t;
@@ -8268,19 +8271,19 @@ window.__mtgcalcBridge = {
 };
 </script>
 <script src="assets/income-enhancements.js"></script>
-<script src="assets/sync-bridge.js?v=55.12"></script>
-<script src="assets/workflow-ui.js?v=55.12"></script>
-<script src="assets/income-features.js?v=55.16"></script>
-<script src="assets/income-extras.js?v=56.1"></script>
-<script src="assets/mt-live.js?v=56.0"></script>
-<script src="assets/release56-income.js?v=56.0"></script>
-<script src="assets/mt-mnd.js?v=56.0"></script>
-<script src="assets/mt-addr.js?v=56.5"></script>
-<script src="assets/mt-paste.js?v=56.7"></script>
-<script src="assets/mt-search.js?v=56.7"></script>
-<script src="assets/doc-center.js?v=56.8"></script>
-<script src="assets/mt-data.js?v=56.1"></script>
-<script src="assets/mt-build-lazy.js?v=57.3"></script>
-<script src="assets/ic-simple.js?v=57.2"></script>
+<script src="assets/sync-bridge.js?v=57.4"></script>
+<script src="assets/workflow-ui.js?v=57.4"></script>
+<script src="assets/income-features.js?v=57.4"></script>
+<script src="assets/income-extras.js?v=57.4"></script>
+<script src="assets/mt-live.js?v=57.4"></script>
+<script src="assets/release56-income.js?v=57.4"></script>
+<script src="assets/mt-mnd.js?v=57.4"></script>
+<script src="assets/mt-addr.js?v=57.4"></script>
+<script src="assets/mt-paste.js?v=57.4"></script>
+<script src="assets/mt-search.js?v=57.4"></script>
+<script src="assets/doc-center.js?v=57.4"></script>
+<script src="assets/mt-data.js?v=57.4"></script>
+<script src="assets/mt-build-lazy.js?v=57.4"></script>
+<script src="assets/ic-simple.js?v=57.4"></script>
 </body>
 </html>

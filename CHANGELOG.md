@@ -132,7 +132,7 @@
 - **Address suggestions match known addresses instantly:** the loan file's property, the document builders' properties, addresses picked before and full addresses typed into an address box are matched on every keystroke without waiting for the network (tagged "Loan file", "Document builder", "Used before", "Typed before"); OpenStreetMap results join them, now after 0.2 seconds and from the third character.
 - The MI & renovation worksheet's program is a typeable box (FHA, FHA 203(k), Conventional, HomeStyle, VA, USDA or anything else). Choices that drive a calculation - pay frequency, filing status, the state tax table, lease type and each builder's style - stay as lists.
 
-## 2026-11-12 - everything released today (56.6 to 57.3)
+## 2026-11-12 - everything released today (56.6 to 57.4)
 
 The release entries below have the details. In short:
 
@@ -153,6 +153,7 @@ The release entries below have the details. In short:
   - New NMB Income Worksheet report layout.
 - **57.2 - more NMB pages:** Union Worker W2, Freddie 1099 and Retirement Income pages in the NMB report.
 - **57.3 - commitment letters:** an approval letter layout ("Congratulations") and an underwriting conditional approval layout (lender grid, conditions in PTA / PTD / PTF / AC / PTP boxes); conditions keep their stage; a button that makes the conditions list to paste into an email or tick off.
+- **57.4 - one Documents page:** the Doc Organizer holds the library and OCR, paste box, income document reader, Document Builder and organizer; the Income Calculator's Documents tab opens it. Conditions can be exported (.txt / .csv / .json, or checked-off only into a text box) and checked or unchecked all at once, internal or external.
 - **Behind the scenes, with no change to the site on their own:**
   - The 56.5 calculation was recovered into readable TypeScript (src/) and gives identical results on 3,000 scenarios.
   - Engine fixes D1-D5 were written with tests.
@@ -278,6 +279,26 @@ The release entries below have the details. In short:
 - The commitment letter has the logo upload the other builders have.
 - **Builder updates now reach every browser:** since 56.8 the pages loaded the document builder with a fixed cache key, so a browser that had cached it could keep showing an older builder (without the 57.0 and 57.3 layouts). The build now stamps the builder and its loader with each release number.
 - Asset version 57.3.
+
+## Release 57.4 - one Documents page; condition export and check / uncheck controls
+
+- **Documents page:** the Doc Organizer is now the one place for documents. Its sections:
+  - **Document library & OCR:** the shared library, inline.
+  - **Paste box:** takes text, rows copied from Excel or Google Sheets, screenshots and files.
+  - **Income documents:** files saved here open in the Income Calculator's reader.
+  - **Document builder:** every builder, one click each.
+  - **Organize & download:** the existing rename, split, combine and ZIP tools.
+  - **Where reviewed values go:** Loan Suite fields to the Loan Suite, income fields to the Income Calculator. They're placed when that page next opens.
+  - `doc-organizer.html?build=commit` opens a builder directly, and `?section=paste` jumps to a section.
+- **Income Calculator:** the Documents tab, the "upload a document" links and the load menu now open the Documents page. The calculator keeps its document review panel for documents handed over from that page.
+- **Commitment letter conditions:**
+  - **Check / uncheck:** Check all, Uncheck all, Uncheck all internal, Uncheck all external, Check all internal, Check all external.
+  - **Received:** Mark all kept as received, and Uncheck all received.
+  - **Internal or external:** each condition shows an "Internal (lender task)" box you can change. A count of each kind sits above the buttons.
+  - **Export:** "Which conditions" picks kept, checked off (received), still needed, external only, internal only or every condition. The list box can be edited before copying.
+  - **Downloads:** .txt (as shown), .csv for Excel (status, kept, internal, when, category, condition, note) and .json.
+- **Cache keys:** every page now loads the shared scripts (document library, paste, search, address and the builder loader) under the current release number. The Doc Organizer had still been loading the 56.1 document library.
+- Asset version 57.4.
 
 ## Release 55.14b - self-employment, rental and more of the income worksheet; one look across the pages
 

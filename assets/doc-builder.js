@@ -1001,6 +1001,7 @@
   function stageGroup(st) { return /^(AC|PTF|PTP)$/.test(st) ? 'closing' : 'prior'; }
   function stageName(c) { var st = stageOf(c); return (STAGES.filter(function (x) { return x[0] === st; })[0] || STAGES[1])[1]; }
   function stageFrom(t) { t = String(t || ''); return /\bPTA\b|approv/i.test(t) ? 'PTA' : /\bPTF\b|fund/i.test(t) ? 'PTF' : /\bPTP\b|purchase/i.test(t) ? 'PTP' : /\bAC\b|clos/i.test(t) && !/\bPTD\b|docs?/i.test(t) ? 'AC' : 'PTD'; }
+  var LIST_SET = [['all', 'Kept conditions (ticked to keep)'], ['done', 'Checked off - received / cleared'], ['need', 'Still needed'], ['ext', 'External (borrower) only'], ['int', 'Internal (lender) only'], ['every', 'Every condition, kept or not']];
   var LIST_FMT = [['check', 'Check boxes (\u2610 / \u2611)'], ['num', 'Numbered'], ['bullet', 'Bullets'], ['plain', 'Plain lines']];
   B.commit = {
     label: 'Commitment letter', sub: 'From a conditional approval',
@@ -1014,7 +1015,7 @@
         pmiReq: /conv/i.test(f.program) && f.downPct < .2, escrow: true, escTaxes: f.taxes ? f.taxes.toFixed(2) : '', escHaz: f.ins ? f.ins.toFixed(2) : '', escMI: f.mi ? f.mi.toFixed(2) : '', flood: false,
         showNotes: true, hideDone: false, emailTo: '', emailCc: '', processor: '', procPhone: '', procEmail: '', lo: '', loNmls: '', loPhone: '', loEmail: '', underwriter: '', returnDays: '10', findText: '', replaceText: '',
         ltv: '', program: '', scores1: '', scores2: '', propType: '1 Unit', units: '1', projectType: '', qualRate: '', ratioFront: '', ratioBack: '', income: '', obligations: '', docType: 'Full Documentation', impoundType: 'Taxes and Insurance',
-        subFin: '', lienPos: 'First Lien', lenderPhone: '', lenderFax: '', broker: '', brokerContact: '', brokerPhone: '', brokerFax: '', refNo: '', letterConds: true, disclaimer: '', listFmt: 'check', listGroup: true, listDone: true, listOpen: false, conditions: []};
+        subFin: '', lienPos: 'First Lien', lenderPhone: '', lenderFax: '', broker: '', brokerContact: '', brokerPhone: '', brokerFax: '', refNo: '', letterConds: true, disclaimer: '', listFmt: 'check', listGroup: true, listDone: true, listSet: 'all', listOpen: false, conditions: []};
       COND_LIB.forEach(function (c) { d.conditions.push({id: uid(), group: c[0], stage: c[0] === 'closing' ? 'AC' : 'PTD', cat: c[1], text: c[2], on: true}); });
       return d;
     },
@@ -1024,7 +1025,7 @@
         var list = s.conditions.filter(function (c) { return c.group === g; });
         return '<fieldset><legend>' + title + ' (' + list.filter(function (c) { return c.on; }).length + ' of ' + list.length + ' kept)</legend>' + list.map(function (c) {
           return '<div class="cond"><input type="checkbox" data-cond="' + c.id + '" data-f="on"' + (c.on ? ' checked' : '') + ' aria-label="Keep this condition"><div><input data-cond="' + c.id + '" data-f="cat" value="' + esc(c.cat) + '" style="margin-bottom:4px;font-weight:700" aria-label="Category"><textarea data-cond="' + c.id + '" data-f="text" rows="2" aria-label="Condition">' + esc(c.text) + '</textarea>' + (c.note || c.src === 'grid' ? '<textarea data-cond="' + c.id + '" data-f="note" rows="1" style="margin-top:4px;font-style:italic" placeholder="Note (optional)" aria-label="Note for this condition">' + esc(c.note || '') + '</textarea>' : '') +
-            '<label class="ck" style="margin-top:4px"><input type="checkbox" data-cond="' + c.id + '" data-f="done"' + (c.done ? ' checked' : '') + '><span>Received / cleared</span></label>' + (c.src && c.src !== 'grid' ? '<div class="note">From the approval: ' + esc(c.src) + '</div>' : '') + '</div>' +
+            '<div class="row" style="margin-top:4px;gap:14px"><label class="ck"><input type="checkbox" data-cond="' + c.id + '" data-f="done"' + (c.done ? ' checked' : '') + '><span>Received / cleared</span></label><label class="ck"><input type="checkbox" data-cond="' + c.id + '" data-f="internal"' + (condInternal(c) ? ' checked' : '') + '><span>Internal (lender task)</span></label></div>' + (c.src && c.src !== 'grid' ? '<div class="note">From the approval: ' + esc(c.src) + '</div>' : '') + '</div>' +
             '<div style="display:grid;gap:4px"><select data-cond="' + c.id + '" data-f="stage" aria-label="When">' + STAGES.map(function (x) { return '<option value="' + x[0] + '"' + (stageOf(c) === x[0] ? ' selected' : '') + '>' + x[1] + '</option>'; }).join('') + '</select><button type="button" class="x" data-a="condDel" data-id="' + c.id + '">Delete</button></div></div>';
         }).join('') + '<div class="row" style="margin-top:6px"><button type="button" class="btn" data-a="condAdd" data-g="' + g + '">+ Add condition</button></div></fieldset>';
       };
@@ -1046,14 +1047,16 @@
           field(b, 'docType', 'Documentation type', {list: ['Full Documentation', 'Bank Statement', 'DSCR', 'Asset Depletion', 'Streamline']}) + field(b, 'impoundType', 'Impound type', {list: ['Taxes and Insurance', 'Taxes Only', 'Insurance Only']}) + field(b, 'lenderPhone', 'Lender phone (grid)') + field(b, 'lenderFax', 'Lender fax') +
           field(b, 'broker', 'Broker') + field(b, 'brokerContact', 'Broker contact') + field(b, 'brokerPhone', 'Broker phone') + field(b, 'brokerFax', 'Broker fax') + field(b, 'refNo', 'Broker ref. #') +
           field(b, 'letterConds', 'List the kept conditions in the approval letter', {type: 'check', wide: 1}) + field(b, 'disclaimer', 'Approval letter footer (blank = standard equal housing notice)', {type: 'textarea', wide: 1, rows: 2}) + '</div></fieldset>' +
-        '<fieldset><legend>Conditions</legend><div class="row"><button type="button" class="btn" data-a="condAll">Keep all</button><button type="button" class="btn" data-a="condNone">Drop all</button><button type="button" class="btn" data-a="condBorrower">Borrower items only</button><button type="button" class="btn" data-a="condLib">Add standard conditions</button></div>' +
+        '<fieldset><legend>Conditions</legend><div class="note" style="margin:0 0 4px">Keep in the letter (' + s.conditions.filter(function (c) { return c.on; }).length + ' of ' + s.conditions.length + ' kept - ' + s.conditions.filter(condInternal).length + ' internal, ' + s.conditions.filter(function (c) { return !condInternal(c); }).length + ' external):</div>' +
+        '<div class="row"><button type="button" class="btn" data-a="condAll">Check all</button><button type="button" class="btn" data-a="condNone">Uncheck all</button><button type="button" class="btn" data-a="condIntOff">Uncheck all internal</button><button type="button" class="btn" data-a="condExtOff">Uncheck all external</button><button type="button" class="btn" data-a="condIntOn">Check all internal</button><button type="button" class="btn" data-a="condExtOn">Check all external</button><button type="button" class="btn" data-a="condBorrower">Borrower items only</button><button type="button" class="btn" data-a="condLib">Add standard conditions</button></div>' +
+        '<div class="note" style="margin:8px 0 4px">Received / cleared:</div><div class="row"><button type="button" class="btn" data-a="condDoneAll">Mark all kept as received</button><button type="button" class="btn" data-a="condDoneNone">Uncheck all received</button></div>' +
         '<label class="f w" style="margin-top:10px">Paste conditions copied from your loan system or a spreadsheet<textarea id="mtBcondPaste" rows="3" placeholder="Copy the condition rows with the header row (Condition Name, Documents, External Description, Prior To, ... Latest Status, ... Internal Description) and paste here. A screenshot of the list can go in the drop box above."></textarea></label>' +
         '<div class="row" style="margin-top:6px"><button type="button" class="btn" data-a="condPasteRep">Replace the conditions with these</button><button type="button" class="btn" data-a="condPasteAdd">Add these to the list</button></div>' +
         '<div class="g" style="margin-top:10px">' + field(b, 'showNotes', 'Print the notes under each condition', {type: 'check', wide: 1}) + field(b, 'hideDone', 'Leave received conditions off the letter', {type: 'check', wide: 1}) + field(b, 'emailTo', 'Email to', {ph: 'borrower@example.com'}) + field(b, 'emailCc', 'Cc', {ph: 'processor, agent'}) + '</div>' +
         '<div class="row" style="margin-top:6px"><button type="button" class="btn" data-a="condMail">Email the conditions</button><button type="button" class="btn" data-a="condCopy">Copy for email (table with check boxes)</button><button type="button" class="btn" data-a="condTsv">Copy as spreadsheet rows</button></div>' +
         '<p class="note">The email lists the conditions you kept: still-needed items first with an empty box, received items checked off. Tick "Received / cleared" on each one as it comes in.</p>' +
-        '<div class="g" style="margin-top:10px">' + field(b, 'listFmt', 'Conditions list style', {type: 'select', options: LIST_FMT}) + field(b, 'listGroup', 'Group by when each is due (PTD, at closing...)', {type: 'check'}) + field(b, 'listDone', 'Include received conditions', {type: 'check'}) + '</div>' +
-        '<div class="row" style="margin-top:6px"><button type="button" class="btn" data-a="condList">' + (s.listOpen ? 'Make the list again' : 'Make the conditions list') + '</button>' + (s.listOpen ? '<button type="button" class="btn" data-a="condListCopy">Copy the list</button><button type="button" class="btn" data-a="condCopy">Copy as check-box table</button><button type="button" class="x" data-a="condListClose">Close the list</button>' : '') + '</div>' +
+        '<div class="g" style="margin-top:10px">' + field(b, 'listFmt', 'Conditions list style', {type: 'select', options: LIST_FMT}) + field(b, 'listGroup', 'Group by when each is due (PTD, at closing...)', {type: 'check'}) + field(b, 'listDone', 'Include received conditions', {type: 'check'}) + field(b, 'listSet', 'Which conditions', {type: 'select', options: LIST_SET}) + '</div>' +
+        '<div class="row" style="margin-top:6px"><button type="button" class="btn" data-a="condList">' + (s.listOpen ? 'Make the list again' : 'Export / make the conditions list') + '</button>' + (s.listOpen ? '<button type="button" class="btn" data-a="condListCopy">Copy the list</button><button type="button" class="btn" data-a="condCopy">Copy as check-box table</button><button type="button" class="btn" data-a="condExpTxt">Download .txt</button><button type="button" class="btn" data-a="condExpCsv">Download .csv (Excel)</button><button type="button" class="btn" data-a="condExpJson">Download .json</button><button type="button" class="x" data-a="condListClose">Close the list</button>' : '') + '</div>' +
         (s.listOpen ? condListPanel(s) : '') +
         '<div class="g" style="margin-top:8px">' + field(b, 'findText', 'Replace this name in the conditions', {ph: 'e.g. the approving lender\'s name'}) + field(b, 'replaceText', 'With') + '</div><div class="row" style="margin-top:6px"><button type="button" class="btn" data-a="condReplace">Replace in all conditions</button></div></fieldset>' +
         conds('prior', 'Conditions to be satisfied prior to closing') + conds('closing', 'Conditions to be satisfied at closing');
@@ -1249,6 +1252,9 @@
     return rows.filter(function (r) { return r.some(function (c) { return String(c).trim(); }); });
   }
   var COND_STAFF = /^(Funder|FUNDER|Post\s*Closer|Approval|Disclosures|Escrow|Closing\s*Agent|Title\s*Company)/i;
+  /* v57.4: internal = the lender's own tasks (funder, post closer, approval, disclosures, escrow / closing agent, title,
+     underwriter and processor items); external = what the borrower provides */
+  function condInternal(c) { return c.internal != null ? !!c.internal : /^(Funder|Post\s*Closer|Approval|Disclosures|Escrow|Title|Closing\s*Agent|QC\b)/i.test(c.cat || '') || /^(Underwriter|Funder|UW\b|Reno\s*Funder|Processor|QC\b)/i.test(c.text || ''); }
   function condNote(t) { t = String(t || '').replace(/\r/g, '').replace(/\n\s*-\s*$/, '').replace(/^\s*\*+\s*/, '').replace(/\s*\n\s*/g, ' ').replace(/\s{2,}/g, ' ').trim(); return /^(-|\*|n\/?a|if applicable)?$/i.test(t) ? '' : t; }
   function condFrom(name, ext, prior, status, internal) {
     name = String(name || '').replace(/\s+/g, ' ').trim(); ext = condNote(ext); internal = condNote(internal);
@@ -1285,7 +1291,10 @@
   /* v57.3: the conditions list - kept conditions as plain text to paste into an email or a document, as check boxes,
      numbered or bulleted, grouped by when each is due; the panel under it ticks items off as they come in */
   function condListItems(s) {
-    var L = s.conditions.filter(function (c) { return c.on && String(c.text).trim() && (s.listDone !== false || !c.done); });
+    var set = s.listSet || 'all', L = s.conditions.filter(function (c) {
+      if (!String(c.text).trim()) return false; if (set === 'every') return true; if (!c.on) return false;
+      if (set === 'done') return !!c.done; if (set === 'need') return !c.done; if (set === 'ext') return !condInternal(c) && (s.listDone !== false || !c.done); if (set === 'int') return condInternal(c) && (s.listDone !== false || !c.done);
+      return s.listDone !== false || !c.done; });
     var ord = function (a, b) { return (a.done ? 1 : 0) - (b.done ? 1 : 0); };
     if (s.listGroup === false) return [{h: '', L: L.slice().sort(ord)}];
     return STAGES.map(function (x) { return {h: x[2] + ' (' + x[0] + ')', L: L.filter(function (c) { return stageOf(c) === x[0]; }).sort(ord)}; }).filter(function (g) { return g.L.length; });
@@ -1307,9 +1316,23 @@
     var cnt = G2.reduce(function (t, g) { return t + g.L.length; }, 0);
     return {text: T.join('\n'), html: '<div style="font:13px Arial,sans-serif">' + H.join('') + '</div>', count: cnt};
   }
+  /* v57.4: export the chosen conditions as a file - text as shown in the box (edits included), CSV for Excel, JSON */
+  function condExport(kind) {
+    var s = drafts.commit, O = condListBuild(s), ta = document.getElementById('mtBcondList');
+    if (!O.count) { say('No conditions match the choice - change "Which conditions".'); return; }
+    var items = [].concat.apply([], condListItems(s).map(function (g) { return g.L; }));
+    var q = function (v) { v = String(v == null ? '' : v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+    var body = kind === 'txt' ? (ta && ta.value.trim() ? ta.value : O.text)
+      : kind === 'csv' ? '\ufeff' + ['Status,Kept,Internal,When,Category,Condition,Note'].concat(items.map(function (c) { return [c.done ? 'Received' : 'Still needed', c.on ? 'Yes' : 'No', condInternal(c) ? 'Internal' : 'External', stageName(c), q(c.cat), q(B.commit.fill(c.text)), q(c.note)].join(','); })).join('\r\n')
+      : JSON.stringify({loanNumber: s.loanNumber || '', borrowers: names(s.borrowers), exported: new Date().toISOString(), conditions: items.map(function (c) { return {stage: stageOf(c), category: c.cat || '', text: B.commit.fill(c.text), note: c.note || '', kept: !!c.on, received: !!c.done, internal: condInternal(c)}; })}, null, 2);
+    var name = 'Conditions' + (s.loanNumber ? ' ' + s.loanNumber : '') + (names(s.borrowers)[0] ? ' - ' + names(s.borrowers)[0] : '') + '.' + kind;
+    var blob = new Blob([body], {type: kind === 'csv' ? 'text/csv' : kind === 'json' ? 'application/json' : 'text/plain'}), url = URL.createObjectURL(blob), a = document.createElement('a');
+    a.href = url; a.download = name.replace(/[\\/:*?"<>|]/g, ''); document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+    say('Saved ' + O.count + ' conditions as ' + a.download + '.');
+  }
   function condListPanel(s) {
     var o = condListBuild(s), kept = s.conditions.filter(function (c) { return c.on && String(c.text).trim(); });
-    return '<label class="f w" style="margin-top:8px">The list (' + o.count + ' condition' + (o.count === 1 ? '' : 's') + ') - select and copy, or use Copy the list<textarea id="mtBcondList" rows="' + Math.min(16, Math.max(4, o.text.split('\n').length + 1)) + '" readonly style="font-family:Consolas,monospace;font-size:12px">' + esc(o.text || 'No conditions are kept.') + '</textarea></label>' +
+    return '<label class="f w" style="margin-top:8px">The list (' + o.count + ' condition' + (o.count === 1 ? '' : 's') + ') - select and copy, or use Copy the list<textarea id="mtBcondList" rows="' + Math.min(16, Math.max(4, o.text.split('\n').length + 1)) + '" style="font-family:Consolas,monospace;font-size:12px">' + esc(o.text || 'No conditions are kept.') + '</textarea></label>' +
       '<div class="note" style="margin-top:6px">Tick each condition as it comes in; the list and the letter update.</div><div style="display:grid;gap:4px;margin-top:4px">' + kept.map(function (c) { return '<label class="ck"><input type="checkbox" data-cond="' + c.id + '" data-f="done"' + (c.done ? ' checked' : '') + '><span>' + (c.cat ? '<b>' + esc(c.cat) + '</b> - ' : '') + esc(B.commit.fill(c.text)).slice(0, 160) + ' <i class="note">' + esc(stageName(c)) + '</i></span></label>'; }).join('') + '</div>';
   }
   /* the condition list as an email or for pasting: kept conditions, still needed first, received ones checked off */
@@ -1976,7 +1999,7 @@
 
   /* ================================================================ shell / UI */
   var ORDER = ['addendum', 'lease', 'estimate', 'pl', 'schc', 'pay', 'gift', 'le', 'commit', 'mi'];
-  var RERENDER = {listFmt: 1, listGroup: 1, listDone: 1, showPay: 1, drawCustom: 1, style: 1, leaseType: 1, program: 1, concOnTop: 1, ttOn: 1, renoOn: 0, payType: 1, state: 1, locality: 1, ytdMode: 1, logoSize: 0, type: 1, oSource: 0, oPrice: 1};
+  var RERENDER = {listSet: 1, listFmt: 1, listGroup: 1, listDone: 1, showPay: 1, drawCustom: 1, style: 1, leaseType: 1, program: 1, concOnTop: 1, ttOn: 1, renoOn: 0, payType: 1, state: 1, locality: 1, ytdMode: 1, logoSize: 0, type: 1, oSource: 0, oPrice: 1};
   function mount() {
     if ($('mtB')) return;
     if (!$('mtBcss')) { var st = document.createElement('style'); st.id = 'mtBcss'; st.textContent = CSS; document.head.appendChild(st); }
@@ -2155,7 +2178,7 @@
   window.addEventListener('resize', function () { if ($('mtB') && $('mtB').classList.contains('open')) fit(false); });
   function setVal(t, ev) {
     var b = t.getAttribute('data-b'), v = t.type === 'checkbox' ? t.checked : t.value;
-    if (t.hasAttribute('data-cond')) { var c = drafts.commit.conditions.filter(function (x) { return x.id === t.getAttribute('data-cond'); })[0]; if (c) { c[t.getAttribute('data-f')] = v; if (t.getAttribute('data-f') === 'stage') c.group = stageGroup(v); if (t.getAttribute('data-f') === 'group' || t.getAttribute('data-f') === 'on' || t.getAttribute('data-f') === 'stage' || (t.getAttribute('data-f') === 'done' && drafts.commit.listOpen)) { persist(); renderForm(); } } persist(); refresh(); return; }
+    if (t.hasAttribute('data-cond')) { var c = drafts.commit.conditions.filter(function (x) { return x.id === t.getAttribute('data-cond'); })[0]; if (c) { c[t.getAttribute('data-f')] = v; if (t.getAttribute('data-f') === 'stage') c.group = stageGroup(v); if (t.getAttribute('data-f') === 'group' || t.getAttribute('data-f') === 'on' || t.getAttribute('data-f') === 'stage' || t.getAttribute('data-f') === 'internal' || (t.getAttribute('data-f') === 'done' && drafts.commit.listOpen)) { persist(); renderForm(); } } persist(); refresh(); return; }
     if (!b || !drafts[b]) return;
     /* lease sections: included or not, a new heading, new wording */
     if (t.hasAttribute('data-sec')) {
@@ -2351,6 +2374,10 @@
     else if (a === 'condBorrower') L.forEach(function (c) { c.on = !/^(Funder|Post\s*Closer|Approval|Disclosures|Escrow|Title|Closing\s*Agent)/i.test(c.cat) && !/^(Underwriter|Funder|UW\b|Reno\s*Funder|Processor)/i.test(c.text); });
     else if (a === 'condLib') COND_LIB.forEach(function (c) { if (!L.some(function (x) { return x.text === c[2]; })) L.push({id: uid(), group: c[0], cat: c[1], text: c[2], on: true, lib: true}); });
     else if (a === 'condList') { s.listOpen = true; }
+    else if (a === 'condIntOff' || a === 'condExtOff' || a === 'condIntOn' || a === 'condExtOn') { var wantInt = /Int/.test(a), on = /On$/.test(a); L.forEach(function (c) { if (condInternal(c) === wantInt) c.on = on; }); }
+    else if (a === 'condDoneAll') L.forEach(function (c) { if (c.on) c.done = true; });
+    else if (a === 'condDoneNone') L.forEach(function (c) { c.done = false; });
+    else if (a === 'condExpTxt' || a === 'condExpCsv' || a === 'condExpJson') return condExport(a.slice(7).toLowerCase());
     else if (a === 'condListClose') { s.listOpen = false; }
     else if (a === 'condListCopy') { var O = condListBuild(s); if (!O.count) { say('No conditions are kept - tick the ones to list first.'); return; } return copyRich(O.html, O.text).then(function () { say('Copied ' + O.count + ' conditions - paste into an email, Word or a spreadsheet.'); }, function () { var ta = document.getElementById('mtBcondList'), ok = false; if (ta) { ta.focus(); ta.select(); try { ok = document.execCommand('copy'); } catch (e) {} } say(ok ? 'Copied ' + O.count + ' conditions as text - paste into an email or a document.' : 'The browser did not allow copying - the list is selected, press Ctrl+C.'); }); }
     else if (a === 'condMail' || a === 'condCopy' || a === 'condTsv') return condMail(a === 'condMail' ? 'mail' : a === 'condCopy' ? 'copy' : 'tsv');

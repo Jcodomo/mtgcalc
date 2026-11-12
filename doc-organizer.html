@@ -4,7 +4,7 @@
 <script>/* 55.15: OLED dark blue by default (once for everyone; afterwards the Look menu / theme switch decides) */(function(){try{var L=localStorage,k='mt.oledDefault.v1';if(!L.getItem(k)){L.setItem('los.v25.surface','oled');L.setItem('uwTheme','dark');['los.v251.appearanceSeeded','los.v35.appearanceSeeded','v15ThemeSeeded'].forEach(function(f){L.setItem(f,'1')});L.setItem(k,'1');}document.documentElement.setAttribute('data-mt-mode',L.getItem('los.v25.surface')==='light'&&L.getItem('uwTheme')!=='dark'?'light':'oled');}catch(e){}})();</script><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mortgage Doc Organizer</title>
+<title>Documents · Mortgage Doc Organizer</title>
 <style>
   :root {
     --bg: #13151a;
@@ -84,6 +84,15 @@
   .count { color: var(--muted); font-size: 13px; margin-right: auto; }
   .empty { color: var(--muted); text-align: center; padding: 24px; }
   .seam { margin-top: 18px; font-size: 12.5px; color: var(--muted); border-left: 3px solid var(--accent); background: rgba(255,255,255,.04); padding: 10px 14px; border-radius: 0 8px 8px 0; line-height: 1.5; }
+
+.hubnav{display:flex;flex-wrap:wrap;gap:6px;align-items:center;position:sticky;top:0;z-index:20;background:var(--bg,#0d1424);padding:8px 0;margin:0 0 12px}
+.hubnav a{padding:6px 12px;border-radius:999px;border:1px solid rgba(140,170,220,.35);text-decoration:none;color:inherit;font-weight:600;font-size:13px}.hubnav a:hover{border-color:#8cc0ff}.hubnav .sp{flex:1}
+.hubnote{font-size:13px;opacity:.85;margin:4px 0 10px;line-height:1.45}
+.hubpaste{min-height:110px;max-height:320px;overflow:auto;border:2px dashed rgba(140,170,220,.45);border-radius:10px;padding:10px;white-space:pre-wrap;font:12.5px Consolas,Menlo,monospace;outline:none}
+.hubpaste:focus{border-color:#8cc0ff}.hubpaste:empty:before{content:attr(data-ph);opacity:.55}
+.hubin{flex:1;min-width:200px;padding:6px 10px;border-radius:8px;border:1px solid rgba(140,170,220,.4);background:transparent;color:inherit}
+.hubgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px}.hubgrid button{text-align:left;padding:10px 12px;border-radius:10px;border:1px solid rgba(140,170,220,.35);background:rgba(120,160,230,.08);color:inherit;font:600 13.5px inherit;cursor:pointer}.hubgrid button:hover{border-color:#8cc0ff}.hubgrid small{display:block;font-weight:400;opacity:.75;margin-top:2px}
+@media (max-width:640px){.hubnav{position:static}}
 </style>
 <link rel="stylesheet" href="assets/mtgcalc-theme.css">
 </head>
@@ -95,15 +104,40 @@
 </div>
 
   <div class="head">
-    <h1>🗂️ Mortgage Doc Organizer</h1><div class="sub">Add documents, review the detected fields, then download a clean ZIP or send reviewed values to the Income Calculator. Files stay in this browser.</div>
+    <h1>🗂️ Documents</h1><div class="sub">Every document tool in one place: the shared library with OCR, paste boxes for text, spreadsheet rows, screenshots and files, the income document reader, the Document Builder, and the organizer that renames, splits and zips files. Reviewed values go to the Loan Suite or the Income Calculator. Files stay in this browser.</div>
   </div>
 
   <main>
 
 
+
+    <!-- v57.4: the Documents page - library and OCR, paste, income documents, Document Builder, then the organizer -->
+    <nav class="hubnav" aria-label="Documents sections"><a href="#hub-library">Library &amp; OCR</a><a href="#hub-paste">Paste</a><a href="#hub-income">Income documents</a><a href="#hub-builder">Document builder</a><a href="#hub-organize">Organize &amp; download</a><span class="sp"></span><a href="income-calculator.html">Income Calculator ↗</a><a href="loan-suite.html">Loan Suite ↗</a></nav>
+
+    <div class="card" id="hub-library"><div id="mtDocsHub"><header><h2>Document library &amp; OCR</h2><p class="hubnote">Documents added on any page are kept here. Each one is read (PDF text, or OCR for scans, photos and screenshots), its type is recognised and its values are listed with the field each goes to. Tick the values and press Send: Loan Suite fields are placed in the Loan Suite, income fields in the Income Calculator (straight away on that page, otherwise the next time it opens). Pay stubs, W-2s and tax returns also have a button that opens them in the Income Calculator's own reader.</p></header></div></div>
+
+    <div class="card" id="hub-paste"><h2>Paste text, spreadsheet rows, screenshots or files</h2>
+      <p class="hubnote">Click in the box and press Ctrl+V (Cmd+V). A screenshot (Win+Shift+S) or a copied file goes straight into the library and is read with OCR. Text from an email, a web page or rows copied from Excel or Google Sheets stay in the box: name it and press Add to the library.</p>
+      <div id="hubPaste" class="hubpaste" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Paste box" data-ph="Click here, then paste (Ctrl+V)…"></div>
+      <div class="toolbar" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px"><input id="hubPasteName" class="hubin" placeholder="Name for the pasted text (optional)"><button class="btn sm" id="hubPasteAdd" type="button">Add to the library</button><button class="btn ghost sm" id="hubPasteClear" type="button">Clear</button><label class="btn ghost sm">Choose files<input type="file" id="hubFiles" multiple accept=".pdf,image/*,.txt,.csv,.tsv" hidden></label></div>
+      <div id="hubPasteStatus" class="hubnote" role="status"></div>
+    </div>
+
+    <div class="card" id="hub-income"><h2>Income documents → Income Calculator</h2>
+      <p class="hubnote">Pay stubs, W-2s, VOEs, tax returns (1040, Schedule C / E, K-1, 1120-S, 1065), benefit letters and 1099s. Choose them here: they are saved to the library and the first one opens in the Income Calculator's reader, which fills the W-2, self-employment, rental and other income entries for you to review. The rest stay in the library with an Income Calculator button.</p>
+      <div class="toolbar" style="display:flex;flex-wrap:wrap;gap:8px"><label class="btn sm">Read income documents<input type="file" id="hubIncome" multiple accept=".pdf,image/*,.txt" hidden></label><a class="btn ghost sm" href="income-calculator.html">Open the Income Calculator</a></div>
+      <div id="hubIncomeStatus" class="hubnote" role="status"></div>
+    </div>
+
+    <div class="card" id="hub-builder"><h2>Document builder</h2>
+      <p class="hubnote">Addendums, leases, contractor estimates, profit and loss, Schedule C analysis, pay statements, gift letters, Loan Estimate drafts, commitment letters (with condition lists, email and export) and the MI &amp; renovation fee worksheet. Each one fills from the loan file and can read a dropped or pasted document.</p>
+      <div id="hubBuilder" class="hubgrid"></div>
+    </div>
+
+    <div id="hub-organize"></div>
     <!-- Drop -->
     <div class="card">
-      <h2>1 · Add documents</h2>
+      <h2>Organize · 1 · Add documents</h2>
       <div class="drop" id="drop">
         <div>Drag &amp; drop files here, or <strong>click to browse</strong></div>
         <div style="font-size:12px;margin-top:6px">PDFs, images, or a <strong>.zip</strong> (auto-unzipped). A PDF that's several documents in one? Use ✂️ Split on its row.</div>
@@ -113,7 +147,7 @@
 
     <!-- Files -->
     <div class="card">
-      <h2>2 · Name &amp; download</h2>
+      <h2>Organize · 2 · Name &amp; download</h2>
       <div id="files-wrap"><div class="empty">No files yet — add some above.</div></div>
       <div class="toolbar" id="toolbar" style="display:none">
         <span class="count" id="count"></span>
@@ -1002,12 +1036,76 @@
 </script>
 
 <script src="assets/loan-ux.js"></script>
-<script src="assets/sync-bridge.js?v=55.12"></script>
-<script src="assets/workflow-ui.js?v=55.12"></script>
-<script src="assets/mt-addr.js?v=56.5"></script>
-<script src="assets/mt-paste.js?v=56.7"></script>
-<script src="assets/mt-search.js?v=56.7"></script>
-<script src="assets/doc-center.js?v=56.1"></script>
+<script src="assets/sync-bridge.js?v=57.4"></script>
+<script src="assets/workflow-ui.js?v=57.4"></script>
+<script src="assets/mt-addr.js?v=57.4"></script>
+<script src="assets/mt-paste.js?v=57.4"></script>
+<script src="assets/mt-search.js?v=57.4"></script>
+<script src="assets/doc-center.js?v=57.4"></script>
+<script src="assets/mt-build-lazy.js?v=57.4"></script>
+<script>
+/* v57.4: the Documents page - paste box, income documents, Document Builder buttons */
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  function say(id, t) { var e = $(id); if (e) e.textContent = t; }
+  function docs() { return window.MTDocs && window.MTDocs.add ? window.MTDocs : null; }
+  function addFiles(files, statusId) {
+    var D = docs(); if (!D) { say(statusId, 'The document library is still loading - try again in a moment.'); return Promise.resolve([]); }
+    var before = D.list().map(function (d) { return d.id; });
+    say(statusId, 'Reading ' + files.length + ' file' + (files.length === 1 ? '' : 's') + '…');
+    return D.add(files).then(function () {
+      var added = D.list().filter(function (d) { return before.indexOf(d.id) < 0; });
+      say(statusId, added.length + ' added to the library and read' + (added.some(function (d) { return d.error; }) ? ' (some could not be read - see the library)' : '') + '.');
+      var lib = $('hub-library'); if (lib) lib.scrollIntoView({behavior: 'smooth', block: 'start'});
+      return added;
+    });
+  }
+  function boot() {
+    var box = $('hubPaste');
+    if (box) box.addEventListener('paste', function (e) {
+      var cd = e.clipboardData; if (!cd) return;
+      var files = Array.prototype.slice.call(cd.files || []), plain = cd.getData('text/plain') || '';
+      /* Excel and web pages also put a picture of the cells on the clipboard - the text is what was meant */
+      if (files.length && plain.trim() && files.every(function (f) { return /^image\//.test(f.type); })) files = [];
+      e.preventDefault(); e.stopPropagation();
+      if (files.length) {
+        files = files.map(function (f, i) { return f.name && f.name !== 'image.png' ? f : new File([f], 'Pasted screenshot ' + new Date().toLocaleString().replace(/[\/:]/g, '-') + (i ? ' ' + (i + 1) : '') + '.png', {type: f.type || 'image/png'}); });
+        addFiles(files, 'hubPasteStatus'); return;
+      }
+      if (plain) { document.execCommand('insertText', false, plain); say('hubPasteStatus', plain.split('\n').length + ' lines pasted' + (/\t/.test(plain) ? ' (spreadsheet rows)' : '') + ' - name it and press Add to the library.'); }
+    });
+    var add = $('hubPasteAdd');
+    if (add) add.addEventListener('click', function () {
+      var t = (box.innerText || '').replace(/\u00a0/g, ' ').trim(); if (!t) { say('hubPasteStatus', 'Paste something into the box first.'); return; }
+      var nm = ($('hubPasteName').value || '').trim() || ('Pasted ' + (/\t/.test(t) ? 'rows' : 'text') + ' ' + new Date().toLocaleString().replace(/[\/:]/g, '-'));
+      addFiles([new File([t], nm.replace(/[\\/:*?"<>|]/g, '') + '.txt', {type: 'text/plain'})], 'hubPasteStatus').then(function (a) { if (a.length) { box.textContent = ''; $('hubPasteName').value = ''; } });
+    });
+    var clr = $('hubPasteClear'); if (clr) clr.addEventListener('click', function () { box.textContent = ''; say('hubPasteStatus', ''); });
+    var hf = $('hubFiles'); if (hf) hf.addEventListener('change', function () { if (hf.files.length) addFiles(Array.prototype.slice.call(hf.files), 'hubPasteStatus'); hf.value = ''; });
+    var inc = $('hubIncome');
+    if (inc) inc.addEventListener('change', function () {
+      var f = Array.prototype.slice.call(inc.files); inc.value = ''; if (!f.length) return;
+      addFiles(f, 'hubIncomeStatus').then(function (a) { if (a.length && docs().openIncome) { say('hubIncomeStatus', 'Opening ' + a[a.length - 1].name + ' in the Income Calculator…'); docs().openIncome(a[a.length - 1].id); } });
+    });
+    var g = $('hubBuilder');
+    function builders() {
+      if (!g || !window.MTBuild || !MTBuild.catalog) return false;
+      var DESC = {addendum: 'Contract changes, concessions, transfer tax', lease: 'Eight layouts, every section editable', estimate: 'Line items and removable draws', pl: 'Year-to-date and prior year', schc: 'Two-year Schedule C analysis', pay: 'Earnings statement', gift: 'Gift and gift of equity letters', le: 'Loan Estimate draft', commit: 'Six layouts, conditions, email and export', mi: 'MI and renovation fees'};
+      g.innerHTML = MTBuild.catalog().map(function (c) { return '<button type="button" data-t="' + c.type + '">' + c.label + '<small>' + (DESC[c.type] || '') + '</small></button>'; }).join('');
+      g.addEventListener('click', function (e) { var b = e.target.closest('button[data-t]'); if (b) MTBuild.open(b.getAttribute('data-t')); });
+      return true;
+    }
+    var n = 0; (function tryB() { if (!builders() && n++ < 40) setTimeout(tryB, 150); })();
+    /* ?build=commit opens a builder; ?section=paste jumps to a section */
+    var q = new URLSearchParams(location.search);
+    if (q.get('build')) { var m = 0; (function o() { if (window.MTBuild) MTBuild.open(q.get('build')); else if (m++ < 40) setTimeout(o, 150); })(); }
+    var sec = q.get('section') || (location.hash || '').slice(1); if (sec && $(sec.indexOf('hub-') ? 'hub-' + sec : sec)) setTimeout(function () { $(sec.indexOf('hub-') ? 'hub-' + sec : sec).scrollIntoView(); }, 600);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
+})();
+</script>
+
 <script>
 /* mtgcalc handoff: keep the organizer's local OCR reviewable by the income,
    quick, all-in-one, and full-suite pages without silently applying values. */
@@ -1054,7 +1152,7 @@
     const style = document.createElement('style'); style.textContent = '#mtgcalcOrganizerNav{display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin-top:12px}#mtgcalcOrganizerNav a,#mtgcalcOrganizerNav button{border:1px solid var(--brand);background:var(--surface2);color:var(--ink);border-radius:8px;padding:7px 11px;font-weight:700;cursor:pointer;text-decoration:none;font:inherit}#mtgcalcOrganizerNav a.primary,#mtgcalcOrganizerNav button.primary{background:var(--brand);color:#0d1117}#mtgcalcOcrBridge{margin-top:0}.mtgcalc-bridge-note{margin:0 0 10px;color:var(--muted);font-size:12.5px}'; document.head.appendChild(style);
     const head = document.querySelector('.head'); if (!head) return;
     const nav = document.createElement('nav'); nav.id = 'mtgcalcOrganizerNav'; nav.setAttribute('aria-label', 'Mortgage Suite pages');
-    nav.innerHTML = '<a href="income-calculator.html?tab=docs&source=doc-organizer&ocr=1">Income Documents</a><a href="loan-suite.html?tab=documents&source=doc-organizer&ocr=1">Loan Documents</a><button type="button" id="mtgcalcOrganizerCopy">Copy reviewed JSON</button>';
+    nav.innerHTML = '<a href="income-calculator.html?tab=docs&source=doc-organizer&ocr=1">Income Calculator (reviewed OCR)</a><a href="loan-suite.html?tab=documents&source=doc-organizer&ocr=1">Loan Documents</a><button type="button" id="mtgcalcOrganizerCopy">Copy reviewed JSON</button>';
     head.appendChild(nav);
     const bridge = document.createElement('div'); bridge.className = 'card'; bridge.id = 'mtgcalcOcrBridge'; bridge.innerHTML = '<h2>OCR handoff</h2><p class="mtgcalc-bridge-note">Run Local OCR + detect all, review the assignments, then open the destination. Values are stored locally and are never silently applied.</p><div id="mtgcalcOrganizerStatus">No reviewed OCR payload yet.</div><div class="toolbar" style="display:flex;margin-top:10px"><a class="btn ghost sm" href="income-calculator.html?tab=docs&source=doc-organizer&ocr=1">Send to Income Calculator</a><a class="btn ghost sm" href="loan-suite.html?tab=documents&source=doc-organizer&ocr=1">Open Loan Suite Documents</a></div>';
     document.querySelector('main')?.append(bridge);

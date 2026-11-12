@@ -578,6 +578,7 @@
     var E = window.LOS_EMBED || {};
     if (E.page === 'documents-ocr' || E.page === 'documents-worksheets') targets.push($('v50UnifiedDocuments') || $('panel-docs'));
     if (PAGE === 'income') targets.push($('panel-docs'));
+    if (PAGE === 'docorg') targets.push($('mtDocsHub'));   /* v57.4: the Documents page (Doc Organizer) shows the library inline */
     targets.forEach(function (t) {
       if (!t || t.querySelector(':scope > .mtd.inline')) return;
       var el = document.createElement('section'); el.className = 'mtd inline no-print';
@@ -604,6 +605,6 @@
     /* v57 phase 4: no polling - the inline library is placed when the page is ready and shortly after clicks, when the Documents panels appear */
     var it = 0; setTimeout(inline, 1500); document.addEventListener('click', function () { clearTimeout(it); it = setTimeout(inline, 300); }, true);
   }
-  window.MTDocs = {__v56: true, readText: readText, ocr: ocr, detect: detect, extract: extract, TYPES: TYPES, DEST: DEST, SECTIONS: SECTIONS, open: open, close: close, list: function () { return mem; }, add: add, send: send, queue: queue, EX: EX};
+  window.MTDocs = {__v56: true, readText: readText, ocr: ocr, detect: detect, extract: extract, TYPES: TYPES, DEST: DEST, SECTIONS: SECTIONS, open: open, close: close, list: function () { return mem; }, add: add, send: send, queue: queue, EX: EX, openIncome: function (id) { var d = typeof id === 'object' ? id : find(id); if (d) openIncome(d); }, find: find, ready: function () { return ready || load(); }};
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
 })();
