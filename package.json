@@ -4,10 +4,11 @@
   "private": true,
   "description": "Mortgage Suite static GitHub Pages site (56.6) with the v57 engine source in src/.",
   "scripts": {
-    "test": "node test-static.mjs && npm run test:engine && npm run test:finance",
+    "test": "node test-static.mjs && npm run test:engine && npm run test:finance && npm run test:model",
     "build:engine": "node tools/engine/build.mjs",
     "test:engine": "node tools/engine/build.mjs && node tests/engine-equivalence.mjs",
-    "test:finance": "node tests/financial-regression.mjs && node tools/engine/build.mjs && node tests/financial-regression.mjs --engine=dist/engine.js"
+    "test:finance": "node tests/financial-regression.mjs && node tools/engine/build.mjs && node tests/financial-regression.mjs --engine=dist/engine.js",
+    "test:model": "node tests/scenario-model.mjs"
   },
   "devDependencies": {
     "esbuild": "0.28.2",

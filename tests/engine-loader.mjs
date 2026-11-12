@@ -4,13 +4,14 @@ import path from 'node:path';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-export function loadEngine(file) {
+export function loadEngine(file, opts = {}) {
   const src = readFileSync(file || path.join(root, 'assets/js', readdirSync(path.join(root, 'assets/js')).find(f => f.startsWith('20-'))), 'utf8');
   const defs = {}, cache = {};
   const stubEl = () => ({ addEventListener() {}, appendChild() {}, setAttribute() {}, style: {}, classList: { add() {}, remove() {}, toggle() {} } });
   const ctx = { console, Math, Date, JSON, Intl, Number, String, Object, Array, isFinite, parseFloat, parseInt, setTimeout, clearTimeout,
     document: { readyState: 'complete', getElementById: () => null, querySelector: () => null, querySelectorAll: () => [], createElement: stubEl, addEventListener() {}, body: stubEl(), documentElement: stubEl() },
     localStorage: { getItem: () => null, setItem() {}, removeItem() {} }, navigator: { userAgent: 'node' } };
+  Object.assign(ctx, opts.ctx || {});   /* tests may supply their own localStorage or Date */
   ctx.window = ctx; ctx.self = ctx;
   ctx.define = (name, deps, factory) => { defs[name] = { deps, factory }; };
   vm.createContext(ctx);
