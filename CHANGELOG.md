@@ -132,7 +132,7 @@
 - **Address suggestions match known addresses instantly:** the loan file's property, the document builders' properties, addresses picked before and full addresses typed into an address box are matched on every keystroke without waiting for the network (tagged "Loan file", "Document builder", "Used before", "Typed before"); OpenStreetMap results join them, now after 0.2 seconds and from the third character.
 - The MI & renovation worksheet's program is a typeable box (FHA, FHA 203(k), Conventional, HomeStyle, VA, USDA or anything else). Choices that drive a calculation - pay frequency, filing status, the state tax table, lease type and each builder's style - stay as lists.
 
-## 2026-11-12 - everything released today (56.6 to 57.2)
+## 2026-11-12 - everything released today (56.6 to 57.3)
 
 The release entries below have the details. In short:
 
@@ -152,6 +152,7 @@ The release entries below have the details. In short:
   - Added a self-employment loan type and a choice of mileage table.
   - New NMB Income Worksheet report layout.
 - **57.2 - more NMB pages:** Union Worker W2, Freddie 1099 and Retirement Income pages in the NMB report.
+- **57.3 - commitment letters:** an approval letter layout ("Congratulations") and an underwriting conditional approval layout (lender grid, conditions in PTA / PTD / PTF / AC / PTP boxes); conditions keep their stage; a button that makes the conditions list to paste into an email or tick off.
 - **Behind the scenes, with no change to the site on their own:**
   - The 56.5 calculation was recovered into readable TypeScript (src/) and gives identical results on 3,000 scenarios.
   - Engine fixes D1-D5 were written with tests.
@@ -256,6 +257,26 @@ The release entries below have the details. In short:
   - **Retirement Income:** Social Security, pension and annuity / IRA rows, plus up to four other income entries a page, listed by name underneath. Each row shows its gross-up percentage and amount, and the grossed-up total matches the calculator.
 - Cells the workbook leaves unformatted, such as the 1099 sheet's "income to be used" line, take the style of the line above them.
 - Asset version 57.2.
+
+## Release 57.3 - two more commitment letter layouts and a conditions list button
+
+- **Approval letter layout ("Congratulations"):**
+  - Your logo, the date and loan number, the property, and one paragraph with the program, price (or value on a refinance), loan amount, LTV, rate, lock status and expiry date.
+  - The LTV is worked out from the loan and the lower of price and value unless you enter it.
+  - The kept conditions follow (optional), then "Subject to final underwriting approval" and the loan officer's signature block with NMLS numbers.
+  - An equal housing footer, which you can edit.
+- **Underwriting conditional approval layout:**
+  - **Page 1:** the lender's grid (broker, lender, borrower and credit scores, underwriting dates, subject property, lock), the loan information table (program, purpose, LTV/CLTV, ratios, income, PITI, obligations, impounds) and the underwriter sign-off.
+  - **Page 2:** Section 2, with each condition in its Prior to Approval, Prior to Docs, Prior to Funding, At Closing or Prior to Purchase box.
+- **When each condition is due:** conditions now keep their PTA / PTD / PTF / AC / PTP stage from the approval or a pasted grid. Each one has a stage dropdown, and the checklist, spreadsheet copy and email use it.
+- **Reading a dropped approval** now also fills credit scores, ratios, income, obligations, LTV, property type and units, document and impound type, qualifying rate, lock expiry, underwriter, lender contact, phone and fax, and the program name. "No Cash-Out Refinance" is read as rate/term, not cash-out.
+- **Make the conditions list:** builds the kept conditions as text to paste into an email or a document.
+  - **Styles:** check boxes (☐ / ☑), numbered, bullets or plain.
+  - **Options:** grouped by when each is due, with or without received items.
+  - **Ticking off:** a check box beside each condition marks it received, and the list and the letter update.
+  - **Copying:** Copy the list (text, with a check-box version for Outlook and Gmail) and Copy as check-box table sit beside the existing Email the conditions and Copy as spreadsheet rows buttons.
+- The commitment letter has the logo upload the other builders have.
+- Asset version 57.3.
 
 ## Release 55.14b - self-employment, rental and more of the income worksheet; one look across the pages
 

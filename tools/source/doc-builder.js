@@ -993,7 +993,15 @@
     ['closing', 'Closing', 'Sales Price/Loan Amount - Closing Disclosure to reflect sales price of {price} and final loan amount of {loan}.']
   ];
   /* v57: commitment letter layouts */
-  var COMMIT_STYLES = [['full', 'Commitment agreement - full terms and disclosures'], ['approval', 'Conditional approval letter - one page, terms and conditions'], ['checklist', 'Conditions checklist - status table for the borrower'], ['modern', 'Modern commitment - terms table, conditions by category']];
+  var COMMIT_STYLES = [['full', 'Commitment agreement - full terms and disclosures'], ['approval', 'Conditional approval letter - one page, terms and conditions'], ['checklist', 'Conditions checklist - status table for the borrower'], ['modern', 'Modern commitment - terms table, conditions by category'],
+    ['congrats', 'Approval letter - "Congratulations", loan terms, signature block'], ['uwgrid', 'Underwriting conditional approval - lender grid, conditions by PTA / PTD / PTF / AC / PTP']];
+  /* v57.3: when each condition is due, as approval systems list them */
+  var STAGES = [['PTA', 'Prior to approval (PTA)', 'Prior to Approval'], ['PTD', 'Prior to docs (PTD)', 'Prior to Docs'], ['PTF', 'Prior to funding (PTF)', 'Prior to Funding'], ['AC', 'At closing (AC)', 'At Closing'], ['PTP', 'Prior to purchase (PTP)', 'Prior to Purchase']];
+  function stageOf(c) { return c.stage || (c.group === 'closing' ? 'AC' : 'PTD'); }
+  function stageGroup(st) { return /^(AC|PTF|PTP)$/.test(st) ? 'closing' : 'prior'; }
+  function stageName(c) { var st = stageOf(c); return (STAGES.filter(function (x) { return x[0] === st; })[0] || STAGES[1])[1]; }
+  function stageFrom(t) { t = String(t || ''); return /\bPTA\b|approv/i.test(t) ? 'PTA' : /\bPTF\b|fund/i.test(t) ? 'PTF' : /\bPTP\b|purchase/i.test(t) ? 'PTP' : /\bAC\b|clos/i.test(t) && !/\bPTD\b|docs?/i.test(t) ? 'AC' : 'PTD'; }
+  var LIST_FMT = [['check', 'Check boxes (\u2610 / \u2611)'], ['num', 'Numbered'], ['bullet', 'Bullets'], ['plain', 'Plain lines']];
   B.commit = {
     label: 'Commitment letter', sub: 'From a conditional approval',
     init: function () {
@@ -1004,8 +1012,10 @@
         loanType: 'Fixed Rate', lien: 'first mortgage', amount: f.loan ? f.loan.toFixed(2) : '', rate: f.rate ? f.rate.toFixed(3) : '', apr: '', term: String(Math.round((f.term || 30) * 12)), balloon: 'N', negAm: 'N', payment: f.pi ? f.pi.toFixed(2) : '', purpose: 'Purchase', occupancy: f.occupancy || 'Primary Residence',
         locked: '', points: '', origination: '', commitFee: '', acceptDays: '7', expires: addDays(iso(), 90), lockExpires: '', price: f.price || '', value: f.value || '', pitia: f.payment ? f.payment.toFixed(2) : '', cash: '',
         pmiReq: /conv/i.test(f.program) && f.downPct < .2, escrow: true, escTaxes: f.taxes ? f.taxes.toFixed(2) : '', escHaz: f.ins ? f.ins.toFixed(2) : '', escMI: f.mi ? f.mi.toFixed(2) : '', flood: false,
-        showNotes: true, hideDone: false, emailTo: '', emailCc: '', processor: '', procPhone: '', procEmail: '', lo: '', loNmls: '', loPhone: '', loEmail: '', underwriter: '', returnDays: '10', findText: '', replaceText: '', conditions: []};
-      COND_LIB.forEach(function (c) { d.conditions.push({id: uid(), group: c[0], cat: c[1], text: c[2], on: true}); });
+        showNotes: true, hideDone: false, emailTo: '', emailCc: '', processor: '', procPhone: '', procEmail: '', lo: '', loNmls: '', loPhone: '', loEmail: '', underwriter: '', returnDays: '10', findText: '', replaceText: '',
+        ltv: '', program: '', scores1: '', scores2: '', propType: '1 Unit', units: '1', projectType: '', qualRate: '', ratioFront: '', ratioBack: '', income: '', obligations: '', docType: 'Full Documentation', impoundType: 'Taxes and Insurance',
+        subFin: '', lienPos: 'First Lien', lenderPhone: '', lenderFax: '', broker: '', brokerContact: '', brokerPhone: '', brokerFax: '', refNo: '', letterConds: true, disclaimer: '', listFmt: 'check', listGroup: true, listDone: true, listOpen: false, conditions: []};
+      COND_LIB.forEach(function (c) { d.conditions.push({id: uid(), group: c[0], stage: c[0] === 'closing' ? 'AC' : 'PTD', cat: c[1], text: c[2], on: true}); });
       return d;
     },
     form: function () {
@@ -1015,10 +1025,10 @@
         return '<fieldset><legend>' + title + ' (' + list.filter(function (c) { return c.on; }).length + ' of ' + list.length + ' kept)</legend>' + list.map(function (c) {
           return '<div class="cond"><input type="checkbox" data-cond="' + c.id + '" data-f="on"' + (c.on ? ' checked' : '') + ' aria-label="Keep this condition"><div><input data-cond="' + c.id + '" data-f="cat" value="' + esc(c.cat) + '" style="margin-bottom:4px;font-weight:700" aria-label="Category"><textarea data-cond="' + c.id + '" data-f="text" rows="2" aria-label="Condition">' + esc(c.text) + '</textarea>' + (c.note || c.src === 'grid' ? '<textarea data-cond="' + c.id + '" data-f="note" rows="1" style="margin-top:4px;font-style:italic" placeholder="Note (optional)" aria-label="Note for this condition">' + esc(c.note || '') + '</textarea>' : '') +
             '<label class="ck" style="margin-top:4px"><input type="checkbox" data-cond="' + c.id + '" data-f="done"' + (c.done ? ' checked' : '') + '><span>Received / cleared</span></label>' + (c.src && c.src !== 'grid' ? '<div class="note">From the approval: ' + esc(c.src) + '</div>' : '') + '</div>' +
-            '<div style="display:grid;gap:4px"><select data-cond="' + c.id + '" data-f="group" aria-label="When"><option value="prior"' + (c.group === 'prior' ? ' selected' : '') + '>Prior to closing</option><option value="closing"' + (c.group === 'closing' ? ' selected' : '') + '>At closing</option></select><button type="button" class="x" data-a="condDel" data-id="' + c.id + '">Delete</button></div></div>';
+            '<div style="display:grid;gap:4px"><select data-cond="' + c.id + '" data-f="stage" aria-label="When">' + STAGES.map(function (x) { return '<option value="' + x[0] + '"' + (stageOf(c) === x[0] ? ' selected' : '') + '>' + x[1] + '</option>'; }).join('') + '</select><button type="button" class="x" data-a="condDel" data-id="' + c.id + '">Delete</button></div></div>';
         }).join('') + '<div class="row" style="margin-top:6px"><button type="button" class="btn" data-a="condAdd" data-g="' + g + '">+ Add condition</button></div></fieldset>';
       };
-      return '<fieldset><legend>Layout</legend><div class="g">' + field(b, 'style', 'Layout', {type: 'select', options: COMMIT_STYLES, wide: 1}) + '</div></fieldset>' + dropZone('approval', 'Drop the lender\'s conditional approval', 'PDF or image. Fills the loan terms, borrowers and property, and lists every condition so you choose which stay.') +
+      return '<fieldset><legend>Layout</legend><div class="g">' + field(b, 'style', 'Layout', {type: 'select', options: COMMIT_STYLES, wide: 1}) + '</div></fieldset>' + logoBlock(b) + dropZone('approval', 'Drop the lender\'s conditional approval', 'PDF or image. Fills the loan terms, borrowers and property, and lists every condition so you choose which stay.') +
         '<fieldset><legend>Issued by (your company)</legend><div class="g">' + field(b, 'company', 'Company name', {wide: 1}) + field(b, 'short', 'Short name used in the text', {ph: 'e.g. the Lender'}) + field(b, 'nmls', 'Company NMLS #') +
         field(b, 'companyAddr1', 'Street address', {addrPair: 'companyAddr2'}) + field(b, 'companyAddr2', 'City, state ZIP') + field(b, 'phone', 'Toll-free / main phone') + field(b, 'stateCode', 'Title prefix (state)', {ph: 'NY'}) + field(b, 'mortgagee', 'Mortgagee clause (blank = company, ISAOA/ATIMA and address)', {type: 'textarea', wide: 1, rows: 2}) + '</div></fieldset>' +
         people(b, 'borrowers', 'Borrowers', 4) + '<fieldset><legend>Borrower mailing address</legend><div class="g">' + field(b, 'mail1', 'Street', {addrPair: 'mail2'}) + field(b, 'mail2', 'City, state ZIP') + '</div></fieldset>' + propertyBlock(b) +
@@ -1029,12 +1039,22 @@
         '<fieldset><legend>Insurance and escrow</legend><div class="g">' + field(b, 'pmiReq', 'PMI is required', {type: 'check'}) + field(b, 'escrow', 'Escrow account will be established', {type: 'check'}) + field(b, 'escTaxes', 'Monthly taxes', {type: 'money'}) + field(b, 'escHaz', 'Monthly hazard insurance', {type: 'money'}) + field(b, 'escMI', 'Monthly mortgage insurance', {type: 'money'}) + field(b, 'flood', 'Property is in a flood zone', {type: 'check'}) + '</div></fieldset>' +
         '<fieldset><legend>Amounts used in conditions</legend><div class="g">' + field(b, 'price', 'Sales price', {type: 'money'}) + field(b, 'value', 'Appraised value', {type: 'money'}) + field(b, 'pitia', 'Maximum PITIA', {type: 'money'}) + field(b, 'cash', 'Maximum cash to close', {type: 'money'}) + '</div></fieldset>' +
         '<fieldset><legend>Contacts</legend><div class="g">' + field(b, 'processor', 'Loan processor') + field(b, 'procPhone', 'Processor phone') + field(b, 'procEmail', 'Processor email') + field(b, 'lo', 'Loan officer') + field(b, 'loNmls', 'Loan officer NMLS') + field(b, 'loPhone', 'Loan officer phone') + field(b, 'loEmail', 'Loan officer email') + field(b, 'underwriter', 'Underwriter') + '</div></fieldset>' +
+        '<fieldset><legend>Approval details (approval letter and underwriting grid layouts)</legend><div class="g">' + field(b, 'program', 'Loan program as written', {ph: 'e.g. Conventional Fixed 30 Year', list: ['Conventional Fixed 30 Year', 'Fannie 30 Year Fixed', 'Freddie 30 Year Fixed', 'FHA Fixed 30 Year', 'VA Fixed 30 Year', 'USDA Fixed 30 Year', 'Conventional Fixed 15 Year', 'Jumbo Fixed 30 Year']}) +
+          field(b, 'ltv', 'LTV % (blank = loan / lower of price and value)', {type: 'pct'}) + field(b, 'qualRate', 'Qualifying rate (%)', {type: 'pct'}) + field(b, 'scores1', 'Borrower credit scores', {ph: '739, 754, 736'}) + field(b, 'scores2', 'Co-borrower credit scores') +
+          field(b, 'ratioFront', 'Front-end ratio (%)', {type: 'pct'}) + field(b, 'ratioBack', 'Back-end ratio (%)', {type: 'pct'}) + field(b, 'income', 'Total monthly income', {type: 'money'}) + field(b, 'obligations', 'Total monthly obligations', {type: 'money'}) +
+          field(b, 'propType', 'Property type', {list: ['1 Unit', '2 Units', '3 Units', '4 Units', 'Condominium', 'Cooperative', 'PUD', 'Manufactured']}) + field(b, 'units', 'Units') + field(b, 'projectType', 'Project type') + field(b, 'lienPos', 'Lien position', {list: ['First Lien', 'Second Lien']}) + field(b, 'subFin', 'Subordinate financing', {type: 'money'}) +
+          field(b, 'docType', 'Documentation type', {list: ['Full Documentation', 'Bank Statement', 'DSCR', 'Asset Depletion', 'Streamline']}) + field(b, 'impoundType', 'Impound type', {list: ['Taxes and Insurance', 'Taxes Only', 'Insurance Only']}) + field(b, 'lenderPhone', 'Lender phone (grid)') + field(b, 'lenderFax', 'Lender fax') +
+          field(b, 'broker', 'Broker') + field(b, 'brokerContact', 'Broker contact') + field(b, 'brokerPhone', 'Broker phone') + field(b, 'brokerFax', 'Broker fax') + field(b, 'refNo', 'Broker ref. #') +
+          field(b, 'letterConds', 'List the kept conditions in the approval letter', {type: 'check', wide: 1}) + field(b, 'disclaimer', 'Approval letter footer (blank = standard equal housing notice)', {type: 'textarea', wide: 1, rows: 2}) + '</div></fieldset>' +
         '<fieldset><legend>Conditions</legend><div class="row"><button type="button" class="btn" data-a="condAll">Keep all</button><button type="button" class="btn" data-a="condNone">Drop all</button><button type="button" class="btn" data-a="condBorrower">Borrower items only</button><button type="button" class="btn" data-a="condLib">Add standard conditions</button></div>' +
         '<label class="f w" style="margin-top:10px">Paste conditions copied from your loan system or a spreadsheet<textarea id="mtBcondPaste" rows="3" placeholder="Copy the condition rows with the header row (Condition Name, Documents, External Description, Prior To, ... Latest Status, ... Internal Description) and paste here. A screenshot of the list can go in the drop box above."></textarea></label>' +
         '<div class="row" style="margin-top:6px"><button type="button" class="btn" data-a="condPasteRep">Replace the conditions with these</button><button type="button" class="btn" data-a="condPasteAdd">Add these to the list</button></div>' +
         '<div class="g" style="margin-top:10px">' + field(b, 'showNotes', 'Print the notes under each condition', {type: 'check', wide: 1}) + field(b, 'hideDone', 'Leave received conditions off the letter', {type: 'check', wide: 1}) + field(b, 'emailTo', 'Email to', {ph: 'borrower@example.com'}) + field(b, 'emailCc', 'Cc', {ph: 'processor, agent'}) + '</div>' +
         '<div class="row" style="margin-top:6px"><button type="button" class="btn" data-a="condMail">Email the conditions</button><button type="button" class="btn" data-a="condCopy">Copy for email (table with check boxes)</button><button type="button" class="btn" data-a="condTsv">Copy as spreadsheet rows</button></div>' +
         '<p class="note">The email lists the conditions you kept: still-needed items first with an empty box, received items checked off. Tick "Received / cleared" on each one as it comes in.</p>' +
+        '<div class="g" style="margin-top:10px">' + field(b, 'listFmt', 'Conditions list style', {type: 'select', options: LIST_FMT}) + field(b, 'listGroup', 'Group by when each is due (PTD, at closing...)', {type: 'check'}) + field(b, 'listDone', 'Include received conditions', {type: 'check'}) + '</div>' +
+        '<div class="row" style="margin-top:6px"><button type="button" class="btn" data-a="condList">' + (s.listOpen ? 'Make the list again' : 'Make the conditions list') + '</button>' + (s.listOpen ? '<button type="button" class="btn" data-a="condListCopy">Copy the list</button><button type="button" class="btn" data-a="condCopy">Copy as check-box table</button><button type="button" class="x" data-a="condListClose">Close the list</button>' : '') + '</div>' +
+        (s.listOpen ? condListPanel(s) : '') +
         '<div class="g" style="margin-top:8px">' + field(b, 'findText', 'Replace this name in the conditions', {ph: 'e.g. the approving lender\'s name'}) + field(b, 'replaceText', 'With') + '</div><div class="row" style="margin-top:6px"><button type="button" class="btn" data-a="condReplace">Replace in all conditions</button></div></fieldset>' +
         conds('prior', 'Conditions to be satisfied prior to closing') + conds('closing', 'Conditions to be satisfied at closing');
     },
@@ -1088,6 +1108,8 @@
   };
 
   B.commit.docAlt = function (s) {
+    if (s.style === 'congrats') return commitCongrats(s);
+    if (s.style === 'uwgrid') return commitGrid(s);
     var co = s.company || 'Company Name', bor = names(s.borrowers), F = function (t) { return esc(B.commit.fill(t)); }, st = s.style;
     var addr = String(s.addrFree || '').trim() ? esc(s.addrFree).replace(/\n/g, ', ') : esc([s.address, s.city, [stateAbbr(s.state), s.zip].filter(Boolean).join(' ')].filter(Boolean).join(', '));
     var keep = function (c) { return c.on && c.text.trim() && !(s.hideDone && c.done); }, L = s.conditions.filter(keep);
@@ -1108,7 +1130,7 @@
     }
     if (st === 'checklist') {
       var need = L.filter(function (c) { return !c.done; }).length;
-      var rows = L.slice().sort(function (a, b) { return (a.done ? 1 : 0) - (b.done ? 1 : 0); }).map(function (c) { return '<tr class="' + (c.done ? 'dn' : '') + '"><td class="bx">' + (c.done ? '&#9745;' : '&#9744;') + '</td><td>' + esc(c.cat || '') + '</td><td>' + F(c.text) + (s.showNotes !== false && c.note ? '<div class="nt">' + esc(c.note) + '</div>' : '') + '</td><td>' + (c.group === 'closing' ? 'At closing' : 'Before closing') + '</td><td><b>' + (c.done ? 'Received' : 'Needed') + '</b></td></tr>'; }).join('');
+      var rows = L.slice().sort(function (a, b) { return (a.done ? 1 : 0) - (b.done ? 1 : 0); }).map(function (c) { return '<tr class="' + (c.done ? 'dn' : '') + '"><td class="bx">' + (c.done ? '&#9745;' : '&#9744;') + '</td><td>' + esc(c.cat || '') + '</td><td>' + F(c.text) + (s.showNotes !== false && c.note ? '<div class="nt">' + esc(c.note) + '</div>' : '') + '</td><td>' + esc(stageName(c)) + '</td><td><b>' + (c.done ? 'Received' : 'Needed') + '</b></td></tr>'; }).join('');
       return page('ari', lh + '<h1 class="h1c">Loan conditions</h1><p class="sm">' + esc(bor.join(' & ')) + (addr ? ' · ' + addr : '') + '</p><div class="cnt"><span><b>' + need + '</b> still needed</span><span><b>' + (L.length - need) + '</b> received</span><span><b>' + L.length + '</b> in all</span></div>' +
         '<table class="ck2"><thead><tr><th></th><th>Category</th><th>Condition</th><th>When</th><th>Status</th></tr></thead><tbody>' + (rows || '<tr><td colspan="5">No conditions are listed.</td></tr>') + '</tbody></table>' + contact, CSS_COMMIT2);
     }
@@ -1120,6 +1142,83 @@
       '<h3 class="h3c">Conditions</h3>' + Object.keys(cats).map(function (k) { return '<div class="cg"><div class="cgh">' + esc(k) + '</div><ul class="cl2">' + cats[k].map(function (c) { var x = Object.assign({}, c, {cat: ''}); return item(x, true).replace('<li>', '<li>' + (c.group === 'closing' ? '<span class="tag3">At closing</span> ' : '')); }).join('') + '</ul></div>'; }).join('') +
       '<h3 class="h3c">Acceptance</h3><p class="sm">This commitment is subject to the conditions above and to no material change in your finances or the property. Sign and return within ' + esc(s.returnDays || '10') + ' days to accept.</p>' + sigs(bor.length) + contact, CSS_COMMIT2);
   };
+  /* v57.3: "Congratulations" approval letter - logo, date and loan number, the property, the approved terms in one paragraph,
+     the kept conditions, "subject to final underwriting approval", the loan officer's signature block and an equal housing footer */
+  function pad2(sv) { var d = parseDate(sv); return d ? ('0' + (d.getMonth() + 1)).slice(-2) + '/' + ('0' + d.getDate()).slice(-2) + '/' + d.getFullYear() : (sv || ''); }
+  function commitLtv(s) { var a = N(s.amount), pr = N(s.price), v = N(s.value), base = pr && v ? Math.min(pr, v) : pr || v; return N(s.ltv) || (a && base ? a / base * 100 : 0); }
+  function commitProgram(s) {
+    if (String(s.program || '').trim()) return s.program.trim();
+    var t = String(s.loanType || 'Fixed Rate').replace(/\s*Rate$/i, ''), yrs = Math.round(N(s.term) / 12) || 30;
+    return (/^(FHA|VA|USDA|Non-QM|Jumbo|Fannie|Freddie)/i.test(t) ? t : 'Conventional ' + t) + ' ' + yrs + ' Year';
+  }
+  function commitCongrats(s) {
+    var co = s.company || 'Company Name', bor = names(s.borrowers), F = function (t) { return esc(B.commit.fill(t)); };
+    var first = bor.map(function (n) { return String(n).trim().split(/\s+/)[0]; }).filter(Boolean);
+    var buy = /purchase/i.test(s.purpose || 'Purchase'), ltv = commitLtv(s), rate = N(s.rate);
+    var L = s.letterConds === false ? [] : s.conditions.filter(function (c) { return c.on && c.text.trim() && !(s.hideDone && c.done); });
+    var street = String(s.addrFree || '').trim() ? esc(s.addrFree).replace(/\n/g, '<br>') : esc(s.address || '') + '<br>' + esc([s.city, [stateAbbr(s.state), s.zip].filter(Boolean).join(' ')].filter(Boolean).join(', '));
+    var head = s.logo ? '<div class="cgl">' + logoImg(s) + '</div>' : '<div class="cgl"><div class="cgn">' + esc(co) + '</div></div>';
+    var foot = (String(s.disclaimer || '').trim() ? esc(s.disclaimer) : 'Equal Housing Opportunity. Programs and property exclusions apply. All the above terms and conditions are subject to the borrowers satisfying all underwriting guidelines and loan approval conditions and providing an acceptable property appraisal and title report. Not all applicants will qualify.') +
+      '<br>' + esc([co, s.nmls ? 'NMLS #' + s.nmls : '', [s.companyAddr1, s.companyAddr2].filter(Boolean).join(', ')].filter(Boolean).join('. ')) + '.';
+    var body = head + '<p class="cgd">' + esc(when(s.date)) + '<br>Loan #:&nbsp; ' + esc(s.loanNumber || '') + '</p>' +
+      '<div class="cga"><div>Address:</div><div>' + street + '</div></div>' +
+      '<p>Dear ' + esc(first.join(' and ') || 'Borrower') + ' :</p>' +
+      '<p>Congratulations!!&nbsp; Your loan has been approved for a ' + esc(commitProgram(s)) + ' loan with a ' + (buy ? 'purchase price of ' + (N(s.price) ? usd(s.price) : '$________') : 'appraised value of ' + (N(s.value) ? usd(s.value) : '$________')) + ', loan amount of ' + (N(s.amount) ? usd(s.amount) : '$________') +
+      ' and a maximum loan to value of ' + (ltv ? ltv.toFixed(3) : '____') + '% at the interest rate of ' + (rate ? rate.toFixed(3).replace(/0$/, '') : '____') + '%.&nbsp; The interest rate has ' + (s.locked || s.lockExpires ? 'been locked' : 'not been locked') + '.&nbsp; The terms contained in this approval letter will expire on ' + esc(s.expires ? pad2(s.expires) : '__________') + '.</p>' +
+      '<p>Based on the information that you provided, ' + esc(co) + ' has determined that you are eligible and qualified to meet the financial requirements of the loan.</p>' +
+      '<p>You are approved for the loan provided that your creditworthiness and financial position do not materially change prior to closing and provided that the following additional conditions are fully satisfied:</p>' +
+      (L.length ? '<ol class="cgc">' + L.map(function (c) { return '<li>' + (c.cat ? esc(c.cat) + ' - ' : '') + F(c.text) + (c.done ? ' <i>(received)</i>' : '') + (s.showNotes !== false && c.note ? '<br><i class="nt">' + esc(c.note) + '</i>' : '') + '</li>'; }).join('') + '</ol>' : '<div style="height:.3in"></div>') +
+      '<p class="sub">*Subject to final underwriting approval*</p>' +
+      '<p>Please note that review of the listed above conditions that you supply could change the approval decision for this loan.&nbsp; It is imperative that you get the list of conditions over to us in a timely manner so that ' + esc(co) + ' may finalize your loan approval.</p>' +
+      '<p>Respectfully,</p><div class="scr">' + esc(s.lo || '') + '</div>' +
+      '<div class="sbk">' + [s.lo ? esc(s.lo) + (s.loNmls ? ', NMLS ID ' + esc(s.loNmls) : '') : '', esc(co) + (s.nmls ? ', NMLS #' + esc(s.nmls) : ''), esc(s.companyAddr1 || ''), esc(s.companyAddr2 || ''), (s.loPhone || s.phone) ? 'Telephone #: ' + esc(s.loPhone || s.phone) : '', s.loEmail ? esc(s.loEmail) : ''].filter(Boolean).join('<br>') + '</div>' +
+      '<div class="ftr">' + foot + '</div>';
+    return page('cal cg1', body, CSS_CONGRATS);
+  }
+  var CSS_CONGRATS = '.pg.cg1{padding:.75in .95in 1.25in;font-size:11pt}.cg1 p{margin:0 0 .17in;line-height:1.3}.cgl{margin:0 0 .3in}.cgl .lg{max-width:3.2in}.cgn{font-size:21pt;font-weight:700;color:#1b2a4a;letter-spacing:.01em}.cgd{margin-bottom:.2in}' +
+    '.cga{display:grid;grid-template-columns:1in 1fr;margin:0 0 .25in;line-height:1.3}ol.cgc{margin:0 0 .1in .2in;padding-left:.3in}ol.cgc li{margin:0 0 .05in;line-height:1.3;font-size:10.5pt}ol.cgc .nt{color:#555;font-size:9.5pt}.sub{font-weight:700;margin:.2in 0 .22in .55in!important}' +
+    '.scr{font-family:"Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;font-size:21pt;margin:.28in 0 .02in}.sbk{line-height:1.38}.ftr{position:absolute;left:0;right:0;bottom:0;background:#f2f3f5;border-top:1px solid #d9dce1;padding:9px .95in 11px;font-size:7.5pt;color:#555;line-height:1.3}';
+
+  /* v57.3: Underwriting Conditional Approval - the lender's grid (broker, lender, borrower, underwriting, property, lock),
+     loan information, underwriter sign-off; then Section 2 with the conditions in PTA / PTD / PTF / AC / PTP boxes */
+  function lastFirst(n) { var w = String(n || '').trim().split(/\s+/); return w.length > 1 ? w[w.length - 1] + ', ' + w.slice(0, -1).join(' ') : (w[0] || ''); }
+  function commitGrid(s) {
+    var co = s.company || 'Company Name', bor = names(s.borrowers), F = function (t) { return esc(B.commit.fill(t)); };
+    var L = s.conditions.filter(function (c) { return c.on && c.text.trim() && !(s.hideDone && c.done); });
+    var kv = function (l, v) { return '<div class="kv"><span>' + l + '</span><b>' + (v == null ? '' : esc(v)) + '</b></div>'; };
+    var kv2 = function (l1, v1, l2, v2) { return '<div class="kv2">' + kv(l1, v1) + kv(l2, v2) + '</div>'; };
+    var bx = function (h, inner) { return '<td class="bx"><div class="bh">' + h + '</div>' + inner + '</td>'; };
+    var pc = function (v) { return v === '' || v == null || !N(v) ? '' : N(v).toFixed(3) + '%'; };
+    var cty = esc([s.city, [stateAbbr(s.state), s.zip].filter(Boolean).join('  ')].filter(Boolean).join(', '));
+    var typ = /fha/i.test(s.loanType) ? 'FHA' : /\bva\b/i.test(s.loanType) ? 'VA' : /usda/i.test(s.loanType) ? 'USDA' : 'Conventional', ltv = commitLtv(s), escrowOn = s.escrow !== false;
+    var head = '<div class="ug0"><div class="uc">' + esc(co) + '</div><div class="ua">' + esc([s.companyAddr1, s.companyAddr2].filter(Boolean).join(' ')) + '</div><div class="ut">Underwriting Conditional Approval</div></div>';
+    var grid = '<table class="ugr"><tr>' +
+      bx('Broker', kv('Broker:', s.broker) + kv('Contact:', s.brokerContact) + kv2('Phone:', s.brokerPhone, 'Fax:', s.brokerFax) + '<div class="gap"></div>' + kv('Ref. #:', s.refNo)) +
+      bx('Lender', kv('Lender:', co) + kv('Contact:', s.lo) + kv2('Phone:', s.lenderPhone || s.loPhone || s.phone, 'Fax:', s.lenderFax) + '<div class="gap"></div>' + kv('Loan #:', s.loanNumber)) + '</tr><tr>' +
+      bx('Borrower', kv('Borrower:', lastFirst(bor[0])) + kv('Credit Scores:', s.scores1) + '<div class="gap"></div>' + kv('Co-Borr:', lastFirst(bor[1])) + kv('Credit Scores:', s.scores2)) +
+      bx('Underwriting', kv2('Approved:', s.date ? pad2(s.date) : '', 'Must Close By:', s.expires ? pad2(s.expires) : '') + kv('Underwriter:', s.underwriter) + kv('Processor:', s.processor)) + '</tr><tr>' +
+      bx('Subject Property', kv('Property:', String(s.addrFree || '').trim() ? s.addrFree.split('\n')[0] : s.address) + '<div class="kv"><span></span><b>' + (String(s.addrFree || '').trim() ? esc(s.addrFree.split('\n').slice(1).join(', ')) : cty) + '</b></div>' + kv2('Property Type:', s.propType, 'Units:', s.units) + kv('Project Type:', s.projectType)) +
+      bx('Lock', kv2('Note Rate:', pc(s.rate), 'Qual Rate:', pc(s.qualRate || s.rate)) + kv('Expires:', s.lockExpires ? pad2(s.lockExpires) : '')) + '</tr></table>';
+    var R = [['Approved Loan Amount:', N(s.amount) ? usd(s.amount) : '$', 'Loan Program:', commitProgram(s)], ['Subordinate Finance Amount:', N(s.subFin) ? usd(s.subFin) : '$', 'Purpose:', s.purpose], ['Note Rate:', pc(s.rate), 'Loan Type:', typ],
+      ['Sales Price:', N(s.price) ? usd(s.price) : '$', 'Occupancy:', s.occupancy], ['Appraised Value:', N(s.value) ? usd(s.value, 0) : '$', 'Amortization Type:', /adjust|arm/i.test(s.loanType) ? 'ARM' : 'Fixed'],
+      ['LTV / CLTV:', ltv ? ltv.toFixed(3) + '% / ' + ltv.toFixed(3) + '%' : '', 'Term / Due In:', s.term ? s.term + ' / ' + s.term : ''], ['Lien Position:', s.lienPos || 'First Lien', 'Margin:', '%'], null,
+      ['Front / Back Debt Ratios:', (pc(s.ratioFront) || '%') + ' / ' + (pc(s.ratioBack) || '%'), 'Doc Type:', s.docType], ['Total Income:', N(s.income) ? usd(s.income) : '', 'Prepay Penalty:', ''], ['Proposed PITI:', N(s.pitia) ? usd(s.pitia) : '', 'Penalty Term:', ''],
+      ['Total Obligations:', N(s.obligations) ? usd(s.obligations) : '', 'Impounds:', escrowOn ? 'Not Waived' : 'Waived'], ['Total Monthly Pmts:', N(s.pitia) || N(s.obligations) ? usd(N(s.pitia) + N(s.obligations)) : '', 'Impound Type:', escrowOn ? s.impoundType : '']];
+    var info = '<h2 class="li">Loan Information</h2><table class="lit">' + R.map(function (r) { return r ? '<tr><td>' + r[0] + '</td><td>' + esc(r[1] || '') + '</td><td>' + r[2] + '</td><td>' + esc(r[3] || '') + '</td></tr>' : '<tr><td colspan="4" style="height:10px"></td></tr>'; }).join('') + '</table>' +
+      '<p class="see">See Section 2 &ndash; Underwriting Conditions for required documentation.</p><table class="usg"><tr><td><div class="kv"><span>Underwriter Name:</span><b>' + esc(s.underwriter || '') + '</b></div><div class="kv"><span style="text-align:right">Date:</span><b>' + esc(s.date ? pad2(s.date) : '') + '</b></div></td><td>Underwriter Signature:</td></tr></table>';
+    var p1 = head + grid + info + '<div class="uf">Underwriting Conditional Approval p1 of 2</div>';
+    var p2 = '<div class="s2">Section 2 &ndash; Underwriting Conditions</div><div class="cb who"><b>' + esc(co) + '</b>' + kv('Borrower:', lastFirst(bor[0])) + kv('Co-borrower:', lastFirst(bor[1]) || ',') + '</div>' +
+      STAGES.map(function (x) {
+        var list = L.filter(function (c) { return stageOf(c) === x[0]; });
+        return '<div class="cb"><div class="cbh">' + x[2] + ' ( &ldquo;' + x[0] + '&rdquo; ) Conditions:</div>' + list.map(function (c) { return '<div class="ci">' + (c.cat ? esc(c.cat) + ' - ' : '') + F(c.text) + (c.done ? ' <i>(received)</i>' : '') + (s.showNotes !== false && c.note ? '<div class="nt">' + esc(c.note) + '</div>' : '') + '</div><div class="sep">-</div>'; }).join('') + '</div>';
+      }).join('') + '<div class="uf">Underwriting Conditional Approval p2 of 2</div>';
+    return pages('ari ug', [p1, p2], CSS_UWGRID);
+  }
+  var CSS_UWGRID = '.pg.ug{padding:.55in .65in .7in;font-size:9.5pt}.ug0{text-align:center;margin-bottom:.16in}.uc{font-size:15pt;font-weight:700}.ua{font-size:9.5pt}.ut{font-size:14pt;font-weight:700;margin-top:.14in}' +
+    'table.ugr{width:100%;border-collapse:collapse;font-size:9pt}table.ugr td.bx{border:1px solid #000;vertical-align:top;padding:2px 8px 12px;width:50%}.bh{font-weight:700;border-bottom:1px solid #000;margin:0 0 10px;padding:1px 0 2px}.kv{display:flex;gap:6px;min-height:15px;line-height:1.3}.kv span{min-width:.75in;white-space:nowrap}.kv b{font-weight:700}.kv2{display:flex;gap:10px}.kv2 .kv{flex:1}.gap{height:10px}' +
+    'h2.li{font-size:12pt;margin:.3in 0 6px;border-top:1.5px solid #000;border-bottom:1px solid #000;padding:2px 0}table.lit{width:100%;border-collapse:collapse;font-size:9pt}table.lit td{padding:2px 4px;vertical-align:top}table.lit td:nth-child(1){width:1.75in}table.lit td:nth-child(3){width:1.25in}table.lit td:nth-child(2),table.lit td:nth-child(4){font-weight:700}' +
+    '.see{font-size:9pt;font-weight:700;margin:.16in 0 .12in}table.usg{width:100%;border-collapse:collapse;font-size:9pt}table.usg td{border:1px solid #000;width:50%;padding:4px 8px 26px;vertical-align:top}table.usg .kv span{min-width:1.1in}.uf{position:absolute;left:.65in;bottom:.3in;font-size:7pt;color:#222}' +
+    '.s2{font-weight:700;font-size:10pt;margin:0 0 8px}.cb{border:1px solid #000;padding:4px 8px 8px;margin:0 0 .2in;font-size:9pt;min-height:.75in}.cb.who{min-height:0}.cb.who .kv span{min-width:.85in}.cbh{font-weight:700;margin-bottom:9px}.ci{line-height:1.32}.ci .nt{font-style:italic;color:#444}.sep{margin:1px 0 5px}';
   var CSS_COMMIT2 = '.pg{padding:.6in .7in}p{font-size:10.5pt;line-height:1.42;margin:0 0 .09in}.sm{font-size:9pt;color:#444}.r{text-align:right}.lh2{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #1f3a5f;padding-bottom:6px;margin-bottom:.2in}.co2{font-size:16pt;font-weight:700;color:#1f3a5f}' +
     'table.ct{width:100%;border-collapse:collapse;font-size:10pt;margin:.06in 0 .12in}table.ct th{width:2.2in;text-align:left;background:#eef3fa;color:#1f3a5f;padding:5px 8px;border:1px solid #c5d3e4}table.ct td{padding:5px 8px;border:1px solid #c5d3e4}' +
     'h3.h3c{font-size:11pt;color:#1f3a5f;margin:.16in 0 .06in;text-transform:uppercase;letter-spacing:.04em}ol.cl,ul.cl2{padding-left:.25in;margin:0 0 .1in}ol.cl li,ul.cl2 li{font-size:10pt;line-height:1.38;margin:0 0 .06in}ul.cl2{list-style:none;padding-left:0}.bx{display:inline-block;width:1.3em;font-size:11pt}.nt{font-size:8.5pt;color:#555;font-style:italic;margin:2px 0 0 1.3em}.rcv{color:#2d6a3e}' +
@@ -1158,7 +1257,7 @@
     var bare = !rest || /[:\-]$/.test(rest), text = ext || (bare && internal ? (rest ? rest + ' ' : '') + internal : rest), note = ext || bare ? (ext && internal ? internal : '') : internal;
     if (!text) return null;
     var p = String(prior || '').trim(), done = /^(cleared|waived|received|satisfied|completed?)$/i.test(String(status || '').trim());
-    return {id: uid(), group: /clos|fund|ptf|at\s*closing/i.test(p) && !/ptd|docs?/i.test(p) ? 'closing' : 'prior', cat: cat, text: text, note: note, on: !COND_STAFF.test(cat) && !/^(Underwriter|Processor\s*Cert)/i.test(rest), done: done, src: 'grid'};
+    return {id: uid(), stage: stageFrom(p), group: /clos|fund|ptf|at\s*closing/i.test(p) && !/ptd|docs?/i.test(p) ? 'closing' : 'prior', cat: cat, text: text, note: note, on: !COND_STAFF.test(cat) && !/^(Underwriter|Processor\s*Cert)/i.test(rest), done: done, src: 'grid'};
   }
   function parseCondTable(text) {
     var T = String(text || '').replace(/\r\n?/g, '\n');
@@ -1183,6 +1282,36 @@
     }).filter(Boolean);
     return out2.length ? out2 : null;
   }
+  /* v57.3: the conditions list - kept conditions as plain text to paste into an email or a document, as check boxes,
+     numbered or bulleted, grouped by when each is due; the panel under it ticks items off as they come in */
+  function condListItems(s) {
+    var L = s.conditions.filter(function (c) { return c.on && String(c.text).trim() && (s.listDone !== false || !c.done); });
+    var ord = function (a, b) { return (a.done ? 1 : 0) - (b.done ? 1 : 0); };
+    if (s.listGroup === false) return [{h: '', L: L.slice().sort(ord)}];
+    return STAGES.map(function (x) { return {h: x[2] + ' (' + x[0] + ')', L: L.filter(function (c) { return stageOf(c) === x[0]; }).sort(ord)}; }).filter(function (g) { return g.L.length; });
+  }
+  function condListBuild(s) {
+    var G2 = condListItems(s), fmt = s.listFmt || 'check', n = 0, T = [], H = [];
+    var mark = function (c) { n++; return fmt === 'check' ? (c.done ? '\u2611' : '\u2610') + ' ' : fmt === 'num' ? n + '. ' : fmt === 'bullet' ? '\u2022 ' : ''; };
+    var body = function (c) { return (c.cat ? c.cat + ' - ' : '') + B.commit.fill(c.text) + (c.done ? ' (received)' : ''); };
+    G2.forEach(function (g) {
+      if (g.h) { if (T.length) T.push(''); T.push(g.h.toUpperCase()); H.push('<p style="margin:10px 0 4px"><b>' + esc(g.h) + '</b></p>'); }
+      if (fmt === 'num' && g.h) n = 0;
+      H.push(fmt === 'num' ? '<ol style="margin:0 0 6px 18px;padding:0">' : '<ul style="margin:0 0 6px;padding:0 0 0 ' + (fmt === 'bullet' ? '18px' : '0') + ';list-style:' + (fmt === 'bullet' ? 'disc' : 'none') + '">');
+      g.L.forEach(function (c) {
+        var m = mark(c); T.push(m + body(c) + (s.showNotes !== false && c.note ? '\n      Note: ' + c.note : ''));
+        H.push('<li style="margin:0 0 4px">' + (fmt === 'check' ? '<span style="font-size:15px">' + (c.done ? '&#9745;' : '&#9744;') + '</span> ' : '') + (c.cat ? '<b>' + esc(c.cat) + '</b> - ' : '') + esc(B.commit.fill(c.text)) + (c.done ? ' <i>(received)</i>' : '') + (s.showNotes !== false && c.note ? '<br><i style="color:#555">Note: ' + esc(c.note) + '</i>' : '') + '</li>');
+      });
+      H.push(fmt === 'num' ? '</ol>' : '</ul>');
+    });
+    var cnt = G2.reduce(function (t, g) { return t + g.L.length; }, 0);
+    return {text: T.join('\n'), html: '<div style="font:13px Arial,sans-serif">' + H.join('') + '</div>', count: cnt};
+  }
+  function condListPanel(s) {
+    var o = condListBuild(s), kept = s.conditions.filter(function (c) { return c.on && String(c.text).trim(); });
+    return '<label class="f w" style="margin-top:8px">The list (' + o.count + ' condition' + (o.count === 1 ? '' : 's') + ') - select and copy, or use Copy the list<textarea id="mtBcondList" rows="' + Math.min(16, Math.max(4, o.text.split('\n').length + 1)) + '" readonly style="font-family:Consolas,monospace;font-size:12px">' + esc(o.text || 'No conditions are kept.') + '</textarea></label>' +
+      '<div class="note" style="margin-top:6px">Tick each condition as it comes in; the list and the letter update.</div><div style="display:grid;gap:4px;margin-top:4px">' + kept.map(function (c) { return '<label class="ck"><input type="checkbox" data-cond="' + c.id + '" data-f="done"' + (c.done ? ' checked' : '') + '><span>' + (c.cat ? '<b>' + esc(c.cat) + '</b> - ' : '') + esc(B.commit.fill(c.text)).slice(0, 160) + ' <i class="note">' + esc(stageName(c)) + '</i></span></label>'; }).join('') + '</div>';
+  }
   /* the condition list as an email or for pasting: kept conditions, still needed first, received ones checked off */
   function condLists() { var L = drafts.commit.conditions.filter(function (c) { return c.on && String(c.text).trim(); }); return {need: L.filter(function (c) { return !c.done; }), got: L.filter(function (c) { return c.done; })}; }
   function condEmail() {
@@ -1198,7 +1327,7 @@
       '<table style="border-collapse:collapse;font:13px Arial,sans-serif"><tr><th style="text-align:left;padding:4px 8px;border-bottom:2px solid #1f3a5f"></th><th style="text-align:left;padding:4px 8px;border-bottom:2px solid #1f3a5f">Condition</th><th style="text-align:left;padding:4px 8px;border-bottom:2px solid #1f3a5f">Status</th></tr>' +
       L.need.concat(L.got).map(function (c) { return '<tr><td style="padding:4px 8px;border-bottom:1px solid #ddd;font-size:15px">' + (c.done ? '&#9745;' : '&#9744;') + '</td><td style="padding:4px 8px;border-bottom:1px solid #ddd">' + (c.cat ? '<b>' + esc(c.cat) + '</b> - ' : '') + esc(B.commit.fill(c.text)) + (s.showNotes !== false && c.note ? '<br><i style="color:#555">Note: ' + esc(c.note) + '</i>' : '') + '</td><td style="padding:4px 8px;border-bottom:1px solid #ddd">' + (c.done ? 'Received' : '<b>Still needed</b>') + '</td></tr>'; }).join('') + '</table>' +
       '<p>Thank you,<br>' + [s.lo, s.loNmls ? 'NMLS ' + s.loNmls : '', s.loPhone, s.loEmail, s.company].filter(Boolean).map(esc).join('<br>') + '</p>';
-    var tsv = ['Status\tCategory\tCondition\tWhen\tNote'].concat(L.need.concat(L.got).map(function (c) { var q = function (v) { v = String(v || ''); return /[\t\n"]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }; return [c.done ? 'Received' : 'Still needed', q(c.cat), q(B.commit.fill(c.text)), c.group === 'closing' ? 'At closing' : 'Prior to closing', q(c.note)].join('\t'); })).join('\n');
+    var tsv = ['Status\tCategory\tCondition\tWhen\tNote'].concat(L.need.concat(L.got).map(function (c) { var q = function (v) { v = String(v || ''); return /[\t\n"]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }; return [c.done ? 'Received' : 'Still needed', q(c.cat), q(B.commit.fill(c.text)), stageName(c), q(c.note)].join('\t'); })).join('\n');
     return {to: [s.emailTo].filter(Boolean).join(','), cc: s.emailCc || '', subject: subject, text: text, html: html, tsv: tsv, count: L.need.length + L.got.length};
   }
   function copyRich(html, text) {
@@ -1229,7 +1358,10 @@
   }
   function parseApproval(text) {
     var T = String(text || '').replace(/\r/g, ''), o = {conds: []};
-    var grid = parseCondTable(T); if (grid) { o.conds = grid; return o; }
+    /* an approval with its own section headings (PTA / PTD / PTF / AC / PTP) is read by section; otherwise a grid or a
+       screenshot of one supplies the conditions, and the header fields are still read below */
+    COND_HEAD.lastIndex = 0; var heads = COND_HEAD.test(T); COND_HEAD.lastIndex = 0;
+    var grid = heads ? null : parseCondTable(T); if (grid) o.conds = grid;
     var g = function (re) { var m = T.match(re); return m ? String(m[1]).trim() : ''; };
     o.b1 = flipName(g(/\bBorrower:\s*([A-Za-z'.-]+,\s*[A-Za-z'.-]+)/)); o.b2 = flipName(g(/Co-?Borr(?:ower)?:\s*([A-Za-z'.-]+,\s*[A-Za-z'.-]+)/));
     o.loanNumber = g(/Loan\s*(?:#|No\.?|Number):?\s*([A-Z0-9][A-Z0-9-]{5,})/i);
@@ -1241,6 +1373,16 @@
     o.approved = g(/Approved:?\s*(\d{1,2}\/\d{1,2}\/\d{2,4})/i); o.mustClose = g(/Must\s*Close\s*By:?\s*(\d{1,2}\/\d{1,2}\/\d{2,4})/i); o.piti = g(/Proposed\s*PIT[I1l|]?:?\s*\$?\s*([\d,]+(?:\.\d{2})?)/i);
     o.impounds = g(/Impounds:?\s*(Not\s*Waived|Waived)/i); o.processor = g(/Processor:[ \t]*([A-Z][A-Za-z.'-]+(?:[ \t][A-Z][A-Za-z.'-]+){0,2})/);
     var pm = T.match(/Property:\s*([^\n]+?)\s*\n\s*([A-Za-z .'-]+,\s*[A-Z]{2}\s+\d{5})/); if (pm) { o.street = pm[1].replace(/\s{2,}.*$/, '').replace(/\s+(Note\s*Rate|Qual\s*Rate|Expires|Lock|Property\s*Type)\b.*$/i, '').trim(); var cz = pm[2].match(/^(.+?),\s*([A-Z]{2})\s+(\d{5})/); if (cz) { o.city = cz[1].trim(); o.state = cz[2]; o.zip = cz[3]; } }
+    /* v57.3: the rest of the approval's first page, for the underwriting grid and the approval letter */
+    var sc = T.match(/Credit\s*Scores:?[ \t]*(\d{3}(?:\s*,\s*\d{3}){0,2})/gi) || []; o.scores1 = (sc[0] || '').replace(/^Credit\s*Scores:?\s*/i, ''); o.scores2 = (sc[1] || '').replace(/^Credit\s*Scores:?\s*/i, '');
+    var rt = T.match(/Front\s*\/\s*Back\s*Debt\s*Ratios:?\s*([\d.]+)\s*%\s*\/\s*([\d.]+)\s*%/i); if (rt) { o.ratioFront = rt[1]; o.ratioBack = rt[2]; }
+    o.income = g(/Total\s*Income:?\s*\$?\s*([\d,]+\.\d{2})/i); o.obligations = g(/Total\s*Obligations:?\s*\$?\s*([\d,]+\.\d{2})/i); o.ltv = g(/LTV\s*\/\s*CLTV:?\s*([\d.]+)\s*%/i);
+    o.propType = g(/Property\s*Type:?[ \t]*(\d\s*Units?|Condo\w*|Co-?op\w*|PUD|Manufactured)/i); o.units = g(/Units:?[ \t]*(\d)\b/i); o.docType = g(/Doc\s*Type:?[ \t]*([A-Za-z][A-Za-z ]{2,30}?)(?=[ \t]{2,}|\n|$)/i);
+    o.impoundType = g(/Impound\s*Type:?[ \t]*([A-Za-z][A-Za-z ]{2,30}?)(?=[ \t]{2,}|\n|$)/i); o.qualRate = g(/Qual\s*Rate:?\s*([\d.]+)\s*%/i); o.lockExpires = g(/\bExpires:?\s*(\d{1,2}\/\d{1,2}\/\d{2,4})/i);
+    o.underwriter = g(/Underwriter(?:\s*Name)?:[ \t]*([A-Z][A-Za-z.'-]+(?:[ \t][A-Z][A-Za-z.'-]+){0,2})/); o.lenderName = g(/\bLender:[ \t]*([A-Z][A-Za-z0-9&.,' -]{2,60}?)(?=[ \t]{2,}|\n|$)/);
+    var lc = T.match(/Contact:[ \t]*(?!Contact\b)([A-Z][A-Za-z.'-]+(?:[ \t][A-Z][A-Za-z.'-]+){0,2})/g) || []; lc = lc.map(function (x) { return x.replace(/^Contact:\s*/, ''); }).filter(function (x) { return !/^Contact\b/.test(x); }); o.lenderContact = lc[lc.length - 1] || '';
+    var ph = T.match(/Phone:[ \t]*(\(?\d{3}\)?[ -.]?\d{3}-\d{4})/g) || []; o.lenderPhone = (ph[ph.length - 1] || '').replace(/^Phone:\s*/, '');
+    var fx = T.match(/Fax:[ \t]*(\(?\d{3}\)?[ -.]?\d{3}-\d{4})/g) || []; o.lenderFax = (fx[fx.length - 1] || '').replace(/^Fax:\s*/, '');
     var marks = [], m; COND_HEAD.lastIndex = 0; while ((m = COND_HEAD.exec(T))) marks.push({i: m.index, end: m.index + m[0].length, code: m[2].toUpperCase()});
     marks.forEach(function (k, n) {
       var chunk = T.slice(k.end, n + 1 < marks.length ? marks[n + 1].i : T.length)
@@ -1256,7 +1398,7 @@
         if (!body || /^\*?$/.test(body)) return;
         body = body.replace(/^\*+\s*/, '');
         var internal = /^(Funder|FUNDER|Post\s*Closer|Approval|Disclosures)/i.test(cat) || /^(Underwriter|Underwriters|Funder|UW\b|Reno\s*Funder|Processor\s*Cert)/i.test(body) || /\bby\s+U\/W\b|\bUnderwriter\s+to\b/i.test(body);
-        o.conds.push({id: uid(), group: k.code === 'AC' || k.code === 'PTF' || k.code === 'PTP' ? 'closing' : 'prior', cat: cat, text: body, on: !internal && k.code !== 'PTP', src: k.code});
+        o.conds.push({id: uid(), stage: k.code, group: k.code === 'AC' || k.code === 'PTF' || k.code === 'PTP' ? 'closing' : 'prior', cat: cat, text: body, on: !internal && k.code !== 'PTP', src: k.code});
       });
     });
     return o;
@@ -1265,11 +1407,15 @@
     var s = drafts.commit, set = function (k, v) { if (v) s[k] = v; };
     if (o.b1) s.borrowers = [{name: o.b1}].concat(o.b2 ? [{name: o.b2}] : []);
     set('loanNumber', o.loanNumber); set('amount', o.amount && N(o.amount).toFixed(2)); set('rate', o.rate); set('price', o.price && N(o.price).toFixed(2)); set('value', o.value && N(o.value).toFixed(0));
-    set('purpose', o.purpose && (/purchase/i.test(o.purpose) ? 'Purchase' : /cash/i.test(o.purpose) ? 'Cash-Out Refinance' : 'Refinance')); set('occupancy', o.occupancy && (/second/i.test(o.occupancy) ? 'Second Home' : /invest/i.test(o.occupancy) ? 'Investment' : 'Primary Residence'));
+    set('purpose', o.purpose && (/purchase/i.test(o.purpose) ? 'Purchase' : /no\s*cash/i.test(o.purpose) ? 'Rate/Term Refinance' : /cash/i.test(o.purpose) ? 'Cash-Out Refinance' : 'Refinance')); set('occupancy', o.occupancy && (/second/i.test(o.occupancy) ? 'Second Home' : /invest/i.test(o.occupancy) ? 'Investment' : 'Primary Residence'));
     set('term', o.term); set('pitia', o.piti && N(o.piti).toFixed(2)); set('processor', o.processor);
     if (o.mustClose) s.expires = iso(parseDate(o.mustClose)); if (o.approved) s.date = iso(parseDate(o.approved));
     var prog = (o.program || '') + ' ' + (o.loanType || ''); s.loanType = /203\s*\(?k/i.test(prog) ? 'FHA 203(k) Fixed Rate' : /homestyle/i.test(prog) ? 'Fannie Mae HomeStyle' : /\bfha\b/i.test(prog) ? 'FHA Fixed Rate' : /\bva\b/i.test(prog) ? 'VA Fixed Rate' : /usda/i.test(prog) ? 'USDA Fixed Rate' : /arm|adjust/i.test((o.amort || '') + prog) ? 'Adjustable Rate' : 'Fixed Rate';
     if (o.impounds) s.escrow = !/^waived/i.test(o.impounds);
+    ['scores1', 'scores2', 'ratioFront', 'ratioBack', 'ltv', 'qualRate', 'underwriter', 'lenderPhone', 'lenderFax'].forEach(function (k) { set(k, o[k]); });
+    set('income', o.income && N(o.income).toFixed(2)); set('obligations', o.obligations && N(o.obligations).toFixed(2)); set('propType', o.propType && o.propType.replace(/^(\d)\s*Units?$/i, function (x, d) { return d + (d === '1' ? ' Unit' : ' Units'); })); set('units', o.units);
+    set('docType', o.docType && o.docType.replace(/FullDocumentation/i, 'Full Documentation')); set('impoundType', o.impoundType); if (o.lockExpires) s.lockExpires = iso(parseDate(o.lockExpires));
+    if (o.program) s.program = o.program; if (o.lenderName && !s.company) s.company = o.lenderName; if (o.lenderContact && !s.lo) s.lo = o.lenderContact;
     if (o.street) { s.address = o.street; s.city = o.city || s.city; s.state = stateName(o.state || s.state); s.zip = o.zip || s.zip; }
     if (o.amount && o.rate && o.term) { var L = N(o.amount), r = N(o.rate) / 1200, n = N(o.term); if (L && r && n) s.payment = (L * r / (1 - Math.pow(1 + r, -n))).toFixed(2); }
     if (o.conds.length) s.conditions = o.conds.concat(s.conditions.filter(function (c) { return c.lib; }));
@@ -1830,7 +1976,7 @@
 
   /* ================================================================ shell / UI */
   var ORDER = ['addendum', 'lease', 'estimate', 'pl', 'schc', 'pay', 'gift', 'le', 'commit', 'mi'];
-  var RERENDER = {showPay: 1, drawCustom: 1, style: 1, leaseType: 1, program: 1, concOnTop: 1, ttOn: 1, renoOn: 0, payType: 1, state: 1, locality: 1, ytdMode: 1, logoSize: 0, type: 1, oSource: 0, oPrice: 1};
+  var RERENDER = {listFmt: 1, listGroup: 1, listDone: 1, showPay: 1, drawCustom: 1, style: 1, leaseType: 1, program: 1, concOnTop: 1, ttOn: 1, renoOn: 0, payType: 1, state: 1, locality: 1, ytdMode: 1, logoSize: 0, type: 1, oSource: 0, oPrice: 1};
   function mount() {
     if ($('mtB')) return;
     if (!$('mtBcss')) { var st = document.createElement('style'); st.id = 'mtBcss'; st.textContent = CSS; document.head.appendChild(st); }
@@ -2009,7 +2155,7 @@
   window.addEventListener('resize', function () { if ($('mtB') && $('mtB').classList.contains('open')) fit(false); });
   function setVal(t, ev) {
     var b = t.getAttribute('data-b'), v = t.type === 'checkbox' ? t.checked : t.value;
-    if (t.hasAttribute('data-cond')) { var c = drafts.commit.conditions.filter(function (x) { return x.id === t.getAttribute('data-cond'); })[0]; if (c) { c[t.getAttribute('data-f')] = v; if (t.getAttribute('data-f') === 'group' || t.getAttribute('data-f') === 'on') { persist(); renderForm(); } } persist(); refresh(); return; }
+    if (t.hasAttribute('data-cond')) { var c = drafts.commit.conditions.filter(function (x) { return x.id === t.getAttribute('data-cond'); })[0]; if (c) { c[t.getAttribute('data-f')] = v; if (t.getAttribute('data-f') === 'stage') c.group = stageGroup(v); if (t.getAttribute('data-f') === 'group' || t.getAttribute('data-f') === 'on' || t.getAttribute('data-f') === 'stage' || (t.getAttribute('data-f') === 'done' && drafts.commit.listOpen)) { persist(); renderForm(); } } persist(); refresh(); return; }
     if (!b || !drafts[b]) return;
     /* lease sections: included or not, a new heading, new wording */
     if (t.hasAttribute('data-sec')) {
@@ -2204,9 +2350,12 @@
     else if (a === 'condNone') L.forEach(function (c) { c.on = false; });
     else if (a === 'condBorrower') L.forEach(function (c) { c.on = !/^(Funder|Post\s*Closer|Approval|Disclosures|Escrow|Title|Closing\s*Agent)/i.test(c.cat) && !/^(Underwriter|Funder|UW\b|Reno\s*Funder|Processor)/i.test(c.text); });
     else if (a === 'condLib') COND_LIB.forEach(function (c) { if (!L.some(function (x) { return x.text === c[2]; })) L.push({id: uid(), group: c[0], cat: c[1], text: c[2], on: true, lib: true}); });
+    else if (a === 'condList') { s.listOpen = true; }
+    else if (a === 'condListClose') { s.listOpen = false; }
+    else if (a === 'condListCopy') { var O = condListBuild(s); if (!O.count) { say('No conditions are kept - tick the ones to list first.'); return; } return copyRich(O.html, O.text).then(function () { say('Copied ' + O.count + ' conditions - paste into an email, Word or a spreadsheet.'); }, function () { var ta = document.getElementById('mtBcondList'), ok = false; if (ta) { ta.focus(); ta.select(); try { ok = document.execCommand('copy'); } catch (e) {} } say(ok ? 'Copied ' + O.count + ' conditions as text - paste into an email or a document.' : 'The browser did not allow copying - the list is selected, press Ctrl+C.'); }); }
     else if (a === 'condMail' || a === 'condCopy' || a === 'condTsv') return condMail(a === 'condMail' ? 'mail' : a === 'condCopy' ? 'copy' : 'tsv');
     else if (a === 'condPasteRep' || a === 'condPasteAdd') return condPaste(a === 'condPasteRep');
-    else if (a === 'condAdd') L.push({id: uid(), group: t.getAttribute('data-g'), cat: '', text: '', on: true});
+    else if (a === 'condAdd') L.push({id: uid(), group: t.getAttribute('data-g'), stage: t.getAttribute('data-g') === 'closing' ? 'AC' : 'PTD', cat: '', text: '', on: true});
     else if (a === 'condDel') { var i = L.findIndex(function (c) { return c.id === t.getAttribute('data-id'); }); if (i >= 0) L.splice(i, 1); }
     else if (a === 'condReplace') { if (!s.findText) return; var re = new RegExp(s.findText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'); L.forEach(function (c) { c.text = c.text.replace(re, s.replaceText || ''); c.cat = c.cat.replace(re, s.replaceText || ''); }); }
     persist(); renderForm(); refresh();
