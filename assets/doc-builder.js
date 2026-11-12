@@ -1,4 +1,4 @@
-/* Mortgage Suite 56.5 - Document Builder (Income Calculator, Full Suite and the Loan Suite pages).
+/* Mortgage Suite 56.6 - Document Builder (Income Calculator, Full Suite and the Loan Suite pages).
    Builds, previews, prints and saves as PDF: contract addenda (five styles, up to 4 buyers and 4 sellers, a seller-concession
    and transfer-tax calculator, 203(k) / HomeStyle / FHA / VA clauses, a contract dropped in to fill the parties), residential
    leases (four styles), contractor estimates, profit and loss statements, commitment letters (filled from a lender's
@@ -115,7 +115,7 @@
     '#mtB .sync{display:grid;grid-template-columns:1fr auto 1fr;gap:6px;align-items:end}#mtB .sync .eq{padding-bottom:9px;color:#8ea3c0;font-weight:700}#mtB .man{font-size:11.5px;color:#f0b357;font-weight:600}',
     '#mtB .wd .it textarea{min-height:52px;font-size:12.5px}#mtB .wd .it .hd b{font-size:12px}#mtB .wd .ed{color:#f0b357;font-size:11px;font-weight:600}',
     '#mtB .mb-top .btn[aria-pressed="true"]{background:#f0b357;border-color:#f0b357;color:#1d1300}#mtB .mb-prev .pe{padding:6px 12px;font-size:12px;background:#f0b357;color:#1d1300;font-weight:600}',
-    '#mtB .fitbar{display:flex;gap:12px;align-items:center;padding:6px 12px;font-size:12px;background:#0b2350;color:#cfe0f7;border-bottom:1px solid #123058}#mtB .fitbar label{display:flex;gap:6px;align-items:center;font-weight:600;white-space:nowrap;cursor:pointer}#mtB .fitbar input{accent-color:#5aa2ff}#mtB .fitbar.warn{background:#3a2a06;color:#f6d79a}',
+    '#mtB .fitbar{display:flex;gap:12px;align-items:center;padding:6px 12px;font-size:12px;background:#0b2350;color:#cfe0f7;border-bottom:1px solid #123058}#mtB .fitbar{flex-wrap:wrap}#mtB .fitbar label{display:flex;gap:6px;align-items:center;font-weight:600;white-space:nowrap;cursor:pointer}#mtB .fitbar select{width:auto;padding:3px 6px;font-size:12px;border-radius:6px}#mtB .fitbar input{accent-color:#5aa2ff}#mtB .fitbar.warn{background:#3a2a06;color:#f6d79a}',
     '@media print{#mtB{display:none!important}}'
   ].join('\n');
 
@@ -133,7 +133,7 @@
     return '<label class="' + cls + '">' + label + '<input type="text"' + (t === 'money' || t === 'num' || t === 'pct' ? ' inputmode="decimal"' : '') + list + a + ' value="' + esc(v) + '" placeholder="' + esc(opt.ph || (opt.list ? 'Pick or type' : '')) + '" autocomplete="off">' + dl + '</label>';
   }
   function dateFromPicker(isoStr) { var d = parseDate(isoStr); return d ? (d.getMonth() + 1) + '/' + d.getDate() + '/' + d.getFullYear() : ''; }
-  function dropZone(kind, title, desc) { return '<div class="drop" data-drop="' + kind + '"><div><b>' + title + '</b><div class="note" style="margin:2px 0 0">' + desc + ' Scanned pages and photos are read with OCR.</div></div><label class="btn">Choose file<input type="file" accept=".pdf,image/*,.txt" data-a="' + kind + '"></label></div><div id="mtB' + kind + '" class="note"></div>'; }
+  function dropZone(kind, title, desc) { return '<div class="drop" data-drop="' + kind + '"><div><b>' + title + '</b><div class="note" style="margin:2px 0 0">' + desc + ' Scanned pages, photos and pasted screenshots are read with OCR - press Ctrl+V (Cmd+V) to paste.</div></div><div class="row" style="flex-wrap:nowrap"><button type="button" class="btn" data-mtpaste title="Paste a screenshot from the clipboard">Paste screenshot</button><label class="btn">Choose file<input type="file" accept=".pdf,image/*,.txt" data-a="' + kind + '"></label></div></div><div id="mtB' + kind + '" class="note"></div>'; }
   function people(b, k, label, max, opt) {
     opt = opt || {}; var arr = drafts[b][k] = drafts[b][k] || ['']; var h = '<fieldset><legend>' + label + ' (up to ' + max + ')</legend>';
     arr.forEach(function (p, i) {
@@ -406,7 +406,7 @@
   };
   var CSS_PAGE = '@page{size:letter;margin:0}*{box-sizing:border-box}html{background:#7b8394}body{margin:0;padding:18px 0}.pg{width:8.5in;min-height:11in;margin:0 auto 18px;background:#fff;color:#000;padding:1in 1in .8in;position:relative;box-shadow:0 4px 18px rgba(0,0,0,.35)}' +
     '@media print{html,body{background:#fff;padding:0}.pg{margin:0;box-shadow:none;page-break-after:always}.pg:last-child{page-break-after:auto}}.tnr{font-family:"Times New Roman",Times,serif;font-size:12pt}.ari{font-family:Arial,Helvetica,sans-serif;font-size:11pt}.geo{font-family:Georgia,"Times New Roman",serif;font-size:11.5pt}.cal{font-family:Calibri,"Segoe UI",Arial,sans-serif;font-size:11pt}';
-  CSS_PAGE += '.lg{display:block;max-width:2.8in;object-fit:contain}.lgc{text-align:center;margin:0 0 8px}.lgc .lg{margin:0 auto}.lgrow{display:flex;gap:12px;align-items:center}.fitw{transform-origin:0 0}.pg.fitted{height:11in;min-height:0;overflow:hidden}.pg.fitc{padding:.45in .55in!important}.pg.fitc .hd.m{margin:-.45in -.55in 14px}';
+  CSS_PAGE += '.lg{display:block;max-width:2.8in;object-fit:contain}.lgc{text-align:center;margin:0 0 8px}.lgc .lg{margin:0 auto}.lgrow{display:flex;gap:12px;align-items:center}.fitw{transform-origin:0 0;display:flow-root}.pg.fitted{height:11in;min-height:0;overflow:hidden}.pg.paged{min-height:11in}.pgno{position:absolute;font:7.5pt Arial,Helvetica,sans-serif;color:#666;letter-spacing:.02em}.pg.fitc{padding:.45in .55in!important}.pg.fitc .hd.m{margin:-.45in -.55in 14px}';
   var CSS_ADD_MASTER = '.sigs.two{display:grid;grid-template-columns:1fr 1fr;gap:.35in;margin-top:.2in}.sigs.two .sig{width:auto;margin:0 0 .22in}.sigs.two .sig .sl{width:100%}.sigs.two .sig .dt{position:static;display:block;margin-top:2px}' + 'h1.u{text-align:center;font-weight:400;font-size:12pt;text-decoration:underline;margin:.6in 0 .3in}.ari h1.u{text-decoration:none}table.hdr{border-collapse:collapse;margin:0 0 .25in .1in}table.hdr td{padding:5px 10px 9px 0;vertical-align:top}.ari table.hdr td:first-child u{text-decoration:none}' +
     'p.lead{margin:.15in 0 .2in}p.term{margin:0 0 .15in}.ari p.lead,.ari p.term{text-align:center;font-size:9.5pt}.sigs{margin-top:.25in}.sig{position:relative;margin:0 0 .28in .1in;width:6.4in}.sig .sl{border-bottom:1px solid #000;width:4.1in;height:22px}.sig .dt{position:absolute;left:4.25in;top:4px}.sig .dt i{display:inline-block;width:1.1in;border-bottom:1px solid #000}.sig .sn{margin-top:2px}.sig .pn{font-size:9pt;color:#333}';
   var CSS_ADD_NUM = '.sig2.two{display:grid;grid-template-columns:1fr 1fr;gap:.1in .35in;margin-top:.45in}.sig2.two .r{width:auto;margin-bottom:.3in}.sig2.two .sl{width:2.2in}' + 'h1.b{text-align:center;font-size:12.5pt;margin:.4in 0 .3in}table.hdr{border-collapse:collapse;margin-bottom:.25in}table.hdr td{padding:1px 10px 1px 0;vertical-align:top}table.hdr td:first-child{font-weight:700}p,li{line-height:1.35}ol{padding-left:.25in}li{margin:0 0 .12in;padding-left:4px}.sig2{margin-top:.7in}.sig2 .r{display:flex;justify-content:space-between;width:5.2in;margin-bottom:.45in}.sig2 .sl{border-bottom:1px solid #000;width:3.1in;height:18px;margin-bottom:2px}';
@@ -1262,36 +1262,148 @@
       if (el.hasAttribute('data-addr-pair')) s[el.getAttribute('data-addr-pair')] = a.cityLine; }
     persist(); renderForm(); refresh(true);
   }
-  var rT = 0;
-  function refresh(now) { clearTimeout(rT); rT = setTimeout(function () { var fr = $('mtBframe'); if (!fr) return; if (editing) { editDirty = true; if (B[cur].side) B[cur].side(); return; } var y = 0; try { y = fr.contentWindow.scrollY; } catch (e) {} fr.srcdoc = B[cur].doc(drafts[cur]); fr.onload = function () { fit(); try { fr.contentWindow.scrollTo(0, y); } catch (e) {} }; if (B[cur].side) B[cur].side(); }, now ? 0 : 180); }
-  /* the preview fits the pane; printing and the PDF use the full page size */
-  function fit() { var fr = $('mtBframe'); if (!fr || !fr.contentDocument || !fr.contentDocument.body) return; fr.contentDocument.body.style.zoom = ''; onePage(fr.contentDocument); var z = Math.min(1, (fr.clientWidth - 28) / 816); fr.contentDocument.body.style.zoom = z > 0 ? z : 1; }
-  /* One page: a page that runs long first gets narrower margins, then its content is scaled down evenly until it fits.
-     Below MIN_SCALE the text would be too small to read, so the document keeps its natural length and the bar says so. */
-  var FIT_KEY = 'mt.builder.fit', MIN_SCALE = .66;
-  function fitOn() { try { return localStorage.getItem(FIT_KEY) !== '0'; } catch (e) { return true; } }
-  function onePage(doc) {
-    var res = {pages: 0, scaled: 1, over: 0};
-    [].forEach.call(doc.querySelectorAll('.pg'), function (pg) {
-      var w = pg.querySelector(':scope > .fitw'); res.pages++; if (!w) return;
-      pg.classList.remove('fitted', 'fitc'); w.style.transform = ''; w.style.width = '';
-      if (!fitOn()) { var nat = Math.ceil(pg.scrollHeight / 1056 - .02); if (nat > 1) res.over = Math.max(res.over, nat); return; }
-      var avail = function () { var cs = doc.defaultView.getComputedStyle(pg); return 1056 - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - 2; };
-      if (w.scrollHeight <= avail()) return;
-      pg.classList.add('fitc'); var a = avail(), h = w.scrollHeight;
-      if (h <= a) { pg.classList.add('fitted'); return; }
-      var z = a / h;
-      for (var k = 0; k < 8 && z >= MIN_SCALE - .05; k++) { w.style.width = (100 / z) + '%'; w.style.transform = 'scale(' + z + ')'; h = w.scrollHeight; if (h * z <= a) break; z = Math.min(z - .005, a / h); }
-      if (z < MIN_SCALE || w.scrollHeight * z > a + 1) { pg.classList.remove('fitc'); w.style.transform = ''; w.style.width = ''; res.over = Math.max(res.over, Math.ceil(pg.scrollHeight / 1056 - .02)); return; }
-      pg.classList.add('fitted'); res.scaled = Math.min(res.scaled, z);
+  /* ---------------------------------------------------- preview rendering
+     A change rebuilds the preview after a short pause; Print and Download PDF first flush any pending rebuild and wait for
+     the new page, so an edit made just before exporting is always in the output (56.6). */
+  var rT = 0, rendering = false, waiters = [];
+  function settle() { if (rT || rendering) return; var w = waiters; waiters = []; w.forEach(function (f) { f(); }); }
+  function render() {
+    rT = 0; var fr = $('mtBframe'); if (!fr) return settle();
+    if (editing) { editDirty = true; if (B[cur].side) B[cur].side(); return settle(); }
+    var y = 0; try { y = fr.contentWindow.scrollY; } catch (e) {}
+    rendering = true;
+    fr.onload = function () { fit(true); try { fr.contentWindow.scrollTo(0, y); } catch (e) {} rendering = false; settle(); };
+    fr.srcdoc = B[cur].doc(drafts[cur]);
+    if (B[cur].side) B[cur].side();
+  }
+  function refresh(now) { clearTimeout(rT); rT = setTimeout(render, now ? 0 : 180); }
+  function ready() { return new Promise(function (res) { waiters.push(res); if (rT) { clearTimeout(rT); render(); } else settle(); }); }
+  /* the preview is zoomed to fit the pane; printing and the PDF use the full page size */
+  function fit(layout) { var fr = $('mtBframe'); if (!fr || !fr.contentDocument || !fr.contentDocument.body) return; var b = fr.contentDocument.body; b.style.zoom = ''; if (layout) layoutPages(fr.contentDocument); var z = Math.min(1, (fr.clientWidth - 28) / 816); b.style.zoom = z > 0 ? z : 1; }
+
+  /* ---------------------------------------------------- page layout
+     Layout:  "fit"   - fit on one page: narrower margins, then the text is scaled evenly down to a readable minimum; a
+                         document that still does not fit is set out on proper pages instead of being cut.
+              "pages" - proper spacing: the document flows onto as many pages as it needs. Pages break between blocks
+                         (paragraphs, table rows with the header repeated, list items with numbering continued, signature
+                         lines), headings stay with what follows, and every page keeps its margins.
+     Margins: the document's own, or narrow / normal / wide on every side. */
+  var LAYOUT_KEY = 'mt.builder.layout', MARGIN_KEY = 'mt.builder.margin', MIN_SCALE = .66, PAGE_H = 1056;
+  var MARGINS = {doc: null, narrow: .5, normal: .75, wide: 1};
+  function pref(k, d) { try { return localStorage.getItem(k) || d; } catch (e) { return d; } }
+  function layoutMode() { var v = pref(LAYOUT_KEY, ''); if (!v) { try { if (localStorage.getItem('mt.builder.fit') === '0') v = 'pages'; } catch (e) {} } return v === 'pages' ? 'pages' : 'fit'; }
+  function marginKey() { var v = pref(MARGIN_KEY, 'doc'); return MARGINS.hasOwnProperty(v) ? v : 'doc'; }
+  function savePref(k, v) { try { localStorage.setItem(k, v); return true; } catch (e) { say('This browser would not save the page-layout choice; it applies until the page is reloaded.'); return false; } }
+  function padOf(doc, pg) { var cs = doc.defaultView.getComputedStyle(pg); return {t: parseFloat(cs.paddingTop), b: parseFloat(cs.paddingBottom), r: parseFloat(cs.paddingRight)}; }
+  function applyMargin(pg, inch) {
+    if (inch == null) return; pg.style.setProperty('padding', inch + 'in', 'important');
+    /* full-bleed colour headers sit in the margin: move them with it */
+    [].forEach.call(pg.querySelectorAll('.hd.m, .ph.m'), function (h) { h.style.setProperty('margin', '-' + inch + 'in -' + inch + 'in 14px', 'important'); });
+  }
+  var SPLIT_GRID = /\b(sigs|sgs|sig2|sgg|sg2|rs|list|wd)\b/;
+  function hasOwnText(n) { return [].some.call(n.childNodes, function (c) { return c.nodeType === 3 && c.textContent.trim(); }); }
+  /* break the page's content into placeable blocks, remembering the containers each block sits in */
+  function units(node, chain, out, view) {
+    if (node.nodeType === 3) { if (node.textContent.trim()) out.push({node: node, chain: chain}); return; }
+    if (node.nodeType !== 1) return;
+    var tag = node.tagName, kids = node.children;
+    if (tag === 'TABLE' && node.rows.length > 2) {
+      [].forEach.call(kids, function (sec) { if (sec.tagName === 'TBODY' || sec.tagName === 'TFOOT') [].forEach.call(sec.children, function (tr) { out.push({node: tr, chain: chain.concat([node, sec])}); }); });
+      return;
+    }
+    if ((tag === 'OL' || tag === 'UL') && kids.length > 1) { [].forEach.call(kids, function (li, i) { li.__idx = i; out.push({node: li, chain: chain.concat([node])}); }); return; }
+    if ((tag === 'DIV' || tag === 'SECTION') && kids.length > 1 && !hasOwnText(node)) {
+      var disp = view.getComputedStyle(node).display;
+      if (disp === 'block' || (disp === 'grid' && SPLIT_GRID.test(node.className))) { [].forEach.call(node.childNodes, function (c) { units(c, chain.concat([node]), out, view); }); return; }
+    }
+    out.push({node: node, chain: chain});
+  }
+  function isHeading(n) {
+    if (n.nodeType !== 1) return false; var t = n.tagName, txt = (n.textContent || '').trim();
+    if (/^H[1-6]$/.test(t)) return true;
+    if (t === 'TR') return /\b(s|gh|hh)\b/.test(n.className);
+    if (t === 'P') return /\b(sh|dh|lead)\b/.test(n.className) || (n.children.length === 1 && /^(B|STRONG)$/.test(n.children[0].tagName) && n.children[0].textContent.trim() === txt && txt.length < 90);
+    return false;
+  }
+  function emptyHolder(k) { if (k.tagName === 'TABLE') return !k.querySelector('tbody tr, tfoot tr'); if (k.tagName === 'TBODY' || k.tagName === 'TFOOT') return !k.children.length; return !k.children.length && !(k.textContent || '').trim(); }
+  function paginate(doc, pg, inch) {
+    var w = pg.querySelector(':scope > .fitw'); if (!w) return [pg];
+    var list = []; [].slice.call(w.childNodes).forEach(function (c) { units(c, [], list, doc.defaultView); });
+    var pages = [], page, pw, map, avail, placed;
+    var newPage = function () {
+      page = pg.cloneNode(false); page.classList.add('paged'); page.removeAttribute('style'); applyMargin(page, inch);
+      pw = w.cloneNode(false); pw.removeAttribute('style'); page.appendChild(pw);
+      pg.parentNode.insertBefore(page, pg); pages.push(page); map = new Map(); placed = [];
+      var p = padOf(doc, page); avail = PAGE_H - p.t - p.b - 4;
+    };
+    var holder = function (chain) {
+      var parent = pw;
+      chain.forEach(function (c) {
+        var k = map.get(c);
+        if (!k) { k = c.cloneNode(false); if (c.tagName === 'TABLE') [].forEach.call(c.children, function (x) { if (/^(THEAD|CAPTION|COLGROUP)$/.test(x.tagName)) k.appendChild(x.cloneNode(true)); }); parent.appendChild(k); map.set(c, k); }
+        parent = k;
+      });
+      return parent;
+    };
+    var put = function (u) {
+      var h = holder(u.chain);
+      if (u.node.tagName === 'LI' && h.tagName === 'OL' && !h.children.length) h.setAttribute('start', (+(u.chain[u.chain.length - 1].getAttribute('start')) || 1) + (u.node.__idx || 0));
+      h.appendChild(u.node); placed.push(u);
+    };
+    var take = function (u) { var h = u.node.parentNode; u.node.remove(); placed.pop(); while (h && h !== pw && emptyHolder(h)) { var up = h.parentNode; map.forEach(function (v, k) { if (v === h) map.delete(k); }); h.remove(); h = up; } };
+    newPage();
+    list.forEach(function (u) {
+      put(u);
+      if (pw.scrollHeight > avail && placed.length > 1) {
+        take(u);
+        var carry = [];
+        while (placed.length > 1 && isHeading(placed[placed.length - 1].node)) { var last = placed[placed.length - 1]; take(last); carry.unshift(last); }
+        newPage(); carry.forEach(put); put(u);
+      }
     });
-    var bar = $('mtBfit'); if (bar) { bar.className = 'fitbar' + (res.over ? ' warn' : '');
-      bar.innerHTML = '<label><input type="checkbox" data-a="fitToggle"' + (fitOn() ? ' checked' : '') + '> Fit on one page</label><span>' +
-        (res.over ? (fitOn() ? 'Too long to fit on one page at a readable size - runs ' + res.over + ' pages. Shorten or untick sections to bring it to one page.' : 'Runs ' + res.over + ' pages.') : !fitOn() ? 'One page.' : res.scaled < .999 ? 'Fits on one page (text at ' + Math.round(res.scaled * 100) + '%).' : 'Fits on one page.') + '</span>'; }
+    pg.remove();
+    return pages;
+  }
+  function layoutPages(doc) {
+    var mode = layoutMode(), mk = marginKey(), inch = MARGINS[mk], res = {mode: mode, pages: 0, scaled: 1, tooLong: false, oversize: false};
+    [].forEach.call(doc.querySelectorAll('.pgno'), function (x) { x.remove(); });
+    [].slice.call(doc.querySelectorAll('.pg')).forEach(function (pg) {
+      var w = pg.querySelector(':scope > .fitw'); if (!w) { res.pages++; return; }
+      if (pg.classList.contains('paged')) { res.pages++; return; }
+      pg.classList.remove('fitted', 'fitc'); w.style.transform = ''; w.style.width = ''; applyMargin(pg, inch);
+      var avail = function () { var p = padOf(doc, pg); return PAGE_H - p.t - p.b - 4; };
+      if (w.scrollHeight <= avail()) { res.pages++; return; }
+      if (mode === 'fit') {
+        if (inch == null) pg.classList.add('fitc');
+        var a = avail(), h = w.scrollHeight;
+        if (h <= a) { pg.classList.add('fitted'); res.pages++; return; }
+        var z = a / h;
+        for (var k = 0; k < 8 && z >= MIN_SCALE - .05; k++) { w.style.width = (100 / z) + '%'; w.style.transform = 'scale(' + z + ')'; h = w.scrollHeight; if (h * z <= a) break; z = Math.min(z - .005, a / h); }
+        if (z >= MIN_SCALE && w.scrollHeight * z <= a + 1) { pg.classList.add('fitted'); res.scaled = Math.min(res.scaled, z); res.pages++; return; }
+        pg.classList.remove('fitc'); w.style.transform = ''; w.style.width = ''; applyMargin(pg, inch); res.tooLong = true;
+      }
+      var made = paginate(doc, pg, inch == null && mode === 'fit' ? null : inch);
+      res.pages += made.length;
+      made.forEach(function (p) { if (p.scrollHeight > PAGE_H + 2) res.oversize = true; });
+    });
+    /* page numbers once a document runs past one page */
+    var all = doc.querySelectorAll('.pg');
+    if (all.length > 1) [].forEach.call(all, function (p, i) { var d = doc.createElement('div'); d.className = 'pgno'; d.textContent = 'Page ' + (i + 1) + ' of ' + all.length; var pad = padOf(doc, p); d.style.bottom = Math.max(14, pad.b / 2 - 6) + 'px'; d.style.right = Math.max(24, pad.r) + 'px'; p.appendChild(d); });
+    res.pages = all.length;
+    var bar = $('mtBfit');
+    if (bar) {
+      var opt = function (v, l, sel) { return '<option value="' + v + '"' + (v === sel ? ' selected' : '') + '>' + l + '</option>'; };
+      var msg = mode === 'fit' ? (res.tooLong ? 'Too long for one page at a readable size - set out on ' + res.pages + ' pages with full margins instead of being cut.' : res.scaled < .999 ? 'Fits on one page (text at ' + Math.round(res.scaled * 100) + '%).' : res.pages > 1 ? res.pages + ' pages.' : 'Fits on one page.')
+        : res.pages + (res.pages === 1 ? ' page' : ' pages') + ' - breaks fall between paragraphs, table rows and signature lines.';
+      if (res.oversize) msg += ' One block is taller than a page and will continue on the next sheet - shorten it or choose Fit on one page.';
+      bar.className = 'fitbar' + (res.tooLong || res.oversize ? ' warn' : '');
+      bar.innerHTML = '<label>Layout <select data-a="layoutSel" aria-label="Page layout">' + opt('fit', 'Fit on one page', mode) + opt('pages', 'Proper spacing - as many pages as needed', mode) + '</select></label>' +
+        '<label>Margins <select data-a="marginSel" aria-label="Page margins">' + opt('doc', 'Document default', mk) + opt('narrow', 'Narrow - 0.5 in', mk) + opt('normal', 'Normal - 0.75 in', mk) + opt('wide', 'Wide - 1 in', mk) + '</select></label><span>' + msg + '</span>';
+    }
     return res;
   }
   function unfit(fn) { var fr = $('mtBframe'), b = fr && fr.contentDocument && fr.contentDocument.body, z = b ? b.style.zoom : ''; if (b) b.style.zoom = ''; var r = fn(); var done = function () { if (b) b.style.zoom = z; }; if (r && r.then) r.then(done, done); else setTimeout(done, 400); return r; }
-  window.addEventListener('resize', function () { if ($('mtB') && $('mtB').classList.contains('open')) fit(); });
+  window.addEventListener('resize', function () { if ($('mtB') && $('mtB').classList.contains('open')) fit(false); });
   function setVal(t, ev) {
     var b = t.getAttribute('data-b'), v = t.type === 'checkbox' ? t.checked : t.value;
     if (t.hasAttribute('data-cond')) { var c = drafts.commit.conditions.filter(function (x) { return x.id === t.getAttribute('data-cond'); })[0]; if (c) { c[t.getAttribute('data-f')] = v; if (t.getAttribute('data-f') === 'group' || t.getAttribute('data-f') === 'on') { persist(); renderForm(); } } persist(); refresh(); return; }
@@ -1319,7 +1431,7 @@
       /* the calendar fills the typed date box next to it */
       if (t.classList.contains('pk')) { var box = t.parentNode.querySelector('input[data-fdate]'); if (box && t.value) { box.value = dateFromPicker(t.value); setVal(box); } return; }
       if (t.id === 'mtBpreset') return;
-      if (a === 'fitToggle') { try { localStorage.setItem(FIT_KEY, t.checked ? '1' : '0'); } catch (x) {} pageEdit(false); refresh(true); return; }
+      if (a === 'layoutSel' || a === 'marginSel') { savePref(a === 'layoutSel' ? LAYOUT_KEY : MARGIN_KEY, t.value); if (a === 'layoutSel' && t.value === 'pages') savePref('mt.builder.fit', '0'); pageEdit(false); refresh(true); return; }
       if (t.matches('select,input[type=checkbox]')) setVal(t, e);
     });
     w.addEventListener('click', function (e) {
@@ -1331,8 +1443,8 @@
       if (a === 'nav') { pageEdit(false); cur = t.getAttribute('data-k'); ensure(cur); renderNav(); renderForm(); refresh(true); return; }
       if (a === 'classic') { close(); V14.__mtbOrig.call(V14, cur === 'addendum' ? 'v14AddModal' : 'v14LeaseModal'); return; }
       if (a === 'reset') { if (!confirm('Start this ' + B[cur].label.toLowerCase() + ' over from the loan file? Your changes to it are cleared.')) return; pageEdit(false); drafts[cur] = B[cur].init(); persist(); renderForm(); refresh(true); return; }
-      if (a === 'print') { var fr = $('mtBframe'); unfit(function () { try { fr.contentWindow.focus(); fr.contentWindow.print(); } catch (x) {} }); return; }
-      if (a === 'pdf') return unfit(pdf);
+      if (a === 'print') { ready().then(function () { var fr = $('mtBframe'); unfit(function () { try { fr.contentWindow.focus(); fr.contentWindow.print(); } catch (x) {} }); }); return; }
+      if (a === 'pdf') { ready().then(function () { unfit(pdf); }); return; }
       if (a === 'add') { var b = t.getAttribute('data-b'), L = t.getAttribute('data-list'), arr = drafts[b][L]; arr.push(L === 'items' ? {trade: '', desc: '', qty: '', unit: '', labor: '', materials: ''} : (L === 'custom' || L === 'extra') ? '' : L === 'donors' ? {name: '', relationship: '', addr: '', city: '', state: '', zip: '', phone: '', email: ''} : L === 'borrowers' && b === 'gift' ? {name: '', addr: '', phone: ''} : (L === 'earn' || L === 'post') ? {label: '', amt: ''} : (L === 'income' || L === 'cogs' || L === 'expenses') ? {label: L === 'expenses' ? (PL_EXP.filter(function (x) { return !arr.some(function (r) { return r.label === x; }); })[0] || 'Other') : '', amt: ''} : {name: ''}); persist(); renderForm(); refresh(); return; }
       if (a === 'rm') { var b2 = t.getAttribute('data-b'), L2 = t.getAttribute('data-list'); drafts[b2][L2].splice(+t.getAttribute('data-i'), 1); persist(); renderForm(); refresh(); return; }
       if (a === 'psearch') return psearch(t.getAttribute('data-b'), t.getAttribute('data-p') || '');
