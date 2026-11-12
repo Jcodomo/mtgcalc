@@ -1,0 +1,751 @@
+{
+  "source": "20-createbinding-this-this-createbindin.js",
+  "order": [
+    "src/core/types",
+    "src/core/utils/dates",
+    "src/core/defaults",
+    "src/core/data/meta",
+    "src/core/data/stateClosingRules",
+    "src/core/data/transferTaxes",
+    "src/core/data/escrowRules",
+    "src/core/data/marketData",
+    "src/core/utils/num",
+    "src/core/calc/trace",
+    "src/core/calc/program",
+    "src/core/data/concessionLimits",
+    "src/core/calc/purchase",
+    "src/core/data/renovationRules",
+    "src/core/calc/renovation",
+    "src/core/data/fhaLimits",
+    "src/core/calc/loan",
+    "src/core/data/mortgageInsurance",
+    "src/core/data/qualificationRules",
+    "src/core/calc/payment",
+    "src/core/calc/value",
+    "src/core/calc/escrow",
+    "src/core/data/mortgageRecordingTax",
+    "src/core/data/luxuryTaxes",
+    "src/core/data/closingCostProfiles",
+    "src/core/calc/closing",
+    "src/core/calc/cashToClose",
+    "src/core/calc/aus",
+    "src/core/calc/mmw",
+    "src/core/calc/bps",
+    "src/core/calc/warnings",
+    "src/core/data/states",
+    "src/core/calc/validate",
+    "src/core/calc/engine",
+    "src/core/importers/incomeCalculator",
+    "src/state/store",
+    "src/core/summary",
+    "src/ui/format",
+    "src/ui/exporters",
+    "src/ui/sections",
+    "src/core/data/index",
+    "src/standalone/dom",
+    "src/standalone/app",
+    "src/standalone/main"
+  ],
+  "modules": [
+    {
+      "module": "src/core/types",
+      "file": "src/core/types.ts",
+      "deps": [],
+      "exports": [],
+      "recoveredFrom": "20-createbinding-this-this-createbindin.js"
+    },
+    {
+      "module": "src/core/utils/dates",
+      "file": "src/core/utils/dates.ts",
+      "deps": [],
+      "exports": [
+        "MONTH_NAMES",
+        "toISO",
+        "parseISO",
+        "isValidISO",
+        "today",
+        "endOfMonth",
+        "defaultClosingDate",
+        "perDiemDays",
+        "defaultFirstPaymentDate",
+        "monthLabel",
+        "addDaysISO"
+      ],
+      "recoveredFrom": "20-createbinding-this-this-createbindin.js"
+    },
+    {
+      "module": "src/core/defaults",
+      "file": "src/core/defaults.ts",
+      "deps": [
+        "src/core/utils/dates"
+      ],
+      "exports": [
+        "PAYMENT_ROUNDING_OPTIONS",
+        "CLOSING_ROUNDING_OPTIONS",
+        "FHA_MIP_RATE_OPTIONS",
+        "CONVENTIONAL_RATE_PREMIUM",
+        "defaultScenario",
+        "blankScenario"
+      ],
+      "recoveredFrom": "20-createbinding-this-this-createbindin.js"
+    },
+    {
+      "module": "src/core/data/meta",
+      "file": "src/core/data/meta.ts",
+      "deps": [],
+      "exports": [
+        "PLANNING_DISCLAIMER",
+        "effectiveRows"
+      ],
+      "recoveredFrom": "20-createbinding-this-this-createbindin.js"
+    },
+    {
+      "module": "src/core/data/stateClosingRules",
+      "file": "src/core/data/stateClosingRules.ts",
+      "deps": [],
+      "exports": [
+        "STATE_CLOSING_RULES",
+        "lookupClosingRule"
+      ],
+      "recoveredFrom": "20-createbinding-this-this-createbindin.js"
+    },
+    {
+      "module": "src/core/data/transferTaxes",
+      "file": "src/core/data/transferTaxes.ts",
+      "deps": [],
+      "exports": [
+        "TRANSFER_TAX_TABLE",
+        "NY_TRANSFER_TAX",
+        "lookupTransferTax",
+        "nyTransferTaxRate"
+      ],
+      "recoveredFrom": "20-createbinding-this-this-createbindin.js"
+    },
+    {
+      "module": "src/core/data/escrowRules",
+      "file": "src/core/data/escrowRules.ts",
+      "deps": [],
+      "exports": [
+        "DEFAULT_CUSHION_MONTHS",
+        "ESCROW_RULES",
+        "lookupEscrowRule"
+      ],
+      "recoveredFrom": "20-createbinding-this-this-createbindin.js"
+    },
+    {
+      "module": "src/core/data/marketData",
+      "file": "src/core/data/marketData.ts",
+      "deps": [],
+      "exports": [
+        "MARKET_TABLE",
+        "lookupMarket",
+        "lookupZip"
+      ],
+      "recoveredFrom": "20-createbinding-this-this-createbindin.js"
+    },
+    {
+      "module": "src/core/utils/num",
+      "file": "src/core/utils/num.ts",
+      "deps": [],
+      "exports": [
+        "num",
+        "nonNegative",
+        "clamp",
+        "round",
+        "roundDownTo",
+        "roundUpTo",
+        "safeDivide",
+        "sum",
+        "currency",
+        "percent"
+      ],
+      "recoveredFrom": "20-createbinding-this-this-createbindin.js"
+    },
+    {
+      "module": "src/core/calc/trace",
+      "file": "src/core/calc/trace.ts",
+      "deps": [],
+      "exports": [
+        "TraceCollector",
+        "money",
+        "pct",
+        "count",
+        "text"
+      ],
+      "recoveredFrom": "20-createbinding-this-this-createbindin.js"
+    },
+    {
+      "module": "src/core/calc/program",
+      "file": "src/core/calc/program.ts",
+      "deps": [],
+      "exports": [
+        "calculateProgram"
+      ],
+      "recoveredFrom": "20-createbinding-this-this-createbindin.js"
+    },
+    {
+      "module": "src/core/data/concessionLimits",
+      "file": "src/core/data/concessionLimits.ts",
+      "deps": [],
+      "exports": [
+        "CONCESSION_LIMITS",
+        "CONCESSION_LIMITS_META",
+        "CONCESSION_LIMIT_TABLE",
+        "concessionLimitFor"
+      ],
+      "recoveredFrom": "20-createbinding-this-this-createbindin.js"
+    },
+    {
+      "module": "src/core/calc/purchase",
+      "file": "src/core/calc/purchase.ts",
+      "deps": [
+        "src/core/utils/num",
+        "src/core/data/concessionLimits",
+        "src/core/calc/trace"
+      ],
+      "exports": [
+        "calculateSellerConcession",
+        "calculatePurchase",
+        "minimumDownPaymentPct"
+      ],
+      "recoveredFrom": "20-createbinding-this-this-createbindin.js"
+    },
+    {
+      "module": "src/core/data/renovationRules",
+      "file": "src/core/data/renovationRules.ts",
+      "deps": [],
+      "exports": [
+        "DRAW_RULES",
+        "DRAW_MILESTONES",
+        "FEE_RULES",
+        "HOMESTYLE_MAX_LTV",
+        "FHA_203K_ARV_FACTOR",
+        "suggestDrawCount",
+        "supplementalOriginationFee"
+      ],
+      "recoveredFrom": "20-createbinding-this-this-createbindin.js"
+    },
+    {
+      "module": "src/core/calc/renovation",
+      "file": "src/core/calc/renovation.ts",
+      "deps": [
+        "src/core/data/renovationRules",
+        "src/core/utils/num",
+        "src/core/calc/trace"
+      ],
+      "exports": [
+        "calculateRenovation"
+      ],
+      "recoveredFrom": "20-createbinding-this-this-createbindin.js"
+    },
+    {
+      "module": "src/core/data/fhaLimits",
+      "file": "src/core/data/fhaLimits.ts",
+      "deps": [],
+      "exports": [
+        "FHA_NATIONAL_TIERS",
+        "FHA_LIMIT_TABLE",
+        "HIGH_COST_AREAS",
+        "fhaStandardFloor",
+        "lookupFhaLimit",
+        "suggestFhaTier"
+      ],
+      "recoveredFrom": "20-createbinding-this-this-createbindin.js"
+    },
+    {
+      "module": "src/core/calc/loan",
+      "file": "src/core/calc/loan.ts",
+      "deps": [
+        "src/core/data/fhaLimits",
+        "src/core/utils/num",
+        "src/core/calc/trace",
+        "src/core/data/renovationRules"
+      ],
+      "exports": [
+        "calculateTotalAcquisition",
+        "calculateValueBasis",
+        "calculateRequiredInvestment",
+        "valueSupportedBaseLoan",
+        "calculateFhaLimit",
+        "calculateLoan"
+      ],
+      "recoveredFrom": "20-createbinding-this-this-createbindin.js"
+    },
+    {
+      "module": "src/core/data/mortgageInsurance",
+      "file": "src/core/data/mortgageInsurance.ts",
+      "deps": [],
+      "exports": [
+        "UFMIP_DEFAULT_RATE",
+        "FHA_MIP_TABLE",
+        "PMI_TABLE",
+        "PMI_CANCELLATION_LTV",
+        "PMI_AUTO_TERMINATION_LTV",
+        "suggestFhaMipRate",
+        "suggestPmiRate"
+      ],
+      "recoveredFrom": "20-createbinding-this-this-createbindin.js"
+    },
+    {
+      "module": "src/core/data/qualificationRules",
+      "file": "src/core/data/qualificationRules.ts",
+      "deps": [],
+      "exports": [
+        "DTI_LIMITS",
+        "RESERVE_RULES",
+        "SELF_SUFFICIENCY",
+        "dtiLimits",
+        "requiredReserveMonths",
+        "creditTierFromScore"
+      ],
+      "recoveredFrom": "20-createbinding-this-this-createbindin.js"
+    },
+    {
+      "module": "src/core/calc/payment",
+      "file": "src/core/calc/payment.ts",
+      "deps": [
+        "src/core/data/mortgageInsurance",
+        "src/core/data/qualificationRules",
+        "src/core/utils/num",
+        "src/core/calc/trace"
+      ],
+      "exports": [
+        "principalAndInterest",
+        "paymentSpread",
+        "calculatePayment"
+      ],
+      "recoveredFrom": "20-createbinding-this-this-createbindin.js"
+    },
+    {
+      "module": "src/core/calc/value",
+      "file": "src/core/calc/value.ts",
+      "deps": [
+        "src/core/data/marketData",
+        "src/core/utils/num",
+        "src/core/calc/trace",
+        "src/core/data/renovationRules"
+      ],
+      "exports": [
+        "calculateValue"
+      ],
+      "recoveredFrom": "20-createbinding-this-this-createbindin.js"
+    },
+    {
+      "module": "src/core/calc/escrow",
+      "file": "src/core/calc/escrow.ts",
+      "deps": [
+        "src/core/data/escrowRules",
+        "src/core/utils/dates",
+        "src/core/utils/num",
+        "src/core/calc/trace"
+      ],
+      "exports": [
+        "calculateEscrow"
+      ],
+      "recoveredFrom": "20-createbinding-this-this-createbindin.js"
+    },
+    {
+      "module": "src/core/data/mortgageRecordingTax",
+      "file": "src/core/data/mortgageRecordingTax.ts",
+      "deps": [],
+      "exports": [
+        "NY_MORTGAGE_TAX_TABLE",
+        "NYC_MORTGAGE_TAX",
+        "lookupNyMortgageTax"
+      ],
+      "recoveredFrom": "20-createbinding-this-this-createbindin.js"
+    },
+    {
+      "module": "src/core/data/luxuryTaxes",
+      "file": "src/core/data/luxuryTaxes.ts",
+      "deps": [],
+      "exports": [
+        "LUXURY_TAX_TABLE",
+        "lookupLuxuryTaxRow"
+      ],
+      "recoveredFrom": "20-createbinding-this-this-createbindin.js"
+    },
+    {
+      "module": "src/core/data/closingCostProfiles",
+      "file": "src/core/data/closingCostProfiles.ts",
+      "deps": [],
+      "exports": [
+        "DEFAULT_CLOSING_PROFILE",
+        "CLOSING_COST_PROFILES",
+        "STANDARD_THIRD_PARTY",
+        "lookupClosingProfile"
+      ],
+      "recoveredFrom": "20-createbinding-this-this-createbindin.js"
+    },
+    {
+      "module": "src/core/calc/closing",
+      "file": "src/core/calc/closing.ts",
+      "deps": [
+        "src/core/data/transferTaxes",
+        "src/core/data/mortgageRecordingTax",
+        "src/core/data/luxuryTaxes",
+        "src/core/data/closingCostProfiles",
+        "src/core/utils/dates",
+        "src/core/utils/num",
+        "src/core/calc/trace"
+      ],
+      "exports": [
+        "estimateStateClosingCosts",
+        "calculateMortgageTax",
+        "calculateTransferTax",
+        "calculateLuxuryTax",
+        "calculatePerDiem",
+        "calculateClosingCosts"
+      ],
+      "recoveredFrom": "20-createbinding-this-this-createbindin.js"
+    },
+    {
+      "module": "src/core/calc/cashToClose",
+      "file": "src/core/calc/cashToClose.ts",
+      "deps": [
+        "src/core/utils/num",
+        "src/core/calc/trace"
+      ],
+      "exports": [
+        "calculateCashToClose"
+      ],
+      "recoveredFrom": "20-createbinding-this-this-createbindin.js"
+    },
+    {
+      "module": "src/core/calc/aus",
+      "file": "src/core/calc/aus.ts",
+      "deps": [
+        "src/core/data/qualificationRules",
+        "src/core/utils/num",
+        "src/core/calc/trace"
+      ],
+      "exports": [
+        "resolvePropertyType",
+        "unitsForPropertyType",
+        "calculateAus"
+      ],
+      "recoveredFrom": "20-createbinding-this-this-createbindin.js"
+    },
+    {
+      "module": "src/core/calc/mmw",
+      "file": "src/core/calc/mmw.ts",
+      "deps": [
+        "src/core/calc/loan",
+        "src/core/utils/num"
+      ],
+      "exports": [
+        "buildMaximumMortgageWorksheet"
+      ],
+      "recoveredFrom": "20-createbinding-this-this-createbindin.js"
+    },
+    {
+      "module": "src/core/calc/bps",
+      "file": "src/core/calc/bps.ts",
+      "deps": [
+        "src/core/utils/num"
+      ],
+      "exports": [
+        "LEAD_SOURCE_BPS",
+        "calculateBps"
+      ],
+      "recoveredFrom": "20-createbinding-this-this-createbindin.js"
+    },
+    {
+      "module": "src/core/calc/warnings",
+      "file": "src/core/calc/warnings.ts",
+      "deps": [
+        "src/core/data/transferTaxes",
+        "src/core/utils/num",
+        "src/core/calc/purchase",
+        "src/core/data/renovationRules"
+      ],
+      "exports": [
+        "buildWarnings"
+      ],
+      "recoveredFrom": "20-createbinding-this-this-createbindin.js"
+    },
+    {
+      "module": "src/core/data/states",
+      "file": "src/core/data/states.ts",
+      "deps": [],
+      "exports": [
+        "US_STATES",
+        "NY_AREAS",
+        "isValidState"
+      ],
+      "recoveredFrom": "20-createbinding-this-this-createbindin.js"
+    },
+    {
+      "module": "src/core/calc/validate",
+      "file": "src/core/calc/validate.ts",
+      "deps": [
+        "src/core/data/states",
+        "src/core/utils/dates",
+        "src/core/utils/num",
+        "src/core/calc/aus"
+      ],
+      "exports": [
+        "sanitizeInputs",
+        "validationWarnings"
+      ],
+      "recoveredFrom": "20-createbinding-this-this-createbindin.js"
+    },
+    {
+      "module": "src/core/calc/engine",
+      "file": "src/core/calc/engine.ts",
+      "deps": [
+        "src/core/data/stateClosingRules",
+        "src/core/data/transferTaxes",
+        "src/core/data/escrowRules",
+        "src/core/data/marketData",
+        "src/core/utils/num",
+        "src/core/calc/trace",
+        "src/core/calc/program",
+        "src/core/calc/purchase",
+        "src/core/calc/renovation",
+        "src/core/calc/loan",
+        "src/core/calc/payment",
+        "src/core/calc/value",
+        "src/core/calc/escrow",
+        "src/core/calc/closing",
+        "src/core/calc/cashToClose",
+        "src/core/calc/aus",
+        "src/core/calc/mmw",
+        "src/core/calc/bps",
+        "src/core/calc/warnings",
+        "src/core/calc/validate"
+      ],
+      "exports": [
+        "runScenario"
+      ],
+      "recoveredFrom": "20-createbinding-this-this-createbindin.js"
+    },
+    {
+      "module": "src/core/importers/incomeCalculator",
+      "file": "src/core/importers/incomeCalculator.ts",
+      "deps": [],
+      "exports": [
+        "splitCsvLine",
+        "parseIncomeCalculatorFile",
+        "describeImport"
+      ],
+      "recoveredFrom": "20-createbinding-this-this-createbindin.js"
+    },
+    {
+      "module": "src/state/store",
+      "file": "src/state/store.ts",
+      "deps": [
+        "src/core/defaults",
+        "src/core/calc/engine",
+        "src/core/utils/dates",
+        "src/core/data/marketData",
+        "src/core/utils/num",
+        "src/core/importers/incomeCalculator"
+      ],
+      "exports": [
+        "ScenarioStore",
+        "newSavedScenario"
+      ],
+      "recoveredFrom": "20-createbinding-this-this-createbindin.js"
+    },
+    {
+      "module": "src/core/summary",
+      "file": "src/core/summary.ts",
+      "deps": [
+        "src/core/utils/num"
+      ],
+      "exports": [
+        "borrowerSummaryLines",
+        "borrowerWarnings",
+        "borrowerSummaryText",
+        "qualificationSummaryText",
+        "internalSummaryLines"
+      ],
+      "recoveredFrom": "20-createbinding-this-this-createbindin.js"
+    },
+    {
+      "module": "src/ui/format",
+      "file": "src/ui/format.ts",
+      "deps": [
+        "src/core/utils/num"
+      ],
+      "exports": [
+        "fmtCurrency",
+        "fmtCurrency2",
+        "fmtPercent",
+        "fmtNumber",
+        "fmtRange",
+        "parseFieldValue",
+        "toInputValue"
+      ],
+      "recoveredFrom": "20-createbinding-this-this-createbindin.js"
+    },
+    {
+      "module": "src/ui/exporters",
+      "file": "src/ui/exporters.ts",
+      "deps": [
+        "src/core/summary",
+        "src/ui/format"
+      ],
+      "exports": [
+        "buildScenarioCsv",
+        "buildBorrowerCsv",
+        "borrowerText",
+        "qualificationText",
+        "downloadFile",
+        "safeFileName"
+      ],
+      "recoveredFrom": "20-createbinding-this-this-createbindin.js"
+    },
+    {
+      "module": "src/ui/sections",
+      "file": "src/ui/sections.ts",
+      "deps": [
+        "src/core/data/states",
+        "src/core/data/marketData",
+        "src/core/defaults",
+        "src/core/summary",
+        "src/ui/exporters",
+        "src/ui/format"
+      ],
+      "exports": [
+        "RAIL",
+        "SCREENS",
+        "SECTION_IDS",
+        "TRACE_TARGETS",
+        "CONVENTIONAL_RATE_PREMIUM",
+        "renovationScopeLabel",
+        "screenFor",
+        "visibleScreens"
+      ],
+      "recoveredFrom": "20-createbinding-this-this-createbindin.js"
+    },
+    {
+      "module": "src/core/data/index",
+      "file": "src/core/data/index.ts",
+      "deps": [
+        "src/core/data/fhaLimits",
+        "src/core/data/mortgageInsurance",
+        "src/core/data/transferTaxes",
+        "src/core/data/mortgageRecordingTax",
+        "src/core/data/luxuryTaxes",
+        "src/core/data/stateClosingRules",
+        "src/core/data/escrowRules",
+        "src/core/data/renovationRules",
+        "src/core/data/closingCostProfiles",
+        "src/core/data/marketData",
+        "src/core/data/qualificationRules",
+        "src/core/data/meta",
+        "src/core/data/states",
+        "src/core/data/fhaLimits",
+        "src/core/data/mortgageInsurance",
+        "src/core/data/transferTaxes",
+        "src/core/data/mortgageRecordingTax",
+        "src/core/data/luxuryTaxes",
+        "src/core/data/stateClosingRules",
+        "src/core/data/escrowRules",
+        "src/core/data/renovationRules",
+        "src/core/data/closingCostProfiles",
+        "src/core/data/marketData",
+        "src/core/data/qualificationRules",
+        "src/core/data/concessionLimits"
+      ],
+      "exports": [
+        "REFERENCE_TABLES",
+        "getReferenceTable",
+        "PLANNING_DISCLAIMER",
+        "effectiveRows",
+        "US_STATES",
+        "NY_AREAS",
+        "isValidState",
+        "FHA_NATIONAL_TIERS",
+        "FHA_LIMIT_TABLE",
+        "HIGH_COST_AREAS",
+        "fhaStandardFloor",
+        "lookupFhaLimit",
+        "suggestFhaTier",
+        "UFMIP_DEFAULT_RATE",
+        "FHA_MIP_TABLE",
+        "PMI_TABLE",
+        "PMI_CANCELLATION_LTV",
+        "PMI_AUTO_TERMINATION_LTV",
+        "suggestFhaMipRate",
+        "suggestPmiRate",
+        "TRANSFER_TAX_TABLE",
+        "NY_TRANSFER_TAX",
+        "lookupTransferTax",
+        "nyTransferTaxRate",
+        "NY_MORTGAGE_TAX_TABLE",
+        "NYC_MORTGAGE_TAX",
+        "lookupNyMortgageTax",
+        "LUXURY_TAX_TABLE",
+        "lookupLuxuryTaxRow",
+        "STATE_CLOSING_RULES",
+        "lookupClosingRule",
+        "DEFAULT_CUSHION_MONTHS",
+        "ESCROW_RULES",
+        "lookupEscrowRule",
+        "DRAW_RULES",
+        "DRAW_MILESTONES",
+        "FEE_RULES",
+        "HOMESTYLE_MAX_LTV",
+        "FHA_203K_ARV_FACTOR",
+        "suggestDrawCount",
+        "supplementalOriginationFee",
+        "DEFAULT_CLOSING_PROFILE",
+        "CLOSING_COST_PROFILES",
+        "STANDARD_THIRD_PARTY",
+        "lookupClosingProfile",
+        "MARKET_TABLE",
+        "lookupMarket",
+        "lookupZip",
+        "DTI_LIMITS",
+        "RESERVE_RULES",
+        "SELF_SUFFICIENCY",
+        "dtiLimits",
+        "requiredReserveMonths",
+        "creditTierFromScore"
+      ],
+      "recoveredFrom": "20-createbinding-this-this-createbindin.js"
+    },
+    {
+      "module": "src/standalone/dom",
+      "file": "src/standalone/dom.ts",
+      "deps": [],
+      "exports": [
+        "h",
+        "append",
+        "clear",
+        "qs"
+      ],
+      "recoveredFrom": "20-createbinding-this-this-createbindin.js"
+    },
+    {
+      "module": "src/standalone/app",
+      "file": "src/standalone/app.ts",
+      "deps": [
+        "src/core/data/index",
+        "src/core/data/states",
+        "src/ui/sections",
+        "src/ui/format",
+        "src/ui/exporters",
+        "src/standalone/dom"
+      ],
+      "exports": [
+        "App"
+      ],
+      "recoveredFrom": "20-createbinding-this-this-createbindin.js"
+    },
+    {
+      "module": "src/standalone/main",
+      "file": "src/standalone/main.ts",
+      "deps": [
+        "src/state/store",
+        "src/ui/sections",
+        "src/standalone/app"
+      ],
+      "exports": [],
+      "recoveredFrom": "20-createbinding-this-this-createbindin.js"
+    }
+  ]
+}

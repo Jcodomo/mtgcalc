@@ -4,7 +4,10 @@
 // Run: node tests/financial-regression.mjs            (exit 1 only on an unexpected failure or an unexpected pass)
 import { loadEngine } from './engine-loader.mjs';
 
-const E = loadEngine();
+/* --engine=dist/engine.js runs the cases against the engine built from src/; the default is the 56.5 compiled engine */
+const engineArg = (process.argv.find(a => a.startsWith('--engine=')) || '').slice(9);
+const E = loadEngine(engineArg ? new URL('../' + engineArg, import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1') : undefined);
+if (engineArg) console.log('Engine:', engineArg);
 const D = E.require('src/core/defaults'), R = E.require('src/core/calc/engine'), P = E.require('src/core/calc/payment');
 const run = mut => { const s = D.defaultScenario(); mut(s); return R.runScenario(s); };
 const near = (a, b, tol = 0.005) => Math.abs(a - b) <= tol;

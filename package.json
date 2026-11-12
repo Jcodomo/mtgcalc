@@ -1,9 +1,16 @@
 {
   "name": "mtgcalc",
-  "version": "55.13.1",
+  "version": "56.6.0",
   "private": true,
-  "description": "Mortgage Suite 55.13b static GitHub Pages release.",
+  "description": "Mortgage Suite static GitHub Pages site (56.6) with the v57 engine source in src/.",
   "scripts": {
-    "test": "node test-static.mjs"
+    "test": "node test-static.mjs && npm run test:engine && npm run test:finance",
+    "build:engine": "node tools/engine/build.mjs",
+    "test:engine": "node tools/engine/build.mjs && node tests/engine-equivalence.mjs",
+    "test:finance": "node tests/financial-regression.mjs && node tools/engine/build.mjs && node tests/financial-regression.mjs --engine=dist/engine.js"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "typescript": "7.0.2"
   }
 }
