@@ -154,6 +154,16 @@
 - **Pasting:** each reader also has **Paste text / several** - a tray that gathers several screenshots and pasted text (an email, a web page) and reads them in order into one file for readers that take one. Pressing Ctrl+V with text while a builder or the document library is open (and no field is selected) opens the tray with that text. Windows Snipping Tool (Win+Shift+S) and Mac clipboard screenshots paste with Ctrl+V / Cmd+V. The gift letter reader also understands typed labels such as "Donor:" and "Relationship:".
 - Tested in the browser: relative dates and the lease term; versions; Fill from on the Income Calculator; Schedule C both year orders; Loan Estimate lines and totals; every lease layout, leaving every section out, rewording, custom sections, the initials line; draw schedules in all estimate layouts; the conditions rows from a real export and a rendered screenshot; email and copy text (clipboard stubbed - no email was sent); all 10 builders and their layouts with no errors. Not tested: a real low-resolution screenshot of a full conditions grid (OCR on small text may miss rows - pasting the copied rows is the reliable route), and the mail link opening a real email program.
 
+## Release 56.9 - a tighter Advanced view, with the way back to Simple always in reach
+
+- **← Simple** is now the first item in the full suite's section tabs. The tabs stay under the top bar while you scroll, so the switch back is always one click away (the top-bar Simple | Advanced switch stays too). Switching either way opens at the top of the page.
+- **Tighter Advanced view** (only while Advanced is showing; Simple and the other Loan Suite pages are unchanged):
+  - The row of pills repeating loan, payment, cash to close, DTI and rate is gone; the four summary cards just below show the same figures.
+  - The colour legend at the bottom is gone; Simple labels where each figure comes from.
+  - The scenario picker and its name box share one row on wider screens.
+  - The toolbar no longer shows a scrollbar.
+  - The content starts higher on the page.
+
 ## Release 56.8 - the Simple quote screen in the Full Suite, and lighter pages
 
 - **Simple | Advanced in the Full Suite.** The Full Suite and the Loan Suite File page now open on the Simple quote screen:

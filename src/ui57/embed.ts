@@ -15,7 +15,7 @@ const session = { get(): View | null { try { const v = sessionStorage.getItem(VI
 function css() {
   if (document.getElementById('q57css')) return;
   const l = document.createElement('link'); l.id = 'q57css'; l.rel = 'stylesheet';
-  l.href = (ME ? ME.replace(/quote-embed\.js.*$/, '') : 'assets/v57/') + 'quote.css?v=57.3';
+  l.href = (ME ? ME.replace(/quote-embed\.js.*$/, '') : 'assets/v57/') + 'quote.css?v=57.6';
   document.head.appendChild(l);
 }
 
@@ -58,8 +58,18 @@ function start(tries = 0) {
     seg.hidden = !inSuite;
     seg.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === view)));
     document.documentElement.classList.toggle('q57-simple', inSuite && simple);
+    document.documentElement.classList.toggle('q57-advanced', inSuite && !simple);
+    if (inSuite && !simple) placeBack();
   };
-  const set = (v: View) => { view = v; session.set(v); apply(); window.scrollTo({ top: 0 }); };
+  /* a "Simple" button at the start of the full suite's section tabs, which stay in view while scrolling */
+  const placeBack = () => {
+    const nav = document.getElementById('v23SuitePrimaryNav'); if (!nav || nav.querySelector('.q57-back')) return;
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'q57-back';
+    b.title = 'Back to the Simple quote screen - same scenario, same figures'; b.innerHTML = '<span aria-hidden="true">←</span> Simple';
+    b.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); set('simple'); });
+    nav.insertBefore(b, nav.firstChild);
+  };
+  const set = (v: View) => { view = v; session.set(v); apply(); const top = () => { document.documentElement.scrollTop = 0; document.body.scrollTop = 0; }; top(); setTimeout(top, 60); };
   seg.addEventListener('click', e => { const b = (e.target as HTMLElement).closest<HTMLElement>('[data-v]'); if (b) set(b.dataset.v as View); });
   window.addEventListener('mt57:view', (e: Event) => set((e as CustomEvent).detail));
   /* switching to the Income Calculator hides both quote screens; coming back restores the chosen one */

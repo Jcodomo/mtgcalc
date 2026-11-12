@@ -146,3 +146,19 @@
 @media print { .q-nav, .q-scn, .q-mode, .q-advrow, .q-sumbar div, #q57view { display: none !important; } }
 #quote57 .q-bor .q-link { display: inline-block; margin: 6px 0 2px; }
 #quote57 .q-bor small { display: block; margin-top: 4px; }
+
+/* ---- the Advanced view (the full suite), tightened; applies only while Advanced is showing ---- */
+html.q57-advanced #suite-root .v34-left { display: none !important; }                       /* repeated the four summary cards below it */
+html.q57-advanced #suite-root .legend { display: none !important; }                         /* the colour key; origins are labelled on the fields */
+html.q57-advanced #v24ScenarioBar { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }   /* pick and rename on one row */
+html.q57-advanced #v24ScenarioBar > .namebox { grid-row: auto; }
+html.q57-advanced #v44Header { scrollbar-width: none; }
+html.q57-advanced #v44Header::-webkit-scrollbar { display: none; }
+html.q57-advanced #suite-root .chrome { position: sticky !important; top: 52px !important; z-index: 40 !important; background: rgb(2, 12, 34) !important; }   /* section tabs stay in reach */
+html.q57-advanced #suite-root { overflow: visible !important; overflow-x: clip !important; }   /* clip, unlike hidden, lets the tabs stick */
+html.q57-advanced #suite-root .cols-main { padding-top: 8px; }
+.q57-back { display: inline-flex; align-items: center; gap: 6px; margin: 6px 10px 6px 4px; padding: 6px 12px; border-radius: 9px; border: 1px solid #2f6fe0; background: #2f6fe0; color: #fff; font: 700 12.5px system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; cursor: pointer; white-space: nowrap; flex: none; }
+.q57-back:hover { background: #3d7cf0; }
+.q57-back:focus-visible { outline: 2px solid #8cc0ff; outline-offset: 2px; }
+@media (max-width: 700px) { html.q57-advanced #v24ScenarioBar { grid-template-columns: minmax(0, 1fr); } }
+@media print { .q57-back { display: none !important; } }
