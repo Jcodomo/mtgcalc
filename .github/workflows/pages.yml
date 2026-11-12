@@ -25,7 +25,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      # the v57 engine tests build dist/engine.js with esbuild, so the dev dependencies are needed for the tests
+      - run: npm ci
       - run: npm test
+      # publish the site only - not the build tools or the test build
+      - run: rm -rf node_modules dist
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
