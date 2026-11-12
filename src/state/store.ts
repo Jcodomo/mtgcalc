@@ -8,7 +8,7 @@ import * as dep2 from '../core/utils/dates';
 import * as dep3 from '../core/data/marketData';
 import * as dep4 from '../core/utils/num';
 import * as dep5 from '../core/importers/incomeCalculator';
-import { loadState, newId, MigrationResult } from '../core/model/scenario';
+import { loadState, saveState, newId, MigrationResult, STORAGE_KEY } from '../core/model/scenario';
 
 const moduleExports: Record<string, any> = {};
 const declared: Record<string, unknown> = { 'src/core/defaults': dep0, 'src/core/calc/engine': dep1, 'src/core/utils/dates': dep2, 'src/core/data/marketData': dep3, 'src/core/utils/num': dep4, 'src/core/importers/incomeCalculator': dep5 };
@@ -20,7 +20,16 @@ const requireDep = (name: string) => { if (name in declared) return declared[nam
 const Store56 = moduleExports.ScenarioStore;
 class ScenarioStore57 extends Store56 {
   migration: MigrationResult | null;
-  constructor(state?: any) { const res = state ? null : loadState(); super(state || res!.state); this.migration = res; if (res && res.migratedFrom !== null) this.emit(); }
+  storageKey: string;
+  /** why the last save failed, or null (56.5 swallowed save errors) */
+  saveError: string | null;
+  constructor(state?: any, opts: { storageKey?: string } = {}) {
+    const key = opts.storageKey || STORAGE_KEY, res = state ? null : loadState(undefined, key);
+    super(state || res!.state);
+    this.storageKey = key; this.migration = res; this.saveError = null;
+    if (res && res.migratedFrom !== null) this.emit();
+  }
+  emit() { this.saveError = saveState(this.state, this.storageKey); this.listeners.forEach((f: () => void) => f()); }
   /** move a scenario created by the 56.5 code to a unique id */
   rekey(oldId: string): string {
     const st = this.state, id = newId('scenario'), sc = st.scenarios[oldId]; if (!sc) return oldId;

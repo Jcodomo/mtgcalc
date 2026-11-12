@@ -111,15 +111,22 @@ type Storage = { getItem(k: string): string | null; setItem(k: string, v: string
 const storage = (): Storage => { try { return typeof localStorage !== 'undefined' ? localStorage : null; } catch { return null; } };
 
 /** read and migrate the saved state; the 56.x original is kept once under BACKUP_KEY before it is replaced */
-export function loadState(store: Storage = storage()): MigrationResult {
+export function loadState(store: Storage = storage(), key: string = STORAGE_KEY): MigrationResult {
   let text: string | null = null;
-  try { text = store ? store.getItem(STORAGE_KEY) : null; } catch { /* storage blocked */ }
+  try { text = store ? store.getItem(key) : null; } catch { /* storage blocked */ }
   if (!text) return { state: initialState(), migratedFrom: null, notes: [] };
   let raw: unknown;
   try { raw = JSON.parse(text); } catch { return { state: initialState(), migratedFrom: null, notes: ['The saved state could not be read (damaged JSON); it was left in place and a new scenario started.'] }; }
   const res = migrateState(raw);
-  if (res.migratedFrom !== null && store) { try { if (!store.getItem(BACKUP_KEY)) store.setItem(BACKUP_KEY, text); } catch { /* full storage: the migration still proceeds in memory */ } }
+  const backup = key + '.before-v57';
+  if (res.migratedFrom !== null && store) { try { if (!store.getItem(backup)) store.setItem(backup, text); } catch { /* full storage: the migration still proceeds in memory */ } }
   return res;
+}
+
+/** save the state; returns why it could not be saved (storage full or blocked), or null when it was */
+export function saveState(state: SuiteState, key: string = STORAGE_KEY, store: Storage = storage()): string | null {
+  if (!store) return 'This browser is not keeping saved data (private window or storage blocked) - the quote is kept only until the page closes.';
+  try { store.setItem(key, JSON.stringify(state)); return null; } catch (e) { return 'Could not save: ' + ((e as Error).message || 'storage is full') + '. Export the scenario to keep it.'; }
 }
 
 /** a scenario as a file to share, and back (with the reason when a file cannot be used) */
