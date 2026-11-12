@@ -161,12 +161,14 @@
     /* dates: typed freely, with a calendar button that fills the box */
     if (t === 'date') return '<label class="' + cls + '">' + label + '<span class="dtw"><input type="text" data-fdate="1"' + a + ' value="' + esc(v) + '" placeholder="' + esc(opt.ph || '3/15/2026, Today, 30 days ago, in 1 year…') + '" title="Type a date, or Today, Tomorrow, 30 days ago, 3 months back, in 2 weeks, +30d, end of month" autocomplete="off">' +
       '<button type="button" class="pkb" data-a="pick" aria-label="Pick ' + esc(label) + ' from a calendar" title="Calendar"><svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path fill="currentColor" d="M4 1h1.5v1.5h5V1H12v1.5h1.5A1.5 1.5 0 0 1 15 4v9.5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 1 13.5V4a1.5 1.5 0 0 1 1.5-1.5H4zM2.5 6v7.5h11V6z"/></svg></button><input type="date" class="pk" tabindex="-1" aria-hidden="true"></span></label>';
+    /* 57.5: profile fields (company, NMLS, contacts) suggest every value used before */
+    if (!opt.list && (b === 'commit' || b === 'cpa' || b === 'lox') && typeof hist === 'function' && (PROFILE_KEYS.indexOf(k) >= 0 || HIST_ONLY.indexOf(k) >= 0)) { var hv = hist(k).filter(function (x) { return x !== String(v); }); if (hv.length) opt = Object.assign({}, opt, {list: hv}); }
     /* open lists: pick a suggestion or type anything */
     var list = opt.list ? ' list="mtBdl-' + b + '-' + k + '"' : '', dl = opt.list ? '<datalist id="mtBdl-' + b + '-' + k + '">' + opt.list.map(function (o) { return '<option value="' + esc(o) + '">'; }).join('') + '</datalist>' : '';
     return '<label class="' + cls + '">' + label + '<input type="text"' + (t === 'money' || t === 'num' || t === 'pct' ? ' inputmode="decimal"' : '') + list + a + ' value="' + esc(v) + '" placeholder="' + esc(opt.ph || (opt.list ? 'Pick or type' : '')) + '" autocomplete="off">' + dl + '</label>';
   }
   function dateFromPicker(isoStr) { var d = parseDate(isoStr); return d ? (d.getMonth() + 1) + '/' + d.getDate() + '/' + d.getFullYear() : ''; }
-  function dropZone(kind, title, desc) { return '<div class="drop" data-drop="' + kind + '"><div><b>' + title + '</b><div class="note" style="margin:2px 0 0">' + desc + ' Scanned pages, photos, pasted screenshots and pasted text are read with OCR - press Ctrl+V (Cmd+V) to paste. Windows: Win+Shift+S to snip, then Ctrl+V.</div></div><div class="row" style="flex-wrap:wrap;justify-content:flex-end"><button type="button" class="btn" data-mtpaste title="Paste a screenshot from the clipboard">Paste screenshot</button><button type="button" class="btn" data-mtpastetray title="Gather several screenshots and pasted text, then read them together">Paste text / several</button><label class="btn">Choose file<input type="file" accept=".pdf,image/*,.txt" data-a="' + kind + '"></label></div></div><div id="mtB' + kind + '" class="note"></div>'; }
+  function dropZone(kind, title, desc) { return '<div class="drop" data-drop="' + kind + '"><div><b>' + title + '</b><div class="note" style="margin:2px 0 0">' + desc + ' Scanned pages, photos, pasted screenshots and pasted text are read with OCR - press Ctrl+V (Cmd+V) to paste. Windows: Win+Shift+S to snip, then Ctrl+V.</div></div><div class="row" style="flex-wrap:wrap;justify-content:flex-end"><button type="button" class="btn" data-mtpaste title="Paste a screenshot from the clipboard">Paste screenshot</button><button type="button" class="btn" data-mtpastetray title="Gather several screenshots and pasted text, then read them together">Paste text / several</button><label class="btn">Choose file(s)<input type="file" multiple accept=".pdf,image/*,.txt" data-a="' + kind + '"></label></div></div><div id="mtB' + kind + '" class="note"></div>'; }
   function people(b, k, label, max, opt) {
     opt = opt || {}; var arr = drafts[b][k] = drafts[b][k] || ['']; var h = '<fieldset><legend>' + label + ' (up to ' + max + ')</legend>';
     arr.forEach(function (p, i) {
@@ -1017,7 +1019,7 @@
         ltv: '', program: '', scores1: '', scores2: '', propType: '1 Unit', units: '1', projectType: '', qualRate: '', ratioFront: '', ratioBack: '', income: '', obligations: '', docType: 'Full Documentation', impoundType: 'Taxes and Insurance',
         subFin: '', lienPos: 'First Lien', lenderPhone: '', lenderFax: '', broker: '', brokerContact: '', brokerPhone: '', brokerFax: '', refNo: '', letterConds: true, disclaimer: '', listFmt: 'check', listGroup: true, listDone: true, listSet: 'all', listOpen: false, conditions: []};
       COND_LIB.forEach(function (c) { d.conditions.push({id: uid(), group: c[0], stage: c[0] === 'closing' ? 'AC' : 'PTD', cat: c[1], text: c[2], on: true}); });
-      return d;
+      return profileFill(d);
     },
     form: function () {
       var b = 'commit', s = drafts[b];
@@ -1232,7 +1234,7 @@
   var CSS_COMMIT = '.cmt{font-family:Calibri,Carlito,"Segoe UI",Arial,sans-serif;font-size:10.5pt}.pg.cmt{padding:.5in .75in .6in}.logo{display:flex;justify-content:center;align-items:center;gap:8px}.logo .mk{width:26px;height:30px;background:linear-gradient(135deg,#2f4f8f 50%,transparent 50%),#2f4f8f;clip-path:polygon(0 30%,55% 0,100% 30%,100% 100%,60% 100%,60% 45%,0 45%)}.logo .nm{font-family:Georgia,"Times New Roman",serif;font-size:19pt;font-weight:700;color:#2f4f8f;line-height:1}.logo .sb{font-family:Georgia,serif;font-size:8pt;color:#555;letter-spacing:.06em}' +
     'h1{text-align:center;font-weight:400;font-size:20pt;margin:4px 0 14px}p{margin:0 0 8px;line-height:1.32}.two{display:flex;justify-content:space-between}.two>div:last-child{width:3.1in}table.terms{width:100%;border-collapse:collapse;margin:6px 0 12px}table.terms td{padding:0 4px 0 0;vertical-align:top}table.terms td:nth-child(1){width:1.85in}table.terms td:nth-child(2){width:1.6in}table.terms td:nth-child(3){width:2.05in}' +
     'table.esc{margin:4px 0 10px 1.6in;border-collapse:collapse}table.esc td{padding:0 40px 0 0}ol{margin:4px 0 10px;padding-left:.45in}ol li{margin:0 0 3px;line-height:1.3;padding-left:4px}.lsig{border-bottom:1px solid #000;width:3in;height:30px}table.bs{width:100%;border-collapse:collapse;margin-top:26px}table.bs td{border-top:1px solid #000;padding:2px 6px 34px;vertical-align:top;width:25%}table.bs td:nth-child(2n){text-align:right;width:15%}table.bs span{font-size:10pt}';
-  var COND_HEAD = /(Prior\s*to\s*Approval|Prior\s*to\s*Docs|Prior\s*to\s*Funding|At\s*Closing|Prior\s*to\s*Purchase)\s*\(\s*["“”']*\s*(PTA|PTD|PTF|AC|PTP)\s*["“”']*\s*\)\s*Conditions:?/gi;
+  var COND_HEAD = /(Prior\s*to\s*Approval|Prior\s*to\s*Docs|Prior\s*to\s*Funding|At\s*Closing|Prior\s*to\s*Purchase)\s*[({\[]\s*["“”'`]*\s*(PTA|PTD|PTF|AC|PTP)\s*["“”'`]*\s*[)}\]]\s*Conditions:?/gi;   /* 57.5: OCR reads ( as { or [ */
   function flipName(n) { n = String(n || '').trim(); var m = n.match(/^([A-Za-z'.-]+),\s*(.+)$/); return m ? m[2].trim() + ' ' + m[1] : n; }
   /* ---------------------------------------------------------- condition lists from a loan system (56.7)
      Rows copied from a conditions grid or spreadsheet (Condition Name, Documents, External Description, Prior To, ..., Latest Status,
@@ -1406,6 +1408,38 @@
     var lc = T.match(/Contact:[ \t]*(?!Contact\b)([A-Z][A-Za-z.'-]+(?:[ \t][A-Z][A-Za-z.'-]+){0,2})/g) || []; lc = lc.map(function (x) { return x.replace(/^Contact:\s*/, ''); }).filter(function (x) { return !/^Contact\b/.test(x); }); o.lenderContact = lc[lc.length - 1] || '';
     var ph = T.match(/Phone:[ \t]*(\(?\d{3}\)?[ -.]?\d{3}-\d{4})/g) || []; o.lenderPhone = (ph[ph.length - 1] || '').replace(/^Phone:\s*/, '');
     var fx = T.match(/Fax:[ \t]*(\(?\d{3}\)?[ -.]?\d{3}-\d{4})/g) || []; o.lenderFax = (fx[fx.length - 1] || '').replace(/^Fax:\s*/, '');
+    /* 57.5: a scanned approval read with OCR comes out column by column - "Lender: / Contact: / Phone: / Loan #" and then
+       the values, "Loan Program: / Purpose: / ..." and then the values. Fill what the label-value reading missed from the
+       values' own shapes (only blanks are filled). */
+    var hcut = T.search(/Prior\s*to\s*(?:Approval|Docs)\s*[({\[]/i), head = hcut > 0 ? T.slice(0, hcut) : T;   /* page 1's own 'See Section 2' line is not the end of it */
+    var Lns = head.split('\n').map(function (l) { return l.replace(/\s+/g, ' ').trim(); }).filter(Boolean);
+    var line = function (re) { for (var i = 0; i < Lns.length; i++) { var mm = Lns[i].match(re); if (mm) return mm[1] != null ? mm[1].trim() : mm[0].trim(); } return ''; };
+    var CO = /^([A-Z][A-Za-z0-9&.,' -]{2,60}?(?:,?\s*(?:LLC|L\.L\.C\.|Inc\.?|Corp\.?|Corporation|Company|Co\.|Bank|N\.A\.|FSB|LP|Ltd\.?)))$/;
+    if (!o.lenderName) o.lenderName = line(CO);
+    var ad = Lns.slice(0, 4).map(function (l) { return l.match(/^(.+?\d.+?),\s*([A-Za-z .'-]+),?\s+([A-Z]{2})\s+(\d{5})(?:-\d{4})?$/); }).filter(Boolean)[0];
+    if (ad) { o.companyAddr1 = ad[1].trim(); o.companyAddr2 = ad[2].trim() + ', ' + ad[3] + ' ' + ad[4]; }
+    if (!o.loanNumber) o.loanNumber = line(/^(\d{9,12})$/) || g(/Loan\s*#\s*:?\s*\n(?:[^\n]*\n){0,8}?\s*(\d{9,12})\s*\n/);
+    var pf = line(/^(\(?\d{3}\)?[ .-]?\d{3}-\d{4})\s+Fax:?\s*(\(?\d{3}\)?[ .-]?\d{3}-\d{4})$/); if (pf) { var pm2 = head.match(/(\(?\d{3}\)?[ .-]?\d{3}-\d{4})[ \t]+Fax:?[ \t]*(\(?\d{3}\)?[ .-]?\d{3}-\d{4})/); if (pm2) { o.lenderPhone = o.lenderPhone || pm2[1]; o.lenderFax = o.lenderFax || pm2[2]; } }
+    var PERSON = /^([A-Z][a-z'.-]+(?: [A-Z][a-z'.-]*\.?)?(?: [A-Z][A-Za-z'.-]+){1,2})$/;
+    if (!o.lenderContact && o.lenderName) {   /* the person named within three lines after the lender's name (not the first line of the page) */
+      Lns.forEach(function (l, i) { if (o.lenderContact || i === 0 || l.indexOf(o.lenderName) < 0) return; for (var j = i + 1; j <= i + 3 && j < Lns.length; j++) { var cand = Lns[j].replace(/^Contact:?\s*/i, ''); if (PERSON.test(cand) && !/Underwriting|Borrower|Property|Processor|Approved/i.test(cand)) { o.lenderContact = cand; break; } } });
+    }
+    if (!o.approved) o.approved = g(/(\d{1,2}\/\d{1,2}\/\d{4})\W{0,8}Must\s*Close\s*By/i);
+    if (!o.processor) {   /* names after the approval dates and before the property: underwriter then processor, or the processor alone */
+      var ai = Lns.findIndex(function (l) { return /Must\s*Close\s*By/i.test(l); }), pi = Lns.findIndex(function (l, i) { return i > ai && /Subject\s*Property|^Property:/i.test(l); });
+      var nm = ai >= 0 ? Lns.slice(ai + 1, pi > ai ? pi : ai + 6).filter(function (l) { return PERSON.test(l); }) : [];
+      if (nm.length >= 2) { o.underwriter = o.underwriter || nm[0]; o.processor = nm[1]; } else if (nm.length === 1) o.processor = nm[0];
+    }
+    if (!o.program) o.program = line(/^((?:FHA|VA|USDA|Conv\w*|Fannie|Freddie|Jumbo|Non-?QM|HomeStyle|Home\s*Ready|Home\s*Possible)[^\n]{0,40}?\d{2}\s*Year\s*(?:Fixed|ARM)[^\n]{0,12})$/i) || line(/^(\d{2}\s*Year\s*(?:Fixed|ARM)[^\n]{0,20})$/i);
+    if (!o.purpose) o.purpose = line(/^(Purchase|No\s*Cash-?\s*Out\s*Refi\w*|Cash-?\s*Out\s*Refi\w*|Rate\s*\/\s*Term\s*Refi\w*|Refinance|Construction(?:\s*-?\s*Perm\w*)?)$/i);
+    if (!o.loanType) o.loanType = line(/^(FHA|VA|USDA|Conventional|Conv)$/i);
+    if (!o.occupancy) o.occupancy = line(/^(Primary\s*Residence|Second\s*Home|Investment(?:\s*Property)?|Investor)$/i);
+    if (!o.amort) o.amort = line(/^(Fixed|ARM|Adjustable)$/i);
+    if (!o.term) o.term = line(/^(\d{3})\s*\/\s*\d{3}$/);
+    if (!o.docType) o.docType = line(/^(Full\s*Doc\w*|Alt\w*\s*Doc\w*|Bank\s*Statement\w*|DSCR|Streamline\w*|Asset\s*Depletion)$/i);
+    if (!o.impounds) o.impounds = line(/^(Not\s*Waived|Waived)$/i);
+    if (!o.impoundType) o.impoundType = line(/^(Taxes\s*(?:and|&)\s*Insurance|Taxes\s*Only|Insurance\s*Only)$/i);
+    if (o.lockExpires && !/\d/.test(o.lockExpires)) o.lockExpires = '';
     var marks = [], m; COND_HEAD.lastIndex = 0; while ((m = COND_HEAD.exec(T))) marks.push({i: m.index, end: m.index + m[0].length, code: m[2].toUpperCase()});
     marks.forEach(function (k, n) {
       var chunk = T.slice(k.end, n + 1 < marks.length ? marks[n + 1].i : T.length)
@@ -1426,6 +1460,27 @@
     });
     return o;
   }
+  /* 57.5: your details - kept in this browser and offered on every commitment letter (and the CPA / LOX letters): the
+     company, NMLS numbers, mortgagee clause, loan officer, processor and underwriter contacts. Typing in any of these saves
+     it; a new letter or a read approval fills the blanks from it; every value used before is offered as a suggestion. */
+  var PROFILE_KEYS = ['company', 'short', 'nmls', 'companyAddr1', 'companyAddr2', 'phone', 'mortgagee', 'lo', 'loNmls', 'loPhone', 'loEmail', 'processor', 'procPhone', 'procEmail', 'underwriter', 'lenderPhone', 'lenderFax'];
+  var PKEY = 'mt.build.profile.v1', HKEY = 'mt.build.history.v1';
+  function profile() { try { return JSON.parse(localStorage.getItem(PKEY) || '{}') || {}; } catch (e) { return {}; } }
+  var HIST_ONLY = ['prepName', 'cred', 'firm', 'firmAddr1', 'firmAddr2', 'firmPhone', 'firmFax', 'firmEmail', 'firmWeb', 'license', 'ptin', 'lender'];
+  function profileSave(k, v) {
+    var inP = PROFILE_KEYS.indexOf(k) >= 0; if (!inP && HIST_ONLY.indexOf(k) < 0) return; v = String(v == null ? '' : v).trim();
+    if (inP) try { var P = profile(); if (v) P[k] = v; localStorage.setItem(PKEY, JSON.stringify(P)); } catch (e) {}
+    if (!v || v.length < 2) return;
+    try { var H = JSON.parse(localStorage.getItem(HKEY) || '{}') || {}; var L = (H[k] || []).filter(function (x) { return x !== v; }); L.unshift(v); H[k] = L.slice(0, 10); localStorage.setItem(HKEY, JSON.stringify(H)); } catch (e) {}
+  }
+  function hist(k) { try { var H = JSON.parse(localStorage.getItem(HKEY) || '{}') || {}; return H[k] || []; } catch (e) { return []; } }
+  /* the processor's phone and email go with the processor: fill them only when the name matches the saved one */
+  function profileFill(s) {
+    var P = profile();
+    PROFILE_KEYS.forEach(function (k) { if (!String(s[k] || '').trim() && P[k] && !/^proc(Phone|Email)$/.test(k)) s[k] = P[k]; });
+    if (P.processor && (!s.processor || s.processor === P.processor)) { if (!s.procPhone) s.procPhone = P.procPhone || ''; if (!s.procEmail) s.procEmail = P.procEmail || ''; }
+    return s;
+  }
   function applyApproval(o) {
     var s = drafts.commit, set = function (k, v) { if (v) s[k] = v; };
     if (o.b1) s.borrowers = [{name: o.b1}].concat(o.b2 ? [{name: o.b2}] : []);
@@ -1438,7 +1493,9 @@
     ['scores1', 'scores2', 'ratioFront', 'ratioBack', 'ltv', 'qualRate', 'underwriter', 'lenderPhone', 'lenderFax'].forEach(function (k) { set(k, o[k]); });
     set('income', o.income && N(o.income).toFixed(2)); set('obligations', o.obligations && N(o.obligations).toFixed(2)); set('propType', o.propType && o.propType.replace(/^(\d)\s*Units?$/i, function (x, d) { return d + (d === '1' ? ' Unit' : ' Units'); })); set('units', o.units);
     set('docType', o.docType && o.docType.replace(/FullDocumentation/i, 'Full Documentation')); set('impoundType', o.impoundType); if (o.lockExpires) s.lockExpires = iso(parseDate(o.lockExpires));
-    if (o.program) s.program = o.program; if (o.lenderName && !s.company) s.company = o.lenderName; if (o.lenderContact && !s.lo) s.lo = o.lenderContact;
+    if (o.program) s.program = o.program; if (o.lenderName) s.company = o.lenderName; if (o.companyAddr1) { s.companyAddr1 = o.companyAddr1; s.companyAddr2 = o.companyAddr2; }
+    if (o.lenderContact) s.lo = o.lenderContact; if (o.lenderPhone && !s.loPhone) s.loPhone = o.lenderPhone; if (o.lenderPhone && !s.phone) s.phone = o.lenderPhone;
+    profileFill(s);
     if (o.street) { s.address = o.street; s.city = o.city || s.city; s.state = stateName(o.state || s.state); s.zip = o.zip || s.zip; }
     if (o.amount && o.rate && o.term) { var L = N(o.amount), r = N(o.rate) / 1200, n = N(o.term); if (L && r && n) s.payment = (L * r / (1 - Math.pow(1 + r, -n))).toFixed(2); }
     if (o.conds.length) s.conditions = o.conds.concat(s.conditions.filter(function (c) { return c.lib; }));
@@ -1998,7 +2055,286 @@
   }
 
   /* ================================================================ shell / UI */
-  var ORDER = ['addendum', 'lease', 'estimate', 'pl', 'schc', 'pay', 'gift', 'le', 'commit', 'mi'];
+  /* ======================================================= LETTER OF EXPLANATION (57.5)
+     One letter at a time, of the kind the condition asks for. Each kind has its own details, its own wording (always
+     editable - type over the generated text), and the right signer: the borrowers, or a third party for rent-free and
+     business-access letters. Drop the approval (or paste its conditions) to list every explanation it asks for; drop a
+     bank statement or a credit report to fill the deposits or inquiries. */
+  var LOX_STYLES = [['plain', 'Plain letter - "To Whom It May Concern"'], ['re', 'Letter with RE: line - borrower, property, loan number'], ['formal', 'Formal - sender address, lender, signature lines'], ['table', 'Modern - details table and lists as tables']];
+  var LOX_COLS = {
+    deposits: [['date', 'Date'], ['amount', 'Amount'], ['account', 'Account (bank, last 4)'], ['source', 'Source of the funds']],
+    inquiries: [['creditor', 'Creditor'], ['date', 'Date'], ['result', 'Result']],
+    addresses: [['address', 'Address'], ['from', 'From'], ['to', 'To'], ['note', 'Why it appears']],
+    lates: [['creditor', 'Creditor'], ['date', 'Date(s)'], ['note', 'What happened']],
+    names: [['name', 'Name as it appears'], ['note', 'Where it appears']],
+    payments: [['date', 'Date'], ['amount', 'Amount'], ['payee', 'Paid to'], ['purpose', 'What it was for']],
+    people: [['name', 'Name'], ['age', 'Age'], ['relationship', 'Relationship']]
+  };
+  var LOX_TYPES = [
+    {id: 'deposits', label: 'Large deposits', re: 'Large deposits', rows: 'deposits', f: [['useFunds', 'These funds', {type: 'select', options: [['will not', 'will NOT be used for this transaction'], ['will', 'WILL be used for this transaction']]}]],
+      t: function (s, x) { return ['I am writing to explain the following deposit' + x.pl(s.deposits) + ' to my account' + x.pl(s.deposits) + ':', x.rows('deposits'), 'These funds ' + (s.useFunds === 'will' ? 'will' : 'will not') + ' be used ' + (x.buy ? 'toward the purchase of' : 'in the refinance of') + ' the property' + (x.prop ? ' at ' + x.prop : '') + '.']; }},
+    {id: 'payments', label: 'Payments on a bank statement', re: 'Payments on my bank statement', rows: 'payments', f: [['notDebt', 'These are not loans or new debts', {type: 'check', wide: 1}]],
+      t: function (s, x) { return ['The following payment' + x.pl(s.payments) + ' shown on my bank statement ' + (x.n(s.payments) === 1 ? 'is' : 'are') + ' explained below:', x.rows('payments'), s.notDebt !== false ? (x.n(s.payments) === 1 ? 'This payment is' : 'These payments are') + ' not for any loan, debt or obligation that is not already listed on my loan application.' : '']; }},
+    {id: 'inquiries', label: 'Credit inquiries', re: 'Credit inquiries', rows: 'inquiries', f: [['noNew', 'No new credit was opened from these inquiries', {type: 'check', wide: 1}]],
+      t: function (s, x) { return ['The following credit inquiries appear on my credit report:', x.rows('inquiries'), s.noNew !== false ? 'No new credit accounts were opened and no new debt was taken on as a result of these inquiries, other than any account listed above.' : 'Any new account opened from these inquiries is listed above with its terms.']; }},
+    {id: 'address', label: 'Address discrepancy / additional addresses', re: 'Addresses on my credit report and documents', rows: 'addresses', f: [['currentAddr', 'My current address', {wide: 1}]],
+      t: function (s, x) { return ['The address' + x.pl(s.addresses, 'es') + ' below appear' + (x.n(s.addresses) === 1 ? 's' : '') + ' on my credit report, identification or other documents. ' + (x.n(s.addresses) === 1 ? 'It is explained' : 'Each is explained') + ' below:', x.rows('addresses'), s.currentAddr ? 'My current address is ' + s.currentAddr + '.' : '']; }},
+    {id: 'gap', label: 'Gap in employment', re: 'Gap in employment', f: [['gapFrom', 'Not working from', {type: 'date'}], ['gapTo', 'Until', {type: 'date'}], ['gapWhy', 'Reason', {list: ['I was caring for a family member', 'I was looking for a new position after a layoff', 'I was recovering from a medical condition', 'I was attending school', 'I relocated', 'I was on maternity / paternity leave']}], ['employer', 'Current employer'], ['position', 'Position'], ['startDate', 'Started there on', {type: 'date'}]],
+      t: function (s, x) { return ['From ' + x.d(s.gapFrom) + ' to ' + x.d(s.gapTo) + ' I was not employed because ' + x.lc(s.gapWhy || '________') + '.', 'I returned to work on ' + x.d(s.startDate) + (s.employer ? ' with ' + s.employer : '') + (s.position ? ' as ' + s.position : '') + ', where I am currently employed full time.']; }},
+    {id: 'empchange', label: 'Employment change (hourly to salary, new position, past employer)', re: 'Change in employment', f: [['employer', 'Employer'], ['change', 'What changed', {list: ['my pay changed from hourly to salary', 'I was promoted to a new position', 'my pay increased', 'I changed employers in the same line of work', 'my previous employment ended']}], ['startDate', 'Effective date', {type: 'date'}], ['position', 'Position'], ['pay', 'Current pay (e.g. $85,000 per year)']],
+      t: function (s, x) { return ['Effective ' + x.d(s.startDate) + ', ' + (s.change || 'my employment changed') + (s.employer ? ' at ' + s.employer : '') + '.', (s.position || s.pay ? 'I am currently employed' + (s.position ? ' as ' + s.position : '') + (s.pay ? ' earning ' + s.pay : '') + '.' : '') + ' This change is permanent and my employment is ongoing.']; }},
+    {id: 'remote', label: 'Remote employment', re: 'Remote employment', f: [['employer', 'Employer'], ['empLocation', 'Employer location'], ['startDate', 'Working remotely since', {type: 'date'}], ['onsite', 'Time on site (if any)', {ph: 'e.g. one day a month'}]],
+      t: function (s, x) { return ['I am employed by ' + (s.employer || '________') + (s.empLocation ? ', located in ' + s.empLocation : '') + '. I have worked remotely from home since ' + x.d(s.startDate) + (s.onsite ? ', and I report to the office ' + s.onsite : '') + '.', 'My employer has approved my remote work arrangement, and my move to ' + (x.prop || 'the new property') + ' will not affect my employment or income.']; }},
+    {id: 'rentfree', label: 'Living rent free (from the host)', re: 'Rent-free living arrangement', third: 'Host (signs the letter)', f: [['hostRel', 'Host is the borrower\'s', {list: ['mother', 'father', 'parents', 'sister', 'brother', 'grandmother', 'aunt', 'uncle', 'friend']}], ['hostOwns', 'The host', {type: 'select', options: [['owns', 'owns the home'], ['leases', 'leases the home']]}], ['currentAddr', 'Address where they live', {wide: 1}], ['since', 'Living there since', {type: 'date'}], ['signerPhone', 'Host phone']],
+      t: function (s, x) { var who = x.who(); return ['This letter is to confirm that ' + who + ' currently reside' + (x.many ? '' : 's') + ' at ' + (s.currentAddr || '________') + ' with ' + (x.many ? 'their ' : 'my ') + (s.hostRel || 'relative') + ', ' + (s.signer || '________') + ', who ' + (s.hostOwns === 'leases' ? 'is the leaseholder of' : 'owns') + ' the property. ' + (x.many ? 'They do' : 'They do') + ' not pay rent or contribute to the housing payments; all rent and household expenses are paid by ' + (s.signer || 'me') + '.', 'This arrangement has been in place since ' + x.d(s.since) + ', and there is no lease between us, as this is a family living arrangement.', 'If you need any further information, please contact ' + (s.signer || 'me') + (s.signerPhone ? ' at ' + s.signerPhone : '') + '.']; }},
+    {id: 'rent', label: 'Rent expense / housing history', re: 'Housing payment history', f: [['landlord', 'Landlord'], ['rentAmt', 'Monthly rent'], ['currentAddr', 'Rental address', {wide: 1}], ['since', 'Renting since', {type: 'date'}], ['method', 'Paid by', {list: ['check', 'bank transfer', 'Zelle', 'cash with receipts', 'money order']}]],
+      t: function (s, x) { return ['I rent ' + (s.currentAddr || 'my home') + ' from ' + (s.landlord || '________') + ' for ' + (s.rentAmt ? x.money(s.rentAmt) : '$________') + ' per month, and have since ' + x.d(s.since) + '.', 'I pay the rent ' + (s.method ? 'by ' + s.method : 'each month') + ' and have made every payment on time.']; }},
+    {id: 'occupancy', label: 'Occupancy - primary residence', re: 'Occupancy of the subject property', f: [['moveIn', 'Moving in by', {type: 'date', ph: 'within 60 days of closing'}], ['currentPlan', 'Current home', {list: ['will be sold', 'will be rented out', 'is rented and the lease ends', 'will be returned to the landlord']}]],
+      t: function (s, x) { return ['I intend to occupy ' + (x.prop || 'the subject property') + ' as my primary residence ' + (s.moveIn ? 'by ' + x.d(s.moveIn) : 'within 60 days of closing') + ' and to live there for at least one year.', s.currentPlan ? 'My current home ' + s.currentPlan + '.' : '']; }},
+    {id: 'motivation', label: 'Reason for the move / keeping the current home', re: 'Purchase of a new primary residence', f: [['why', 'Reason for buying', {list: ['I relocated for work', 'my family needs more space', 'I want to be closer to family', 'a shorter commute to work', 'a better school district']}], ['currentAddr', 'Current home address', {wide: 1}], ['currentPlan', 'The current home', {type: 'select', options: [['sell', 'will be sold'], ['rent', 'will be rented out'], ['keep', 'will be kept for now and sold']]}]],
+      t: function (s, x) { var p = s.currentPlan === 'rent' ? 'I will rent out my current home' + (s.currentAddr ? ' at ' + s.currentAddr : '') + '.' : s.currentPlan === 'keep' ? 'I am temporarily keeping my current home' + (s.currentAddr ? ' at ' + s.currentAddr : '') + ' until it can be sold, and do not intend to keep it as a long-term residence.' : 'I am selling my current home' + (s.currentAddr ? ' at ' + s.currentAddr : '') + '.'; return ['I am purchasing ' + (x.prop || 'a new home') + ' as my new primary residence because ' + x.lc(s.why || '________') + '.', p]; }},
+    {id: 'cashout', label: 'Purpose of cash-out', re: 'Use of cash-out proceeds', f: [['amount', 'Approximate cash-out'], ['use', 'Use of the funds', {list: ['home improvements', 'paying off consumer debt', 'college tuition', 'reserves and savings', 'investment in another property', 'business purposes']}]],
+      t: function (s, x) { return ['The cash-out proceeds of approximately ' + (s.amount ? x.money(s.amount) : '$________') + ' from the refinance of ' + (x.prop || 'my property') + ' will be used for ' + (s.use || '________') + '.']; }},
+    {id: 'business', label: 'Business purpose (investment property)', re: 'Business purpose of the loan', f: [['use', 'Use of the property', {list: ['rental to tenants', 'resale after renovation', 'my business operations']}]],
+      t: function (s, x) { return ['The property at ' + (x.prop || '________') + ' is being ' + (x.buy ? 'purchased' : 'refinanced') + ' for business purposes (' + (s.use || 'rental to tenants') + '). It will not be occupied by me or any member of my family, and the loan proceeds will be used for business purposes only.']; }},
+    {id: 'divorce', label: 'Divorce / separation', re: 'Divorce', f: [['exName', 'Former spouse'], ['divDate', 'Divorce final on', {type: 'date'}], ['support', 'Support paid or received', {ph: 'e.g. I pay $1,200 a month in child support until 2031', wide: 1}]],
+      t: function (s, x) { return ['I was divorced from ' + (s.exName || '________') + ' on ' + x.d(s.divDate) + '.', s.support ? s.support.replace(/\.?$/, '.') : 'I do not pay or receive alimony or child support.', 'Any accounts we held jointly are listed with their status in my loan application.']; }},
+    {id: 'lates', label: 'Late payments / derogatory credit', re: 'Late payments on my credit report', rows: 'lates', f: [['why', 'Cause', {list: ['a temporary loss of income', 'a medical emergency', 'a billing error by the creditor', 'an oversight while I was moving', 'a change in autopay accounts']}]],
+      t: function (s, x) { return ['The late payment' + x.pl(s.lates) + ' shown below occurred because of ' + (s.why || '________') + ':', x.rows('lates'), 'This was an isolated situation that has been resolved. All of my accounts are current, and I have taken steps so it does not happen again.']; }},
+    {id: 'names', label: 'Name variations / AKA', re: 'Names on my credit report', rows: 'names', f: [],
+      t: function (s, x) { return ['The names below appear on my credit report and documents, and all of them refer to me:', x.rows('names'), 'I have not used any other names.']; }},
+    {id: 'access', label: 'Full access to business funds (from a co-owner)', re: 'Access to business funds', third: 'Co-owner (signs the letter)', f: [['business', 'Business'], ['ownerPct', 'Co-owner\'s ownership %'], ['accounts', 'Account(s)', {ph: 'e.g. Chase checking ending 4023'}]],
+      t: function (s, x) { return ['I, ' + (s.signer || '________') + ', am ' + (s.ownerPct ? s.ownerPct.replace(/%?$/, '%') + ' ' : 'a ') + 'owner of ' + (s.business || '________') + '. ' + x.who() + (x.many ? ' have' : ' has') + ' full access to the business account' + (s.accounts ? 's (' + s.accounts + ')' : 's') + ' and my permission to use these funds toward ' + (x.buy ? 'the purchase of ' : 'the refinance of ') + (x.prop || 'the property') + '.', 'The use of these funds will not have a negative effect on the business.']; }},
+    {id: 'emd', label: 'Source of the earnest money deposit', re: 'Earnest money deposit', f: [['amount', 'Deposit amount'], ['date1', 'Paid on', {type: 'date'}], ['account', 'From account', {ph: 'e.g. Chase checking ending 1126'}]],
+      t: function (s, x) { return ['The earnest money deposit of ' + (s.amount ? x.money(s.amount) : '$________') + ' paid on ' + x.d(s.date1) + ' came from my ' + (s.account || '________') + ' account. These funds are my own savings and were not borrowed.']; }},
+    {id: 'dependents', label: 'Dependents', re: 'Dependents', rows: 'people', f: [],
+      t: function (s, x) { return ['The following ' + (x.n(s.people) === 1 ? 'is my dependent' : 'are my dependents') + ':', x.rows('people')]; }},
+    {id: 'permission', label: 'Permission / authorization', re: 'Authorization', f: [['grantee', 'I authorize'], ['action', 'To', {list: ['update my insurance policy for the purposes of a refinance', 'speak with my insurance agent about my policy', 'obtain a payoff statement for my current mortgage', 'verify my employment and income']}]],
+      t: function (s, x) { return ['I grant permission to ' + (s.grantee || '________') + ' to ' + (s.action || '________') + '.']; }},
+    {id: 'custom', label: 'Other (write your own)', re: 'Letter of explanation', f: [], t: function () { return ['']; }}
+  ];
+  function loxType(s) { return LOX_TYPES.filter(function (t) { return t.id === s.type; })[0] || LOX_TYPES[0]; }
+  B.lox = {
+    label: 'Letter of explanation', sub: 'Deposits, inquiries, addresses, gaps, rent free, occupancy and more',
+    init: function () {
+      var f = file();
+      return {style: 'plain', type: 'deposits', date: dateFromPicker(iso()), salutation: 'To Whom It May Concern:', subject: '', loanNumber: '', lender: '',
+        borrowers: f.borrowers.length ? f.borrowers.map(function (n) { return {name: n, mail: ''}; }) : [{name: '', mail: ''}], signer: '', signerPhone: '',
+        address: f.address, city: f.city, state: stateName(f.state), zip: f.zip, county: f.county, addrFree: '', purpose: /refi/i.test(String((f.inputs || {}).loanPurpose || '')) ? 'Refinance' : 'Purchase',
+        deposits: [{date: '', amount: '', account: '', source: ''}], inquiries: [{creditor: '', date: '', result: 'No new credit was opened'}], addresses: [{address: '', from: '', to: '', note: ''}], lates: [{creditor: '', date: '', note: ''}], names: [{name: '', note: ''}], people: [{name: '', age: '', relationship: ''}], payments: [{date: '', amount: '', payee: '', purpose: ''}], notDebt: true,
+        useFunds: 'will not', noNew: true, body: '', extra: '', closing: 'Sincerely,', cond: '', sigDates: true, logo: '', logoSize: '52', logoPos: 'left'};
+    },
+    fix: function (s) { Object.keys(LOX_COLS).forEach(function (k) { if (!Array.isArray(s[k]) || !s[k].length) { var o = {}; LOX_COLS[k].forEach(function (c) { o[c[0]] = ''; }); s[k] = [o]; } }); },
+    gen: function (s) {   /* the generated wording for the kind of letter chosen */
+      var T = loxType(s), bor = names(s.borrowers), pa = String(s.addrFree || '').trim() ? s.addrFree.replace(/\n/g, ', ') : fullAddress(s);
+      var x = {prop: pa, buy: !/refi/i.test(s.purpose || ''), many: bor.length > 1, n: function (a) { return (a || []).filter(function (r) { return Object.keys(r).some(function (k) { return String(r[k] || '').trim(); }); }).length; },
+        pl: function (a, suf) { return x.n(a) === 1 ? '' : (suf || 's'); }, d: function (v) { return v ? when(v, slashDate) : '________'; }, lc: function (v) { return String(v).charAt(0).toLowerCase() + String(v).slice(1); },
+        money: function (v) { return /^\$/.test(String(v).trim()) || !N(v) ? String(v) : usd(v); }, who: function () { return bor.join(' and ') || '________'; }, rows: function (k) { return {rows: k}; }};
+      return T.t(s, x).filter(function (p) { return p && (typeof p === 'object' || String(p).trim()); });
+    },
+    form: function () {
+      var b = 'lox', s = drafts[b], T = loxType(s);
+      var rowsBlock = function (k) {
+        var cols = LOX_COLS[k], arr = s[k];
+        return '<fieldset><legend>' + esc({deposits: 'Deposits', inquiries: 'Inquiries', addresses: 'Addresses', lates: 'Late payments', names: 'Names', people: 'Dependents'}[k]) + '</legend>' + arr.map(function (r, i) {
+          return '<div class="g" style="margin-bottom:6px">' + cols.map(function (c) { return '<label class="f">' + esc(c[1]) + '<input data-b="lox" data-list="' + k + '" data-i="' + i + '" data-f="' + c[0] + '" value="' + esc(r[c[0]] || '') + '"' + (k === 'inquiries' && c[0] === 'result' ? ' list="mtBlx-res"' : '') + '></label>'; }).join('') +
+            (arr.length > 1 ? '<div class="row" style="align-items:end"><button type="button" class="x" data-a="rm" data-b="lox" data-list="' + k + '" data-i="' + i + '">Remove</button></div>' : '') + '</div>';
+        }).join('') + '<button type="button" class="btn" data-a="add" data-b="lox" data-list="' + k + '">+ Add a row</button>' + (k === 'inquiries' ? '<datalist id="mtBlx-res"><option value="No new credit was opened"><option value="Shopping for this mortgage - no other loan"><option value="New account opened - included in my application"><option value="Not authorized by me - disputed"></datalist>' : '') + '</fieldset>';
+      };
+      var sugg = (s.suggest || []).length ? '<fieldset><legend>Explanations the conditions ask for (' + s.suggest.length + ')</legend>' + s.suggest.map(function (g, i) { return '<div class="row" style="align-items:flex-start;gap:8px;margin-bottom:6px"><button type="button" class="btn" data-a="loxUse" data-i="' + i + '">Write this one</button><div class="note" style="margin:0">' + esc(g.text) + ' <i>(' + esc((LOX_TYPES.filter(function (t) { return t.id === g.type; })[0] || {}).label || '') + ')</i></div></div>'; }).join('') + '</fieldset>' : '';
+      var fromCommit = (drafts.commit && drafts.commit.conditions || []).some(function (c) { return LOX_RE.test(c.text) || LOX_RE.test(c.cat); });
+      return dropZone('loxfile', 'Drop the approval, a bank statement or a credit report', 'An approval or condition list: every explanation it asks for is listed below. A bank statement: its deposits fill the table. A credit report: its inquiries fill the table.') +
+        (fromCommit ? '<div class="row" style="margin:6px 0"><button type="button" class="btn" data-a="loxFromCommit">List the explanations the commitment letter\'s conditions ask for</button></div>' : '') + sugg +
+        '<fieldset><legend>Letter</legend><div class="g">' + field(b, 'type', 'Kind of letter', {type: 'select', options: LOX_TYPES.map(function (t) { return [t.id, t.label]; }), wide: 1}) + field(b, 'style', 'Layout', {type: 'select', options: LOX_STYLES, wide: 1}) +
+        field(b, 'date', 'Date', {type: 'date'}) + field(b, 'subject', 'Subject (RE:)', {ph: T.re}) + field(b, 'salutation', 'Greeting', {list: ['To Whom It May Concern:', 'Dear Underwriter:', 'Dear Sir or Madam:']}) + field(b, 'loanNumber', 'Loan number') + field(b, 'lender', 'Lender (formal layout)') + field(b, 'purpose', 'Transaction', {type: 'select', options: ['Purchase', 'Refinance']}) + '</div>' +
+        (s.cond ? '<div class="note">Condition: ' + esc(s.cond) + '</div>' : '') + '</fieldset>' +
+        people(b, 'borrowers', 'Borrowers', 4, {extra: ['mail', 'Mailing address (formal layout)']}) +
+        (T.third ? '<fieldset><legend>' + esc(T.third) + '</legend><div class="g">' + field(b, 'signer', 'Name') + '</div></fieldset>' : '') +
+        (T.f.length ? '<fieldset><legend>' + esc(T.label) + '</legend><div class="g">' + T.f.map(function (q) { return field(b, q[0], q[1], q[2] || {}); }).join('') + '</div></fieldset>' : '') +
+        (T.rows ? rowsBlock(T.rows) : '') + propertyBlock(b) +
+        '<fieldset><legend>Wording</legend><div class="g">' + field(b, 'body', 'Letter text (blank = the wording for this kind of letter; type here to write your own)', {type: 'textarea', wide: 1, rows: 7, ph: B.lox.gen(s).filter(function (p) { return typeof p === 'string'; }).join('\n\n')}) +
+        field(b, 'extra', 'Add a paragraph (optional)', {type: 'textarea', wide: 1, rows: 2}) + field(b, 'closing', 'Closing', {list: ['Sincerely,', 'Thank you for your consideration.\nSincerely,', 'Respectfully,', 'Signed,']}) + field(b, 'sigDates', 'Date line under each signature', {type: 'check'}) + '</div>' +
+        '<div class="row" style="margin-top:6px"><button type="button" class="btn" data-a="loxUseGen">Copy the generated wording into the text box to edit</button></div></fieldset>' + logoBlock(b);
+    },
+    doc: function (s) {
+      var T = loxType(s), bor = names(s.borrowers), st = s.style || 'plain', table = st === 'table';
+      var pa = String(s.addrFree || '').trim() ? esc(s.addrFree).replace(/\n/g, ', ') : esc(fullAddress(s)), subj = s.subject || T.re;
+      var rowsHtml = function (k) {
+        var cols = LOX_COLS[k], L = (s[k] || []).filter(function (r) { return cols.some(function (c) { return String(r[c[0]] || '').trim(); }); });
+        if (!L.length) return '';
+        var val = function (r, c) { var v = String(r[c[0]] || ''); return c[0] === 'amount' && N(v) && !/^\$/.test(v.trim()) ? usd(v) : v; };
+        if (table) return '<table class="lxt"><thead><tr>' + cols.map(function (c) { return '<th>' + esc(c[1]) + '</th>'; }).join('') + '</tr></thead><tbody>' + L.map(function (r) { return '<tr>' + cols.map(function (c) { return '<td>' + esc(val(r, c)) + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table>';
+        return '<ul class="lxl">' + L.map(function (r) { var v = cols.map(function (c) { return val(r, c); }); var hd = k === 'deposits' ? [v[2], v[1] ? 'deposit of ' + v[1] : '', v[0] ? 'on ' + v[0] : ''].filter(Boolean).join(' - ') : '', src = String(v[3] || '').replace(/\s*-\s*$/, ''); return '<li>' + esc(k === 'deposits' ? hd + (hd && src ? ': ' : '') + src : k === 'addresses' ? v[0] + (v[1] || v[2] ? ' (' + [v[1], v[2]].filter(Boolean).join(' to ') + ')' : '') + (v[3] ? ': ' + v[3] : '') : k === 'people' ? [v[0], v[1] ? 'age ' + v[1] : '', v[2]].filter(Boolean).join(', ') : v.filter(Boolean).join(' - ')) + '</li>'; }).join('') + '</ul>';
+      };
+      var paras = String(s.body || '').trim() ? s.body.split(/\n\s*\n/).map(function (p) { return '<p>' + esc(p.trim()).replace(/\n/g, '<br>') + '</p>' + (T.rows && /:\s*$/.test(p.trim()) ? rowsHtml(T.rows) : ''); }).join('') + (T.rows && !/:\s*(\n|$)/.test(s.body) ? rowsHtml(T.rows) : '')
+        : B.lox.gen(s).map(function (p) { return typeof p === 'object' ? rowsHtml(p.rows) : '<p>' + esc(p) + '</p>'; }).join('');
+      if (String(s.extra || '').trim()) paras += '<p>' + esc(s.extra).replace(/\n/g, '<br>') + '</p>';
+      var signers = T.third && s.signer ? [s.signer] : bor.length ? bor : [''];
+      var sig = '<p class="lxc">' + esc(s.closing || 'Sincerely,').replace(/\n/g, '<br>') + '</p><div class="lxs">' + signers.map(function (n) { return '<div class="sg"><div class="ln"></div><div>' + esc(n || 'Borrower') + '</div>' + (T.third && s.signerPhone ? '<div class="sm">' + esc(s.signerPhone) + '</div>' : '') + (s.sigDates !== false ? '<div class="sm">Date: ____________________</div>' : '') + '</div>'; }).join('') + '</div>';
+      var date = '<p>' + esc(when(s.date, slashDate)) + '</p>', hi = '<p class="lxh">' + esc(s.salutation || 'To Whom It May Concern:') + '</p>';
+      var re = '<table class="lxr"><tr><td>RE:</td><td><b>' + esc(subj) + '</b></td></tr>' + (bor.length ? '<tr><td>Borrower' + (bor.length > 1 ? 's' : '') + ':</td><td>' + esc(bor.join(' & ')) + '</td></tr>' : '') + (pa ? '<tr><td>Property:</td><td>' + pa + '</td></tr>' : '') + (s.loanNumber ? '<tr><td>Loan #:</td><td>' + esc(s.loanNumber) + '</td></tr>' : '') + '</table>';
+      var lg = s.logo ? '<div style="margin-bottom:.2in">' + logoImg(s) + '</div>' : '';
+      var body;
+      if (st === 're') body = lg + date + re + hi + paras + sig;
+      else if (st === 'formal') { var sender = (s.borrowers || []).map(function (p) { return typeof p === 'object' ? p : {name: p}; }).filter(function (p) { return p.name; }); body = lg + '<div class="lxf">' + sender.map(function (p) { return '<div><b>' + esc(p.name) + '</b>' + (p.mail ? '<br>' + esc(p.mail) : '') + '</div>'; }).join('') + '</div>' + date + (s.lender ? '<p>' + esc(s.lender) + '<br>Underwriting Department</p>' : '') + re + hi + paras + sig; }
+      else if (table) body = lg + '<h1 class="lxti">Letter of Explanation</h1><table class="lxk"><tr><th>Date</th><td>' + esc(when(s.date, slashDate)) + '</td></tr><tr><th>Subject</th><td>' + esc(subj) + '</td></tr>' + (bor.length ? '<tr><th>Borrower' + (bor.length > 1 ? 's' : '') + '</th><td>' + esc(bor.join(' & ')) + '</td></tr>' : '') + (pa ? '<tr><th>Property</th><td>' + pa + '</td></tr>' : '') + (s.loanNumber ? '<tr><th>Loan #</th><td>' + esc(s.loanNumber) + '</td></tr>' : '') + '</table>' + hi + paras + sig;
+      else body = lg + date + hi + paras + sig;
+      return page(st === 'table' ? 'ari' : 'cal', body, CSS_LOX);
+    }
+  };
+  var CSS_LOX = 'p{margin:0 0 .16in;line-height:1.45}.lxh{margin-top:.18in}ul.lxl{margin:-.06in 0 .16in .3in;padding:0}ul.lxl li{margin:0 0 4px;line-height:1.4}table.lxr{border-collapse:collapse;margin:.12in 0 .1in}table.lxr td{padding:1px 10px 1px 0;vertical-align:top}table.lxr td:first-child{font-weight:700;white-space:nowrap}' +
+    '.lxc{margin-top:.28in}.lxs{display:grid;grid-template-columns:1fr 1fr;gap:.35in .5in;margin-top:.1in}.lxs .ln{border-bottom:1px solid #000;height:34px;margin-bottom:3px}.lxs .sm{font-size:9.5pt;color:#333;margin-top:2px}.lxf{display:flex;gap:.4in;margin-bottom:.25in}' +
+    'h1.lxti{font-size:16pt;color:#1f3a5f;border-bottom:2px solid #1f3a5f;padding-bottom:5px;margin:0 0 .14in}table.lxk{border-collapse:collapse;width:100%;margin-bottom:.12in;font-size:10pt}table.lxk th{text-align:left;width:1.4in;background:#eef3fa;color:#1f3a5f;padding:5px 8px;border:1px solid #c5d3e4}table.lxk td{padding:5px 8px;border:1px solid #c5d3e4}' +
+    'table.lxt{border-collapse:collapse;width:100%;margin:-.04in 0 .16in;font-size:10pt}table.lxt th{background:#1f3a5f;color:#fff;text-align:left;padding:5px 7px}table.lxt td{border-bottom:1px solid #d5dde8;padding:5px 7px}' + CSS_LOGO;
+  /* conditions that ask for an explanation, and which kind of letter fits each */
+  var LOX_RE = /letter\s*of\s*explanation|\bLO[XE]\b|to\s*explain|explanation|explain\b/i;
+  function loxGuess(t) {
+    t = String(t || '');
+    return /payments?\s*to\b/i.test(t) ? 'payments' : /deposit|large\s*dep|transfer|sourc/i.test(t) ? 'deposits' : /inquir/i.test(t) ? 'inquiries' : /address|photo\s*ID|driver/i.test(t) ? 'address' : /gap|employment\s*history|unemploy/i.test(t) ? 'gap'
+      : /remote|work\s*from\s*home/i.test(t) ? 'remote' : /rent\s*free|living\s*with/i.test(t) ? 'rentfree' : /late|derog|delinq|collection|charge.?off/i.test(t) ? 'lates' : /occup|primary\s*res/i.test(t) ? 'occupancy'
+      : /cash.?out/i.test(t) ? 'cashout' : /business\s*purpose|investment/i.test(t) ? 'business' : /divorce|separat/i.test(t) ? 'divorce' : /\bAKA\b|name/i.test(t) ? 'names' : /access|business\s*(fund|account)/i.test(t) ? 'access'
+      : /EMD|earnest/i.test(t) ? 'emd' : /depend/i.test(t) ? 'dependents' : /hourly|salary|employ/i.test(t) ? 'empchange' : /payment/i.test(t) ? 'deposits' : 'custom';
+  }
+  /* names and addresses the condition quotes go straight into the rows: "deposits from A, B, C", "payments to X",
+     "address on photo ID is 9017 186th Street" */
+  function loxPrefill(s, g) {
+    var t = g.text.replace(/\s+/g, ' '), who = function (re) { var m = t.match(re); return m ? m[1].split(/\s*,\s*|\s+and\s+|\s*&\s*/).map(function (x) { return x.trim(); }).filter(function (x) { return /^[A-Z][a-z'.-]+(\s[A-Z][A-Za-z'.-]+){1,3}$/.test(x); }) : []; };
+    if (g.type === 'deposits') { var from = who(/deposits?\s*from\s+(.+?)(?:\s+noted|\s+on\s+(?:the\s+)?bank|\.|$)/i); if (from.length) s.deposits = from.map(function (n) { return {date: '', amount: '', account: '', source: 'Deposit from ' + n}; }); }
+    if (g.type === 'payments') { var to = who(/payments?\s*to\s+(.+?)(?:\s+noted|\s+on\s+(?:the\s+)?bank|\.|$)/i); if (to.length) s.payments = to.map(function (n) { return {date: '', amount: '', payee: n, purpose: ''}; }); }
+    if (g.type === 'address') { var ad = t.match(/\bis\s+(\d{1,6}[\w .'#-]{3,60}?)(?:\s*[.,;]|\s+(?:and|-)\s|$)/i); if (ad) s.addresses = [{address: ad[1].trim(), from: '', to: '', note: ''}]; }
+  }
+  function loxSuggest(conds) { return conds.filter(function (c) { return LOX_RE.test(c.text || '') || LOX_RE.test(c.cat || ''); }).filter(function (c) { return !/CPA|tax\s*preparer|accountant/i.test(c.text || ''); }).map(function (c) { var t = (c.cat ? c.cat + ' - ' : '') + c.text; return {text: t, type: loxGuess(c.text)}; }); }
+  /* a bank statement's deposits over $1,000, a credit report's inquiries */
+  function loxDeposits(text) {
+    var out = [], seen = {};
+    String(text || '').split('\n').forEach(function (l) {
+      if (!/deposit|transfer\s*(from|in)|zelle\s*from|mobile\s*dep|credit\b|incoming/i.test(l) || /withdraw|debit\s*card|purchase|fee\b/i.test(l)) return;
+      var d = l.match(/\b(\d{1,2}\/\d{1,2}(?:\/\d{2,4})?)\b/), a = (l.match(/\$?\s?\d{1,3}(?:,\d{3})*\.\d{2}/g) || []).map(function (v) { return N(v); }).filter(function (v) { return v >= 1000; });
+      if (!a.length) return; var k = (d ? d[1] : '') + a[0]; if (seen[k]) return; seen[k] = 1;
+      out.push({date: d ? d[1] : '', amount: a[0].toFixed(2), account: '', source: l.replace(/\s{2,}/g, ' ').replace(/\$?\s?\d{1,3}(?:,\d{3})*\.\d{2}/g, '').replace(/\b\d{1,2}\/\d{1,2}(?:\/\d{2,4})?\b/g, '').trim().slice(0, 60)});
+    });
+    return out.slice(0, 20);
+  }
+  function loxInquiries(text) {
+    var out = [], T = String(text || ''), i = T.search(/inquir/i); if (i < 0) return out;
+    T.slice(i, i + 6000).split('\n').forEach(function (l) { var d = l.match(/\b(\d{1,2}\/\d{1,2}\/\d{2,4})\b/); if (!d) return; var nm = l.replace(d[0], '').replace(/inquir\w*|\bdate\b|\bINDIRECT\b|\bDIRECT\b/gi, '').replace(/\s{2,}/g, ' ').trim(); if (nm.length > 2 && nm.length < 60) out.push({creditor: nm, date: d[1], result: 'No new credit was opened'}); });
+    return out.slice(0, 15);
+  }
+
+  /* ======================================================= CPA / TAX PREPARER LETTER (57.5)
+     The preparer confirms the facts a lender asks for: how long they have prepared the returns, ownership, when the
+     business started, that it is active and current on taxes, and that using business funds will not hurt it. Five
+     letterheads, a logo, statements switched on and off, your own statements, the businesses from the Income Calculator,
+     and the preparer's details read from an earlier letter. */
+  var CPA_STYLES = [['letterhead', 'Firm letterhead - centered name, "based upon the records available to us" list'], ['certify', 'Certification letter - "CPA LETTER" title, narrative paragraphs'], ['sideband', 'Side-band letterhead - colored band, firm block on the right'], ['modern', 'Modern - firm bar, facts table, statements'], ['brief', 'Brief - logo left, short confirmation']];
+  var CPA_ENT = ['Sole proprietorship (Schedule C)', 'Single-member LLC (Schedule C)', 'LLC taxed as a partnership (Form 1065)', 'Partnership (Form 1065)', 'S corporation (Form 1120-S)', 'C corporation (Form 1120)'];
+  var CPA_ST = [['stSince', 'Years we have prepared the returns'], ['stOwner', 'Ownership'], ['stEst', 'When the business started / self-employed since'], ['stPrior', 'How it filed before (e.g. Schedule C before the LLC)'], ['stStanding', 'Active and in good standing'],
+    ['stTaxes', 'Current on tax obligations'], ['stFunds', 'Use of business funds will not harm the business'], ['stAccess', 'Full access to the business account'], ['stOngoing', 'Business is stable and ongoing'], ['stDebts', 'Debts paid by the business'], ['stExt', 'Extension filed'], ['stExplain', 'Explanation the lender asked for'], ['stDisclaim', 'Prepared for mortgage purposes (disclaimer)']];
+  B.cpa = {
+    label: 'CPA / tax preparer letter', sub: 'Self-employment, ownership, use of business funds',
+    init: function () {
+      var f = file(), y = new Date().getFullYear(), d = {style: 'letterhead', date: dateFromPicker(iso()), voice: 'I', cred: 'CPA', prepName: '', firm: '', firmAddr1: '', firmAddr2: '', firmPhone: '', firmFax: '', firmEmail: '', firmWeb: '', license: '', ptin: '', members: '',
+        clients: f.borrowers.length ? f.borrowers.map(function (n) { return {name: n}; }) : [{name: ''}], title: 'Mr.', ssn4: '', biz: '', ent: CPA_ENT[0], ownPct: '100', bizType: '', bizAddr: '', bizPhone: '', estDate: '', selfSince: '', since: String(y - 3), years: (y - 2) + ' and ' + (y - 1), priorForm: '', priorUntil: '',
+        state: stateName(f.state), fundsAmt: '', acct: '', debts: '', extYear: String(y - 1), explain: '', extra: [''], closing: 'Should you require any additional information, please feel free to contact ' + 'me.', color: '#2f5d50', logo: '', logoSize: '52', logoPos: 'left'};
+      CPA_ST.forEach(function (x) { d[x[0]] = /stSince|stOwner|stEst|stStanding|stTaxes|stDisclaim/.test(x[0]); });
+      return d;
+    },
+    fix: function (s) { if (!s.extra) s.extra = ['']; if (!s.clients) s.clients = [{name: ''}]; },
+    stmts: function (s) {
+      var we = s.voice === 'We', I = we ? 'we' : 'I', my = we ? 'our' : 'my', Ihave = we ? 'We have' : 'I have', cl = names(s.clients), c = cl.join(' and ') || '________', are = cl.length > 1 ? 'are' : 'is', has = cl.length > 1 ? 'have' : 'has';
+      var biz = s.biz || 'the business', own = String(s.ownPct || '').replace(/%?$/, '%'), corp = /corporation|LLC|partnership/i.test(s.ent || '');
+      var yrs = function (v) { var d = parseDate(v); if (!d) return 0; return Math.floor((Date.now() - d) / (365.25 * 864e5)); }, ey = yrs(s.estDate);
+      var L = [];
+      if (s.stSince) L.push(Ihave + ' prepared the federal' + (corp ? ' and business' : '') + ' tax returns for ' + c + (s.ssn4 ? ' (SSN ending ' + s.ssn4 + ')' : '') + ' since ' + (s.since || '________') + (s.years ? ', including tax years ' + s.years : '') + '.');
+      if (s.stOwner) L.push(c + ' ' + are + (cl.length > 1 ? ' owners' : ' the owner') + ' of ' + biz + (s.bizType ? ', a ' + s.bizType + ' business,' : '') + ' with ' + (cl.length > 1 ? 'a combined ' : 'an ') + 'ownership interest of ' + own + '. The business files as a ' + (s.ent || 'sole proprietorship').replace(/\s*\(.*\)/, '').toLowerCase() + (/\((.*)\)/.test(s.ent || '') ? ' (' + s.ent.match(/\((.*)\)/)[1] + ')' : '') + '.');
+      if (s.stEst) L.push(biz.charAt(0).toUpperCase() + biz.slice(1) + ' was established on ' + (s.estDate ? when(s.estDate) : '________') + (ey >= 1 ? ' and has been in operation for ' + ey + ' year' + (ey === 1 ? '' : 's') : '') + '. ' + c + ' ' + has + ' been self-employed since ' + (s.selfSince ? when(s.selfSince) : s.estDate ? when(s.estDate) : '________') + '.');
+      if (s.stPrior && s.priorForm) L.push('Prior to ' + (s.priorUntil ? when(s.priorUntil) : 'its formation') + ', the business operated and filed its federal income tax returns as ' + s.priorForm + '.');
+      if (s.stStanding) L.push('The business is currently open, operating and in good standing' + (s.state ? ' in the State of ' + s.state : '') + (s.bizAddr ? ', with its address at ' + s.bizAddr : '') + (s.bizPhone ? ' and phone number ' + s.bizPhone : '') + '.');
+      if (s.stTaxes) L.push('To the best of ' + my + ' knowledge, ' + c + ' ' + are + ' current with all federal and state tax obligations, and no balance is due' + (s.years ? ' for tax years ' + s.years : '') + '.');
+      if (s.stFunds) L.push('Based on ' + my + ' review of the business\'s financial records, the business has sufficient funds' + (s.fundsAmt ? ' (approximately ' + (N(s.fundsAmt) ? usd(s.fundsAmt) : s.fundsAmt) + ')' : '') + ' available, and the withdrawal of ' + (s.fundsAmt ? 'these funds' : 'business funds') + ' toward ' + (cl.length > 1 ? 'their' : 'the') + ' home purchase will not have a material adverse effect on the ongoing operations or financial stability of the business.');
+      if (s.stAccess) L.push(c + ' ' + has + ' full access to the business bank account' + (s.acct ? ' (' + s.acct + ')' : 's') + ' and may use those funds without affecting ' + (cl.length > 1 ? 'their' : 'the') + ' personal finances.');
+      if (s.stOngoing) L.push('Based on ' + my + ' review of the financial records and tax filings, the business is stable and ongoing, and ' + I + ' have no knowledge of any plan to close or sell it.');
+      if (s.stDebts && s.debts) L.push('The following obligations in ' + c + '\'s name are paid by the business: ' + s.debts + '.');
+      if (s.stExt) L.push('An extension has been filed for tax year ' + (s.extYear || '________') + '.');
+      if (s.stExplain && s.explain) { var ex = String(s.explain).trim(); if (/[:\-–]$/.test(ex)) ex += ' ________'; L.push(ex.replace(/([^.])\s*$/, '$1.')); }
+      (s.extra || []).forEach(function (t) { if (String(t || '').trim()) L.push(String(t).trim()); });
+      return L;
+    },
+    form: function () {
+      var b = 'cpa', s = drafts[b], S0 = G('S'), biz = S0 ? (S0.schc || []).concat(S0.corp || []).filter(function (x) { return x.name; }) : [];
+      var conds = (drafts.commit && drafts.commit.conditions || []).filter(function (c) { return /CPA|tax\s*preparer|accountant/i.test(c.text || ''); });
+      return dropZone('cpafile', 'Drop an earlier letter from this preparer, or the approval', 'An earlier CPA letter: the preparer\'s name, firm, address, phone, fax, email and PTIN are filled in. An approval or condition list: the CPA conditions are listed so the letter answers them.') +
+        (conds.length || (s.condList || []).length ? '<fieldset><legend>What the conditions ask the CPA for</legend>' + (s.condList || conds.map(function (c) { return (c.cat ? c.cat + ' - ' : '') + c.text; })).map(function (t, i) { return '<div class="row" style="align-items:flex-start;gap:8px;margin-bottom:6px"><button type="button" class="btn" data-a="cpaUse" data-t="' + esc(t) + '">Answer it</button><div class="note" style="margin:0">' + esc(t) + '</div></div>'; }).join('') + '</fieldset>' : '') +
+        '<fieldset><legend>Layout</legend><div class="g">' + field(b, 'style', 'Style', {type: 'select', options: CPA_STYLES, wide: 1}) + field(b, 'date', 'Date', {type: 'date'}) + field(b, 'voice', 'Written as', {type: 'select', options: [['I', 'I (the preparer)'], ['We', 'We (the firm)']]}) + field(b, 'color', 'Accent color', {list: ['#2f5d50', '#1f3a5f', '#6b2c2c', '#333333']}) + '</div></fieldset>' + logoBlock(b) +
+        '<fieldset><legend>Preparer</legend><div class="g">' + field(b, 'prepName', 'Name', {list: hist('prepName')}) + field(b, 'cred', 'Credential', {list: ['CPA', 'EA (Enrolled Agent)', 'Tax Preparer', 'CPA, CGMA', 'Attorney']}) + field(b, 'firm', 'Firm', {list: hist('firm')}) + field(b, 'license', 'License #') + field(b, 'ptin', 'PTIN', {list: hist('ptin')}) +
+        field(b, 'firmAddr1', 'Street address', {addrPair: 'firmAddr2'}) + field(b, 'firmAddr2', 'City, state ZIP') + field(b, 'firmPhone', 'Phone') + field(b, 'firmFax', 'Fax') + field(b, 'firmEmail', 'Email') + field(b, 'firmWeb', 'Website') + field(b, 'members', 'Partners / memberships (letterhead)', {type: 'textarea', wide: 1, rows: 2, ph: 'One per line, e.g. Members - New York State Society of CPAs'}) + '</div></fieldset>' +
+        people(b, 'clients', 'Clients (borrowers)', 4) +
+        '<fieldset><legend>Business</legend>' + (biz.length ? '<div class="row" style="margin-bottom:6px">' + biz.map(function (x, i) { return '<button type="button" class="btn" data-a="cpaBiz" data-i="' + i + '">Use ' + esc(x.name) + '</button>'; }).join('') + '</div>' : '') + '<div class="g">' +
+        field(b, 'biz', 'Business name') + field(b, 'ent', 'Entity / how it files', {list: CPA_ENT}) + field(b, 'ownPct', 'Ownership %') + field(b, 'bizType', 'Kind of business', {ph: 'e.g. consulting services'}) + field(b, 'bizAddr', 'Business address', {wide: 1}) + field(b, 'bizPhone', 'Business phone') + field(b, 'state', 'State of good standing') +
+        field(b, 'estDate', 'Established on', {type: 'date'}) + field(b, 'selfSince', 'Self-employed since', {type: 'date'}) + field(b, 'since', 'Preparing the returns since (year)') + field(b, 'years', 'Tax years prepared', {ph: '2024 and 2025'}) + field(b, 'title', 'Client title (certification style)', {list: ['Mr.', 'Mrs.', 'Ms.', 'Mx.', '']}) + field(b, 'ssn4', 'SSN last 4 (optional)') + '</div></fieldset>' +
+        '<fieldset><legend>Statements in the letter</legend><div class="g">' + CPA_ST.map(function (x) { return field(b, x[0], x[1], {type: 'check'}); }).join('') + '</div><div class="g" style="margin-top:8px">' +
+        field(b, 'priorForm', 'Filed before as', {ph: 'a sole proprietorship on Schedule C'}) + field(b, 'priorUntil', 'Until', {type: 'date'}) + field(b, 'fundsAmt', 'Business funds to be used (optional)') + field(b, 'acct', 'Business account', {ph: 'Chase checking ending 8720'}) + field(b, 'debts', 'Debts paid by the business', {wide: 1}) + field(b, 'extYear', 'Extension filed for') +
+        field(b, 'explain', 'Explanation the lender asked for', {type: 'textarea', wide: 1, rows: 3, ph: 'e.g. The client reported two Schedule C businesses for 2025 because ...'}) + '</div>' +
+        '<div class="note" style="margin-top:8px">Your own statements:</div>' + s.extra.map(function (t, i) { return '<div class="row" style="gap:6px;margin-bottom:4px"><textarea data-b="cpa" data-list="extra" data-i="' + i + '" rows="2" style="flex:1">' + esc(t) + '</textarea>' + (s.extra.length > 1 ? '<button type="button" class="x" data-a="rm" data-b="cpa" data-list="extra" data-i="' + i + '">Remove</button>' : '') + '</div>'; }).join('') +
+        '<button type="button" class="btn" data-a="add" data-b="cpa" data-list="extra">+ Add a statement</button><div class="g" style="margin-top:8px">' + field(b, 'closing', 'Closing sentence', {wide: 1}) + '</div></fieldset>';
+    },
+    doc: function (s) {
+      var st = s.style || 'letterhead', L = B.cpa.stmts(s), cl = names(s.clients), c = cl.join(' and ') || '________', we = s.voice === 'We', col = s.color || '#2f5d50';
+      var credLine = esc([s.prepName, s.cred ? s.cred.replace(/\s*\(.*\)/, '') : ''].filter(Boolean).join(', '));
+      var contact = [s.firmAddr1, s.firmAddr2].filter(Boolean).map(esc).join('<br>'), phones = [s.firmPhone ? 'Phone ' + s.firmPhone : '', s.firmFax ? 'Fax ' + s.firmFax : ''].filter(Boolean).map(esc).join(' &middot; '), web = [s.firmEmail, s.firmWeb].filter(Boolean).map(esc).join(' &middot; ');
+      var ids = [s.license ? 'License # ' + s.license : '', s.ptin ? 'PTIN ' + s.ptin : ''].filter(Boolean).map(esc).join(' &middot; ');
+      var isCpa = /CPA/i.test(s.cred || ''), who = we ? (isCpa ? 'We are the certified public accountants' : 'We are the tax preparers') : 'I, ' + (credLine || '________') + ', am the ' + (isCpa ? 'certified public accountant' : 'tax preparer');
+      var hello = '<p class="cph">To Whom It May Concern:</p>', bye = '<p>' + esc(String(s.closing || '').replace(/\bme\.$/, we ? 'our office.' : 'me.')) + '</p>';
+      var disc = s.stDisclaim ? '<p class="cpd">This letter has been prepared at the request of ' + (we ? 'our' : 'my') + ' client for mortgage lending purposes only. It is based on information provided by the client and contained in the tax filings and accounting records, has not been audited, and should not be construed as a guarantee of future financial performance.</p>' : '';
+      var sig = '<p style="margin-top:.25in">Sincerely,</p><div class="cps"></div><div><b>' + credLine + '</b></div>' + (s.firm ? '<div>' + esc(s.firm) + '</div>' : '') + (ids ? '<div class="cpm">' + ids + '</div>' : '');
+      var intro = '<p>' + who + ' for ' + (s.biz && !/Schedule C/i.test(s.ent || '') ? esc(s.biz) + ' and ' + esc(c) : esc(c)) + ' and ' + (we ? 'have' : 'have') + ' prepared ' + (cl.length > 1 || s.biz ? 'the' : 'the') + ' tax returns and related financial information.</p>';
+      var lg = logoImg(s), body;
+      if (st === 'letterhead') {
+        var mem = String(s.members || '').trim() ? '<div class="cpmem">' + esc(s.members).replace(/\n/g, '<br>') + '</div>' : '';
+        body = '<div class="cpl" style="--c:' + col + '">' + (lg ? '<div class="cplg">' + lg + '</div>' : '') + '<div class="cpn">' + esc(s.firm || s.prepName || 'Firm Name') + '</div><div class="cpa">' + contact + '</div><div class="cpr"></div><div class="cpa">' + phones + (web ? '<br>' + web : '') + '</div><div class="cpr"></div></div>' + mem +
+          '<p><b>Date:</b> ' + esc(when(s.date)) + '</p>' + hello + intro + (L.length ? '<p>Based upon the records available to ' + (we ? 'us' : 'me') + ':</p><ul class="cpb">' + L.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ul>' : '') + disc + bye + sig;
+      } else if (st === 'certify') {
+        var nm = (s.title ? s.title + ' ' : '') + c;
+        body = (lg ? '<div style="margin-bottom:.1in">' + lg + '</div>' : '') + '<h1 class="cpt">' + (isCpa ? 'CPA LETTER' : 'TAX PREPARER LETTER') + '</h1><p>' + esc(new Date(parseDate(s.date) || Date.now()).toLocaleDateString('en-US', {weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'})) + '</p>' + hello +
+          '<p>This letter certifies that ' + (we ? 'we, ' + esc(s.firm || '________') + ',' : 'I, ' + esc(credLine || '________') + ',') + ' ' + (we ? 'have' : 'have') + ' been preparing (or have reviewed) the federal tax returns for ' + esc(nm) + (s.ssn4 ? ' (SSN: XXX-XX-' + esc(s.ssn4) + ')' : '') + ' since ' + esc(s.since || '________') + '.</p>' +
+          L.filter(function (t) { return !/^(I|We) have prepared the federal/.test(t); }).map(function (t) { return '<p>' + esc(t) + '</p>'; }).join('') + disc + bye +
+          '<div class="cpsg"><div><p style="margin:0">Sincerely,</p><b>' + credLine + '</b>' + (s.firm ? '<br>' + esc(s.firm) : '') + (s.firmPhone ? '<br>' + esc(s.firmPhone) : '') + (s.ptin ? '<br>PTIN No. ' + esc(s.ptin) : '') + (s.license ? '<br>License # ' + esc(s.license) : '') + (s.firmEmail ? '<br>' + esc(s.firmEmail) : '') + (contact ? '<br>' + contact : '') + '</div><div class="cpsl"><div class="cps"></div>Signature</div></div>';
+      } else if (st === 'sideband') {
+        body = '<div class="cpsw" style="--c:' + col + '"><div class="cpbd"><i></i></div><div class="cpsb"><div class="cpsf">' + (lg ? lg : '<div class="cpn2">' + esc(s.firm || 'Firm Name') + '</div>') + '<div><b>' + esc(s.prepName || '') + '</b></div><div><i>' + esc(isCpa ? 'Certified Public Accountant' : s.cred || '') + '</i></div><div>' + contact + '</div><div>' + phones + '</div><div>' + web + '</div></div>' +
+          '<p>Date: ' + esc(when(s.date)) + '</p>' + hello + intro + L.map(function (t) { return '<p>' + esc(t) + '</p>'; }).join('') + disc + bye + sig + '</div></div>';
+      } else if (st === 'modern') {
+        var facts = [['Client' + (cl.length > 1 ? 's' : ''), c], ['Business', s.biz], ['Entity', s.ent], ['Ownership', s.ownPct ? String(s.ownPct).replace(/%?$/, '%') : ''], ['Established', s.estDate ? when(s.estDate) : ''], ['Returns prepared since', s.since], ['Tax years', s.years], ['Status', s.stStanding ? 'Active, in good standing' : '']].filter(function (r) { return r[1]; });
+        body = '<div class="cpmb" style="--c:' + col + '"><div>' + (lg ? lg : '') + '<div class="cpn3">' + esc(s.firm || s.prepName || 'Firm Name') + '</div></div><div class="cpmr">' + contact + (phones ? '<br>' + phones : '') + (web ? '<br>' + web : '') + '</div></div>' +
+          '<p>' + esc(when(s.date)) + '</p>' + hello + intro + '<table class="cpft" style="--c:' + col + '">' + facts.map(function (r) { return '<tr><th>' + esc(r[0]) + '</th><td>' + esc(r[1]) + '</td></tr>'; }).join('') + '</table>' +
+          (L.length ? '<ol class="cpo">' + L.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ol>' : '') + disc + bye + sig;
+      } else {
+        body = '<div class="cpbr">' + (lg || '') + '<div><b>' + esc(s.firm || '') + '</b><div class="cpm">' + [s.firmAddr1, s.firmAddr2, s.firmPhone].filter(Boolean).map(esc).join(' &middot; ') + '</div></div></div><p>' + esc(when(s.date)) + '</p>' + hello +
+          '<p>' + L.map(esc).join(' ') + '</p>' + disc + bye + sig;
+      }
+      return page(st === 'certify' ? 'tnr' : st === 'sideband' ? 'geo' : 'cal', body, CSS_CPA);
+    }
+  };
+  var CSS_CPA = 'p{margin:0 0 .14in;line-height:1.42}.cph{font-weight:700;margin-top:.15in}.cps{border-bottom:1px solid #000;width:2.8in;height:34px;margin:.06in 0 3px}.cpm{font-size:9pt;color:#444}.cpd{font-size:9.5pt;color:#333}' +
+    '.cpl{text-align:center;margin-bottom:.25in}.cplg .lg{margin:0 auto 6px}.cpn{font-size:17pt;letter-spacing:.08em;text-transform:uppercase;color:var(--c)}.cpa{font-size:9.5pt;letter-spacing:.05em;text-transform:uppercase;margin-top:3px;line-height:1.5}.cpr{width:.8in;border-top:1.5px solid #000;margin:6px auto}.cpmem{font-size:8pt;letter-spacing:.05em;text-transform:uppercase;text-align:right;margin:-.1in 0 .2in}' +
+    'ul.cpb{margin:0 0 .14in .25in;padding-left:.2in}ul.cpb li{margin:0 0 .09in;line-height:1.4}h1.cpt{text-align:center;font-size:14pt;margin:0 0 .25in}.cpsg{display:flex;justify-content:space-between;align-items:flex-end;margin-top:.2in;line-height:1.35}.cpsl{text-align:center}' +
+    '.cpsw{display:grid;grid-template-columns:.62in 1fr;gap:.32in;min-height:9.2in}.cpbd{position:relative;background:linear-gradient(90deg,#4a4a4a 0 .22in,transparent .22in)}.cpbd i{position:absolute;left:.07in;top:0;width:.55in;height:1.9in;background:var(--c);box-shadow:2px 2px 6px rgba(0,0,0,.25)}.cpsb{min-width:0}.cpsf{text-align:right;font-size:10pt;line-height:1.35;margin-bottom:.45in}.cpsf .lg{margin-left:auto;margin-bottom:4px}.cpn2{font-variant:small-caps;font-size:20pt;color:var(--c)}' +
+    '.cpmb{display:flex;justify-content:space-between;align-items:center;background:var(--c);color:#fff;margin:-1in -1in .3in;padding:.45in 1in .3in}.cpmb .lg{max-height:46px;margin-bottom:4px;background:#fff;padding:3px;border-radius:3px}.cpn3{font-size:16pt;font-weight:700}.cpmr{text-align:right;font-size:9pt;line-height:1.45}' +
+    'table.cpft{border-collapse:collapse;width:100%;margin:0 0 .16in;font-size:10pt}table.cpft th{text-align:left;width:1.8in;padding:5px 8px;border:1px solid #cfd8d4;background:#f1f5f3;color:var(--c)}table.cpft td{padding:5px 8px;border:1px solid #cfd8d4}ol.cpo{padding-left:.25in}ol.cpo li{margin:0 0 .08in;line-height:1.4}' +
+    '.cpbr{display:flex;gap:14px;align-items:center;border-bottom:1px solid #999;padding-bottom:8px;margin-bottom:.3in}' + CSS_LOGO;
+  /* an earlier letter from this preparer: name, firm, address, phone, fax, email, PTIN */
+  function parseCpaLetter(text) {
+    var T = String(text || ''), g = function (re) { var m = T.match(re); return m ? m[1].trim() : ''; }, o = {};
+    o.ptin = g(/PTIN\s*(?:No\.?|#)?:?\s*(P\d{8})/i); o.license = g(/License\s*(?:No\.?|#)\s*:?\s*([A-Z0-9-]{4,})/i);
+    o.firmEmail = g(/([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})/); o.firmWeb = g(/\b(www\.[A-Za-z0-9.-]+\.[A-Za-z]{2,})/i);
+    var ph = T.match(/\(?\d{3}\)?[\s.-]*\d{3}[\s.-]*\d{4}/g) || []; var fx = g(/Fax:?\s*(\(?\d{3}\)?[\s.-]*\d{3}[\s.-]*\d{4})/i); o.firmFax = fx; o.firmPhone = (ph.filter(function (p) { return p.replace(/\D/g, '') !== fx.replace(/\D/g, ''); })[0] || '').trim();
+    var nm = T.match(/\n\s*([A-Z][a-z]+(?:\s[A-Z]\.?)?(?:\s[A-Z][A-Za-z'-]+){1,2}),?\s*(CPA|EA|C\.P\.A\.)\b/); if (nm) { o.prepName = nm[1]; o.cred = nm[2].replace(/\./g, '') === 'CPA' ? 'CPA' : 'EA (Enrolled Agent)'; }
+    var ad = T.match(/\n\s*(\d{1,6}[A-Za-z0-9 .'#-]{3,60})\s*\n\s*([A-Za-z .'-]{2,40},\s*[A-Z]{2}\s+\d{5})/) || T.match(/(\d{1,6}\s[A-Za-z0-9 .'#-]{3,50}),?\s+([A-Za-z .'-]{2,40},\s*(?:NY|NJ|CT|FL|PA|CA|TX|MA|[A-Z]{2})\s+\d{5})/);
+    if (ad) { o.firmAddr1 = ad[1].trim(); o.firmAddr2 = ad[2].trim(); }
+    var first = T.split('\n').map(function (l) { return l.trim(); }).filter(Boolean)[0] || ''; if (/(&|CPA|C\.P\.A|LLP|LLC|Inc|Co\.?|Group|Associates|Tax|Accounting|Solutions)/i.test(first) && first.length < 70 && !/letter/i.test(first)) o.firm = first.replace(/\s{2,}/g, ' ');
+    return o;
+  }
+
+  var ORDER = ['addendum', 'lease', 'estimate', 'pl', 'schc', 'pay', 'gift', 'le', 'commit', 'lox', 'cpa', 'mi'];
   var RERENDER = {listSet: 1, listFmt: 1, listGroup: 1, listDone: 1, showPay: 1, drawCustom: 1, style: 1, leaseType: 1, program: 1, concOnTop: 1, ttOn: 1, renoOn: 0, payType: 1, state: 1, locality: 1, ytdMode: 1, logoSize: 0, type: 1, oSource: 0, oPrice: 1};
   function mount() {
     if ($('mtB')) return;
@@ -2193,6 +2529,7 @@
     if (t.hasAttribute('data-list')) { var arr = t.getAttribute('data-list').split('.').reduce(function (o, k) { return o && o[k]; }, drafts[b]), i = +t.getAttribute('data-i'), f = t.getAttribute('data-f');
       if (f) { if (typeof arr[i] !== 'object') arr[i] = {name: arr[i] || ''}; arr[i][f] = v; if (t.type === 'checkbox' && v) { if (f === 'subj') arr[i].noAddr = false; if (f === 'noAddr') arr[i].subj = false; } } else arr[i] = v; persist(); refresh(); if (t.type === 'checkbox') renderForm(); else if (B[b].side) B[b].side(); return; }
     var k = t.getAttribute('data-k'), s = drafts[b]; s[k] = v;
+    if (b === 'commit' || b === 'cpa' || b === 'lox') profileSave(k, v);
     if (b === 'addendum') {
       if (k === 'concPct') s.concDrv = 'pct'; else if (k === 'concAmt') s.concDrv = 'amt';
       if (k === 'toPrice') s.priceManual = String(v).trim() !== '';
@@ -2242,7 +2579,7 @@
     w.addEventListener('input', function (e) { if (e.target.matches('input:not([type=checkbox]):not([type=file]):not(.pk):not(#mtBpreset),textarea')) setVal(e.target, e); });
     w.addEventListener('change', function (e) {
       var t = e.target, a = t.getAttribute('data-a');
-      if (t.type === 'file') { var fl = t.files && t.files[0]; t.value = ''; if (fl) { if (a === 'logo') loadLogo(t.getAttribute('data-b'), fl); else readInto(a, fl); } return; }
+      if (t.type === 'file') { var fls = Array.prototype.slice.call(t.files || []), fl = fls[0]; t.value = ''; if (fl) { if (a === 'logo') loadLogo(t.getAttribute('data-b'), fl); else readInto(a, fls.length > 1 ? fls : fl); } return; }
       /* the calendar fills the typed date box next to it */
       if (t.classList.contains('pk')) { var box = t.parentNode.querySelector('input[data-fdate]'); if (box && t.value) { box.value = dateFromPicker(t.value); setVal(box); } return; }
       if (t.id === 'mtBpreset') return;
@@ -2275,7 +2612,7 @@
         if (a === 'secResetOne') { delete lc.tx[lk]; delete lc.h[lk]; }
         persist(); scheduleVersion('lease'); renderForm(); refresh(); return;
       }
-      if (a === 'add') { var b = t.getAttribute('data-b'), L = t.getAttribute('data-list'), arr = drafts[b][L] = drafts[b][L] || []; arr.push(L === 'secAdd' ? {h: '', t: ''} : L === 'drawList' ? {label: '', pct: ''} : L === 'items' ? {trade: '', desc: '', qty: '', unit: '', labor: '', materials: ''} : (L === 'custom' || L === 'extra') ? '' : L === 'donors' ? {name: '', relationship: '', addr: '', city: '', state: '', zip: '', phone: '', email: ''} : L === 'borrowers' && b === 'gift' ? {name: '', addr: '', phone: ''} : (L === 'earn' || L === 'post') ? {label: '', amt: ''} : (L === 'income' || L === 'cogs' || L === 'expenses') ? {label: L === 'expenses' ? (PL_EXP.filter(function (x) { return !arr.some(function (r) { return r.label === x; }); })[0] || 'Other') : '', amt: ''} : {name: ''}); persist(); renderForm(); refresh(); return; }
+      if (a === 'add') { var b = t.getAttribute('data-b'), L = t.getAttribute('data-list'), arr = drafts[b][L] = drafts[b][L] || []; arr.push(L === 'secAdd' ? {h: '', t: ''} : L === 'drawList' ? {label: '', pct: ''} : L === 'items' ? {trade: '', desc: '', qty: '', unit: '', labor: '', materials: ''} : (L === 'custom' || L === 'extra') ? '' : L === 'donors' ? {name: '', relationship: '', addr: '', city: '', state: '', zip: '', phone: '', email: ''} : LOX_COLS[L] ? LOX_COLS[L].reduce(function (o, c) { o[c[0]] = ''; return o; }, {}) : L === 'borrowers' && b === 'gift' ? {name: '', addr: '', phone: ''} : (L === 'earn' || L === 'post') ? {label: '', amt: ''} : (L === 'income' || L === 'cogs' || L === 'expenses') ? {label: L === 'expenses' ? (PL_EXP.filter(function (x) { return !arr.some(function (r) { return r.label === x; }); })[0] || 'Other') : '', amt: ''} : {name: ''}); persist(); renderForm(); refresh(); return; }
       if (a === 'rm') { var b2 = t.getAttribute('data-b'), L2 = t.getAttribute('data-list'); drafts[b2][L2].splice(+t.getAttribute('data-i'), 1); persist(); renderForm(); refresh(); return; }
       if (a === 'psearch') return psearch(t.getAttribute('data-b'), t.getAttribute('data-p') || '');
       if (a === 'ppick') return ppick(t.getAttribute('data-b'), t.getAttribute('data-p') || '', +t.getAttribute('data-i'));
@@ -2296,10 +2633,29 @@
       if (a === 'logoRm') { var lb = t.getAttribute('data-b'); drafts[lb].logo = ''; persist(); renderForm(); refresh(true); return; }
       if (a === 'logoReuse') { var lb2 = t.getAttribute('data-b'); drafts[lb2].logo = savedLogo(); drafts[lb2].logoSize = drafts[lb2].logoSize || '52'; persist(); renderForm(); refresh(true); return; }
       if (/^cond/.test(a)) return condAct(a, t);
+      if (a === 'loxUse' || a === 'loxFromCommit' || a === 'loxUseGen' || a === 'cpaUse' || a === 'cpaBiz') {
+        if (a === 'loxUse') { var lx = drafts.lox, g0 = (lx.suggest || [])[+t.getAttribute('data-i')]; if (g0) { lx.type = g0.type; lx.cond = g0.text; lx.subject = ''; lx.body = ''; loxPrefill(lx, g0); } }
+        else if (a === 'loxFromCommit') { drafts.lox.suggest = loxSuggest(drafts.commit.conditions); say(drafts.lox.suggest.length + ' explanation' + (drafts.lox.suggest.length === 1 ? '' : 's') + ' found in the conditions.'); }
+        else if (a === 'loxUseGen') { drafts.lox.body = B.lox.gen(drafts.lox).filter(function (q) { return typeof q === 'string'; }).join('\n\n'); }
+        else if (a === 'cpaUse') {
+          var cp = drafts.cpa, tx = t.getAttribute('data-t') || '';
+          if (/2\s*years?|two\s*years?|self.?employ/i.test(tx)) cp.stEst = cp.stSince = true;
+          if (/business\s*(fund|asset|account)|use\s*of/i.test(tx)) cp.stFunds = true;
+          if (/access/i.test(tx)) cp.stAccess = true;
+          if (/owner/i.test(tx)) cp.stOwner = true;
+          if (/good\s*standing|active/i.test(tx)) cp.stStanding = true;
+          if (/explain|why|reason/i.test(tx)) { cp.stExplain = true; if (!cp.explain) cp.explain = 'In response to the lender\'s request ("' + tx.replace(/^[A-Za-z /]+ - /, '').replace(/\s*\*$/, '').replace(/\.$/, '') + '"): '; }
+          say('The letter now answers: ' + tx.slice(0, 90));
+        } else if (a === 'cpaBiz') {
+          var S9 = G('S'), bz = S9 ? (S9.schc || []).concat(S9.corp || []).filter(function (x) { return x.name; })[+t.getAttribute('data-i')] : null;
+          if (bz) { var cpd = drafts.cpa; cpd.biz = bz.name; cpd.ent = bz.form === '1065' ? CPA_ENT[3] : /1120S/i.test(bz.form) ? CPA_ENT[4] : bz.form === '1120' ? CPA_ENT[5] : CPA_ENT[0]; cpd.ownPct = String(N(bz.own) || 100); }
+        }
+        persist(); scheduleVersion(cur); renderForm(); refresh(); return;
+      }
     });
     w.addEventListener('dragover', function (e) { var z = e.target.closest && e.target.closest('[data-drop]'); if (z) { e.preventDefault(); z.classList.add('over'); } });
     w.addEventListener('dragleave', function (e) { var z = e.target.closest && e.target.closest('[data-drop]'); if (z) z.classList.remove('over'); });
-    w.addEventListener('drop', function (e) { var z = e.target.closest && e.target.closest('[data-drop]'); if (!z) return; e.preventDefault(); z.classList.remove('over'); var fl = e.dataTransfer.files && e.dataTransfer.files[0]; if (fl) readInto(z.getAttribute('data-drop'), fl); });
+    w.addEventListener('drop', function (e) { var z = e.target.closest && e.target.closest('[data-drop]'); if (!z) return; e.preventDefault(); z.classList.remove('over'); var fs = Array.prototype.slice.call(e.dataTransfer.files || []); if (fs.length) readInto(z.getAttribute('data-drop'), fs.length > 1 ? fs : fs[0]); });
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && $('mtB') && $('mtB').classList.contains('open')) close(); });
   }
   /* type straight onto the page: the preview holds still until editing is turned off; Print and PDF use the page as edited */
@@ -2491,9 +2847,11 @@
   }
   var SID = {schcfile: 'mtBschcfile', lefile: 'mtBlefile', giftfile: 'mtBgiftfile', contract: 'mtBcontract', leasefile: 'mtBleasefile', approval: 'mtBapproval', estfile: 'mtBestfile', plfile: 'mtBplfile', mifile: 'mtBmifile', payfile: 'mtBpayfile'};
   function readInto(kind, fl) {
+    /* 57.5: several pages (screenshots or scans of one document) are read in order and joined */
+    if (Array.isArray(fl)) { var list = fl, fnames = list.map(function (x) { return x.name; }); fl = {name: list.length + ' files (' + fnames.slice(0, 3).join(', ') + (list.length > 3 ? '…' : '') + ')', __many: list}; }
     var sid = SID[kind] || 'mtB' + kind; saveVersion(cur, 'Before reading ' + (fl && fl.name || 'a document'));
     status(sid, 'Reading ' + esc(fl.name) + '… scanned pages use OCR and can take a minute.');
-    readText(fl).then(function (text) {
+    (fl.__many ? fl.__many.reduce(function (pr, x) { return pr.then(function (acc) { return readText(x).then(function (t) { return acc + (acc ? '\n\n' : '') + (t || ''); }, function () { return acc; }); }); }, Promise.resolve('')) : readText(fl)).then(function (text) {
       if (!String(text || '').trim()) { status(sid, 'No text could be read from ' + esc(fl.name) + ' - try a clearer scan or photo.', 'warn'); return; }
       var done = function (got, what) { persist(); pageEdit(false); renderForm(); refresh(true); status(sid, got.length ? 'Read from ' + esc(fl.name) + ': ' + esc(got.join(', ')) + '. Check each against the ' + what + '.' : 'Nothing recognisable was found in ' + esc(fl.name) + ' - fill the form by hand.', got.length ? 'ok' : 'warn'); };
       if (kind === 'contract') {
@@ -2546,6 +2904,21 @@
       } else if (kind === 'lefile') {
         var Fe = parseFees(text), s9 = drafts.le, g9 = 0; LE_SECTIONS.forEach(function (x) { if (Fe[x[0]].length) { s9.lines[x[0]] = Fe[x[0]]; g9 += Fe[x[0]].length; } });
         done(g9 ? [g9 + ' fee line(s) sorted into sections A-H'] : [], 'fee sheet');
+      } else if (kind === 'loxfile') {
+        var lx2 = drafts.lox, gl = [], ap = /Conditions:|PTD|Prior\s*to\s*(?:Docs|Closing)|Condition\s*Name/i.test(text) ? parseApproval(text) : null;
+        if (ap && ap.conds.length) {
+          lx2.suggest = loxSuggest(ap.conds); gl.push(lx2.suggest.length + ' explanation' + (lx2.suggest.length === 1 ? '' : 's') + ' the conditions ask for');
+          if (ap.b1 && !names(lx2.borrowers).length) lx2.borrowers = [{name: ap.b1, mail: ''}].concat(ap.b2 ? [{name: ap.b2, mail: ''}] : []);
+          if (ap.loanNumber && !lx2.loanNumber) { lx2.loanNumber = ap.loanNumber; gl.push('loan number'); }
+          if (ap.street && !lx2.address) { lx2.address = ap.street; lx2.city = ap.city || ''; lx2.state = stateName(ap.state || ''); lx2.zip = ap.zip || ''; gl.push('property'); }
+        } else if (/inquir/i.test(text) && /credit/i.test(text)) { var iq = loxInquiries(text); if (iq.length) { lx2.inquiries = iq; lx2.type = 'inquiries'; gl.push(iq.length + ' inquir' + (iq.length === 1 ? 'y' : 'ies')); } }
+        else { var dp = loxDeposits(text); if (dp.length) { lx2.deposits = dp; lx2.type = 'deposits'; gl.push(dp.length + ' deposit' + (dp.length === 1 ? '' : 's') + ' of $1,000 or more - keep the ones the underwriter asked about'); } }
+        done(gl, 'document');
+      } else if (kind === 'cpafile') {
+        var cp2 = drafts.cpa, gc = [], ap2 = /Conditions:|Condition\s*Name/i.test(text) ? parseApproval(text) : null;
+        if (ap2 && ap2.conds.length) { cp2.condList = ap2.conds.filter(function (c) { return /CPA|tax\s*preparer|accountant/i.test(c.text || ''); }).map(function (c) { return (c.cat ? c.cat + ' - ' : '') + c.text; }); gc.push(cp2.condList.length + ' CPA condition' + (cp2.condList.length === 1 ? '' : 's')); if (ap2.b1) { cp2.clients = [{name: ap2.b1}].concat(ap2.b2 ? [{name: ap2.b2}] : []); gc.push('clients'); } }
+        else { var po = parseCpaLetter(text); Object.keys(po).forEach(function (k) { if (po[k]) { cp2[k] = po[k]; gc.push({prepName: 'preparer', cred: 'credential', firm: 'firm', firmAddr1: 'address', firmAddr2: '', firmPhone: 'phone', firmFax: 'fax', firmEmail: 'email', firmWeb: 'website', ptin: 'PTIN', license: 'license'}[k] || k); } }); gc = gc.filter(Boolean); }
+        done(gc, 'letter');
       } else if (kind === 'giftfile') {
         var Gf = parseGift(text), s7 = drafts.gift, g7 = [];
         if (Gf.type) { s7.type = Gf.type; var gd2 = giftDefaults(Gf.type); for (var gk2 in gd2) s7[gk2] = gd2[gk2]; s7.upTo = Gf.upTo; g7.push(Gf.type === 'equity' ? 'gift of equity' : Gf.type === 'full' ? 'full letter with source of funds' : 'gift letter'); }
@@ -2625,7 +2998,7 @@
   var hT = 0; setTimeout(hooks, 400); setTimeout(hooks, 1500); document.addEventListener('click', function () { clearTimeout(hT); hT = setTimeout(hooks, 300); }, true);
   /* what search can find without opening the builder: every document type, layout and sample scope */
   function catalog() {
-    var lists = {commit: COMMIT_STYLES, addendum: ADD_STYLES, lease: LEASE_STYLES, estimate: EST_STYLES, pl: PL_STYLES, pay: PAY_STYLES, gift: GIFT_TYPES, schc: [['analysis', 'Cash-flow analysis'], ['summary', 'One-page summary']]};
+    var lists = {commit: COMMIT_STYLES, addendum: ADD_STYLES, lease: LEASE_STYLES, estimate: EST_STYLES, pl: PL_STYLES, pay: PAY_STYLES, gift: GIFT_TYPES, lox: LOX_STYLES, cpa: CPA_STYLES, schc: [['analysis', 'Cash-flow analysis'], ['summary', 'One-page summary']]};
     return ORDER.map(function (k) { return {type: k, label: B[k].label, sub: B[k].sub, styles: lists[k] || []}; }).concat([{type: 'estimate', label: 'Contractor estimate sample scopes', sub: '', styles: [], presets: Object.keys(EST_PRESETS).map(function (k) { return [k, EST_PRESETS[k][0]]; })}]);
   }
   window.MTBuild = {open: open, close: close, catalog: catalog, builders: B, drafts: function () { return drafts; }, parseApproval: parseApproval, parseContract: parseContract, file: file, transferTax: transferTax};

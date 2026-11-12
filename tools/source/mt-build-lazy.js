@@ -7,7 +7,7 @@
   'use strict';
   if (window.MTBuild) return;
   var SRC = (document.currentScript && document.currentScript.src || '').replace(/mt-build-lazy\.js[^]*$/, '') + 'doc-builder.js?v=56.8';
-  var ORDER = [['addendum', 'Addendum'], ['lease', 'Lease agreement'], ['estimate', 'Contractor estimate'], ['pl', 'Profit and loss'], ['schc', 'Schedule C analysis'], ['pay', 'Pay statement'], ['gift', 'Gift letter'], ['le', 'Loan Estimate draft'], ['commit', 'Commitment letter'], ['mi', 'MI & renovation fees']];
+  var ORDER = [['addendum', 'Addendum'], ['lease', 'Lease agreement'], ['estimate', 'Contractor estimate'], ['pl', 'Profit and loss'], ['schc', 'Schedule C analysis'], ['pay', 'Pay statement'], ['gift', 'Gift letter'], ['le', 'Loan Estimate draft'], ['commit', 'Commitment letter'], ['lox', 'Letter of explanation'], ['cpa', 'CPA / tax preparer letter'], ['mi', 'MI & renovation fees']];
   var loading = null, stub;
   function load() {
     if (loading) return loading;

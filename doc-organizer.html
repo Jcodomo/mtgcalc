@@ -130,7 +130,7 @@
     </div>
 
     <div class="card" id="hub-builder"><h2>Document builder</h2>
-      <p class="hubnote">Addendums, leases, contractor estimates, profit and loss, Schedule C analysis, pay statements, gift letters, Loan Estimate drafts, commitment letters (with condition lists, email and export) and the MI &amp; renovation fee worksheet. Each one fills from the loan file and can read a dropped or pasted document.</p>
+      <p class="hubnote">Addendums, leases, contractor estimates, profit and loss, Schedule C analysis, pay statements, gift letters, Loan Estimate drafts, commitment letters (with condition lists, email and export), letters of explanation, CPA / tax preparer letters and the MI &amp; renovation fee worksheet. Each one fills from the loan file and can read a dropped or pasted document.</p>
       <div id="hubBuilder" class="hubgrid"></div>
     </div>
 
@@ -1036,13 +1036,13 @@
 </script>
 
 <script src="assets/loan-ux.js"></script>
-<script src="assets/sync-bridge.js?v=57.4"></script>
-<script src="assets/workflow-ui.js?v=57.4"></script>
-<script src="assets/mt-addr.js?v=57.4"></script>
-<script src="assets/mt-paste.js?v=57.4"></script>
-<script src="assets/mt-search.js?v=57.4"></script>
-<script src="assets/doc-center.js?v=57.4"></script>
-<script src="assets/mt-build-lazy.js?v=57.4"></script>
+<script src="assets/sync-bridge.js?v=57.5"></script>
+<script src="assets/workflow-ui.js?v=57.5"></script>
+<script src="assets/mt-addr.js?v=57.5"></script>
+<script src="assets/mt-paste.js?v=57.5"></script>
+<script src="assets/mt-search.js?v=57.5"></script>
+<script src="assets/doc-center.js?v=57.5"></script>
+<script src="assets/mt-build-lazy.js?v=57.5"></script>
 <script>
 /* v57.4: the Documents page - paste box, income documents, Document Builder buttons */
 (function () {
@@ -1091,7 +1091,7 @@
     var g = $('hubBuilder');
     function builders() {
       if (!g || !window.MTBuild || !MTBuild.catalog) return false;
-      var DESC = {addendum: 'Contract changes, concessions, transfer tax', lease: 'Eight layouts, every section editable', estimate: 'Line items and removable draws', pl: 'Year-to-date and prior year', schc: 'Two-year Schedule C analysis', pay: 'Earnings statement', gift: 'Gift and gift of equity letters', le: 'Loan Estimate draft', commit: 'Six layouts, conditions, email and export', mi: 'MI and renovation fees'};
+      var DESC = {addendum: 'Contract changes, concessions, transfer tax', lease: 'Eight layouts, every section editable', estimate: 'Line items and removable draws', pl: 'Year-to-date and prior year', schc: 'Two-year Schedule C analysis', pay: 'Earnings statement', gift: 'Gift and gift of equity letters', le: 'Loan Estimate draft', commit: 'Six layouts, conditions, email and export', lox: '20 kinds - deposits, inquiries, addresses, rent free…', cpa: 'Five letterheads, logo, self-employment facts', mi: 'MI and renovation fees'};
       g.innerHTML = MTBuild.catalog().map(function (c) { return '<button type="button" data-t="' + c.type + '">' + c.label + '<small>' + (DESC[c.type] || '') + '</small></button>'; }).join('');
       g.addEventListener('click', function (e) { var b = e.target.closest('button[data-t]'); if (b) MTBuild.open(b.getAttribute('data-t')); });
       return true;

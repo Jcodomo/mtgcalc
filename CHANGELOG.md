@@ -132,7 +132,7 @@
 - **Address suggestions match known addresses instantly:** the loan file's property, the document builders' properties, addresses picked before and full addresses typed into an address box are matched on every keystroke without waiting for the network (tagged "Loan file", "Document builder", "Used before", "Typed before"); OpenStreetMap results join them, now after 0.2 seconds and from the third character.
 - The MI & renovation worksheet's program is a typeable box (FHA, FHA 203(k), Conventional, HomeStyle, VA, USDA or anything else). Choices that drive a calculation - pay frequency, filing status, the state tax table, lease type and each builder's style - stay as lists.
 
-## 2026-11-12 - everything released today (56.6 to 57.4)
+## 2026-11-12 - everything released today (56.6 to 57.5)
 
 The release entries below have the details. In short:
 
@@ -154,6 +154,7 @@ The release entries below have the details. In short:
 - **57.2 - more NMB pages:** Union Worker W2, Freddie 1099 and Retirement Income pages in the NMB report.
 - **57.3 - commitment letters:** an approval letter layout ("Congratulations") and an underwriting conditional approval layout (lender grid, conditions in PTA / PTD / PTF / AC / PTP boxes); conditions keep their stage; a button that makes the conditions list to paste into an email or tick off.
 - **57.4 - one Documents page:** the Doc Organizer holds the library and OCR, paste box, income document reader, Document Builder and organizer; the Income Calculator's Documents tab opens it. Conditions can be exported (.txt / .csv / .json, or checked-off only into a text box) and checked or unchecked all at once, internal or external.
+- **57.5 - scanned approvals and two new builders:** multi-page scanned approvals read in full (OCR headings and grid); company, NMLS and contact details remembered and suggested; letter of explanation builder (21 kinds, approval / bank statement / credit report drops); CPA / tax preparer letter builder (5 styles with logo).
 - **Behind the scenes, with no change to the site on their own:**
   - The 56.5 calculation was recovered into readable TypeScript (src/) and gives identical results on 3,000 scenarios.
   - Engine fixes D1-D5 were written with tests.
@@ -299,6 +300,34 @@ The release entries below have the details. In short:
   - **Downloads:** .txt (as shown), .csv for Excel (status, kept, internal, when, category, condition, note) and .json.
 - **Cache keys:** every page now loads the shared scripts (document library, paste, search, address and the builder loader) under the current release number. The Doc Organizer had still been loading the 56.1 document library.
 - Asset version 57.4.
+
+## Release 57.5 - scanned approvals read in full; your details remembered; letter of explanation and CPA letter builders
+
+- **Hotfix - scanned underwriting approvals (Encompass "Underwriting Conditional Approval"):**
+  - **Several pages at once:** the drop boxes take several files (each page's screenshot or scan) and read them in order as one document.
+  - **Stage headings:** OCR reads "(" as "{" in the stage headings, so Prior to Approval, Prior to Funding and At Closing were missed. All five stages are found now.
+  - **The grid:** OCR reads it column by column (labels first, then values). It's now read by the values' shapes: loan number, lender, branch address, contact, phone and fax, approval date, processor, program, purpose, loan type, occupancy, term, doc type and impounds.
+  - **Test file:** a 7-page FHA 203(k) approval read as 100 conditions across PTA / PTD / AC / PTP. Both borrowers and their credit scores came through, plus every loan figure.
+- **Your details, remembered:**
+  - **Saved fields:** company, NMLS numbers, branch address, phone, mortgagee clause, loan officer, processor and underwriter contacts are saved in this browser as you type them.
+  - **Reuse:** each new commitment letter starts from them, and a read approval fills only what it doesn't have.
+  - **Suggestions:** every value used before is suggested on those fields.
+  - **Processor contacts:** the processor's phone and email are filled only for the same processor.
+- **Letter of explanation builder:**
+  - **21 kinds of letter:** large deposits, payments on a bank statement, credit inquiries, address discrepancy, employment gap, employment change, remote work, rent-free (signed by the host), rent history, occupancy, reason for the move, cash-out purpose, business purpose, divorce, late payments, name variations, access to business funds (signed by the co-owner), EMD source, dependents, permission, and your own.
+  - **Layouts:** four (plain, RE: line, formal, modern table).
+  - **Wording:** generated for each kind and fully editable.
+  - **Drag and drop:**
+    - An approval lists every explanation its conditions ask for. "Write this one" picks the kind and fills the names or addresses the condition quotes.
+    - A bank statement fills the deposits table.
+    - A credit report fills the inquiries table.
+    - It can also list the explanations from the commitment letter's conditions.
+- **CPA / tax preparer letter builder:**
+  - **Five styles:** firm letterhead with "based upon the records available to us", certification letter, side-band letterhead, modern facts table, and brief. Every style takes your logo, and you pick the accent color.
+  - **Statements you can switch on or off:** years preparing the returns, ownership, start date, prior filing type, good standing, current on taxes, use of business funds, account access, stable and ongoing, debts paid by the business, extension filed, the explanation the lender asked for, the mortgage-purpose disclaimer, plus your own statements.
+  - **From other places:** businesses from the Income Calculator, and the CPA conditions from an approval, with "Answer it" turning on the matching statements.
+  - **Preparer details:** an earlier letter from the same preparer fills the name, firm, address, phone, fax, email and PTIN.
+- Asset version 57.5.
 
 ## Release 55.14b - self-employment, rental and more of the income worksheet; one look across the pages
 
