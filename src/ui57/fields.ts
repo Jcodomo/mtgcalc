@@ -17,6 +17,8 @@ export interface Field {
   unit?: string;
   /** blank means "calculate"; the calculated value shows as the placeholder (spec item 18) */
   override?: boolean;
+  /** an override-style field whose blank means "not entered" rather than "calculated" (assets) */
+  blankNotEntered?: boolean;
   /** blank means "not entered" and is stored as 0 because the engine reads 0 that way (ARV, as-is value) */
   notEnteredWhenZero?: boolean;
   /** stored as a fraction (0.035) and shown as a percent (3.5) */
@@ -131,9 +133,9 @@ export const FIELDS: Field[] = [
 
   /* ---------------- Qualification (borrower 1 here; the borrower table adds the others) */
   { id: 'creditScore', path: 'creditScore', label: 'Credit score', section: 'qualify', kind: 'int', keywords: 'fico' },
-  { id: 'assets.liquidAssets', path: 'assets.liquidAssets', label: 'Available assets', section: 'qualify', kind: 'money', unit: '$', override: true, hint: 'Blank = not entered; $0 = none', keywords: 'assets bank funds reserves' },
-  { id: 'assets.giftFunds', path: 'assets.giftFunds', label: 'Gift funds', section: 'qualify', group: 'Assets and reserves', kind: 'money', unit: '$', override: true, keywords: 'gift letter gift' },
-  { id: 'assets.retirementOtherAssets', path: 'assets.retirementOtherAssets', label: 'Retirement and other assets', section: 'qualify', group: 'Assets and reserves', kind: 'money', unit: '$', override: true, keywords: '401k retirement' },
+  { id: 'assets.liquidAssets', path: 'assets.liquidAssets', label: 'Available assets', section: 'qualify', kind: 'money', unit: '$', override: true, blankNotEntered: true, hint: 'Blank = not entered; $0 = none', keywords: 'assets bank funds reserves' },
+  { id: 'assets.giftFunds', path: 'assets.giftFunds', label: 'Gift funds', section: 'qualify', group: 'Assets and reserves', kind: 'money', unit: '$', override: true, blankNotEntered: true, keywords: 'gift letter gift' },
+  { id: 'assets.retirementOtherAssets', path: 'assets.retirementOtherAssets', label: 'Retirement and other assets', section: 'qualify', group: 'Assets and reserves', kind: 'money', unit: '$', override: true, blankNotEntered: true, keywords: '401k retirement' },
   { id: 'rental.propertyTypeOverride', path: 'rental.propertyTypeOverride', label: 'Property type for rental rules', section: 'qualify', group: 'Rental qualification', kind: 'select', options: opts('Auto', '1 Family', 'Single Family with ADU', '2 Family', '3 Family', '4 Family') },
   { id: 'rental.mainUnit.gross', path: 'rental.mainUnit.gross', label: 'Rent - main unit', section: 'qualify', group: 'Rental qualification', kind: 'money', unit: '$ a month', keywords: 'rental income rent' },
   { id: 'rental.adu.gross', path: 'rental.adu.gross', label: 'Rent - accessory unit', section: 'qualify', group: 'Rental qualification', kind: 'money', unit: '$ a month', keywords: 'adu rent' },

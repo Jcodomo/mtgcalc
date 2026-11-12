@@ -2,7 +2,7 @@
 // fresh open), Advanced groups that are not even built until they are opened, one live summary, and the review list.
 // Edits go to the shared scenario store; only the parts of the page whose figures changed are redrawn, so focus and scroll stay put.
 import { SECTIONS, FIELDS, GROUPS, Field, SectionId, byId, getPath, isSimple } from './fields';
-import { checks, assumptions, summary, usd, pct, fmt, STATUS_LABEL, Check } from './review';
+import { checks, assumptions, summary, usd, pct, fmt, STATUS_LABEL, Check, MODE, overrideSet, gapOf, creditOf } from './review';
 import { defaultScenario } from '../core/defaults';
 import { today } from '../core/utils/dates';
 import { migrateState, newId, exportScenario, importScenario, STORAGE_KEY } from '../core/model/scenario';
@@ -25,9 +25,17 @@ export class QuoteApp {
   note = '';
   timings: number[] = [];
 
-  constructor(root: HTMLElement, store: Store) {
-    this.root = root; this.store = store;
-    this.mode = pref.get(OPEN_ADV_KEY) === '1' ? 'advanced' : 'simple';
+  /** embedded: shown inside the Full Suite on its own scenario (no separate copy, no preview tag) */
+  embedded = false;
+  /** while hidden behind the classic screen, updates wait until it is shown again */
+  hidden = false; stale = false;
+  /** the Full Suite's own section tabs: each jumps to a Simple section, or opens the full suite on that tab */
+  tabs: { label: string; section?: SectionId; open?: () => void }[] = [];
+  constructor(root: HTMLElement, store: Store, opts: { embedded?: boolean; tabs?: { label: string; section?: SectionId; open?: () => void }[] } = {}) {
+    this.root = root; this.store = store; this.embedded = !!opts.embedded; this.tabs = opts.tabs || [];
+    /* in the Full Suite, "Advanced" is the full suite itself (the switch in the top bar); here the screen stays Simple and
+       each Advanced group still opens on its own */
+    this.mode = !this.embedded && pref.get(OPEN_ADV_KEY) === '1' ? 'advanced' : 'simple';
     const ss = pref.get(SUMMARY_KEY); this.summaryState = ss === 'expanded' || ss === 'hidden' ? ss : 'compact';
     this.defaults = defaultScenario(today(), 'defaults');
     if (store.migration && store.migration.notes.length) this.note = store.migration.notes.join(' ');
@@ -42,13 +50,14 @@ export class QuoteApp {
   build() {
     this.root.innerHTML = `
 <header class="q-head">
-  <div class="q-title"><h1>Quote</h1><span class="q-tag" title="This page keeps its own copy of the scenarios while v57 is being built; the Loan Suite pages are unchanged">v57 preview</span></div>
-  <div class="q-mode" role="group" aria-label="Display mode"><button type="button" data-act="mode" data-v="simple">Simple</button><button type="button" data-act="mode" data-v="advanced">Advanced</button></div>
+  <div class="q-title"><h1>Quote</h1>${this.embedded ? '<button type="button" class="q-classic" data-act="classic" title="The full Loan Suite - same scenario, same figures">Advanced: full suite</button>' : '<span class="q-tag" title="This page keeps its own copy of the scenarios while v57 is being built; the Loan Suite pages are unchanged">v57 preview</span>'}</div>
+  ${this.embedded ? '' : '<div class="q-mode" role="group" aria-label="Display mode"><button type="button" data-act="mode" data-v="simple">Simple</button><button type="button" data-act="mode" data-v="advanced">Advanced</button></div>'}
   <div class="q-scn"><label class="sr" for="qScn">Scenario</label><select id="qScn" data-act="scn"></select>
-    <button type="button" data-act="new">New</button><button type="button" data-act="dup">Duplicate</button><button type="button" data-act="import56" title="Copy the scenario open in the Loan Suite into this page (the Loan Suite file is not changed)">Copy from Loan Suite</button>
+    <button type="button" data-act="new">New</button><button type="button" data-act="dup">Duplicate</button>${this.embedded ? '' : '<button type="button" data-act="import56" title="Copy the scenario open in the Loan Suite into this page (the Loan Suite file is not changed)">Copy from Loan Suite</button>'}
     <button type="button" data-act="export">Export</button><label class="q-file">Import<input type="file" accept=".json,application/json" data-act="importFile"></label></div>
 </header>
-<nav class="q-nav" aria-label="Areas"><a href="#q-property" data-act="go" data-s="property" aria-current="page">Quote</a><a href="#q-renovation" data-act="go" data-s="renovation">Renovation</a><a href="income-calculator.html">Qualification &amp; Income</a><a href="#q-scenarios" data-act="go" data-s="scenarios">Scenarios</a><button type="button" data-act="docs">Documents &amp; Reports</button></nav>
+${this.tabs.length ? `<nav class="q-nav" aria-label="Loan Suite sections">${this.tabs.map((t, k) => t.section ? `<a href="#q-${t.section}" data-act="go" data-s="${t.section}"${k ? '' : ' aria-current="page"'}>${esc(t.label)}</a>` : `<button type="button" data-act="tab" data-i="${k}" title="Opens the full suite on this tab">${esc(t.label)} <span aria-hidden="true">↗</span></button>`).join('')}</nav>` :
+  `<nav class="q-nav" aria-label="Areas"><a href="#q-property" data-act="go" data-s="property" aria-current="page">Quote</a><a href="#q-renovation" data-act="go" data-s="renovation">Renovation</a><a href="income-calculator.html">Qualification &amp; Income</a><a href="#q-scenarios" data-act="go" data-s="scenarios">Scenarios</a><button type="button" data-act="docs">Documents &amp; Reports</button></nav>`}
 <div class="q-note" role="status" aria-live="polite" hidden></div>
 <div class="q-body">
   <main class="q-main no-search" id="qMain"></main>
@@ -72,7 +81,7 @@ export class QuoteApp {
 
   renderHead() {
     this.root.querySelectorAll<HTMLButtonElement>('[data-act="mode"]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === this.mode)));
-    this.root.classList.toggle('q-adv', this.mode === 'advanced');
+    this.root.classList.toggle('q-advmode', this.mode === 'advanced');
     const sel = this.root.querySelector('#qScn') as HTMLSelectElement, st = this.store.snapshot;
     sel.innerHTML = Object.entries<any>(st.scenarios).map(([id, s]) => `<option value="${esc(id)}"${id === st.activeScenarioId ? ' selected' : ''}>${esc(s.inputs.name || id)}</option>`).join('');
   }
@@ -103,12 +112,12 @@ export class QuoteApp {
     return { head, fields, calc, adv: h };
   }
 
-  placeholder(f: Field, calc: number | null): string { return f.override ? (calc != null ? 'calc ' + (f.kind === 'pct' ? (calc * 100).toFixed(f.digits ?? 2) : calc.toFixed(2)) : 'calculated') : f.notEnteredWhenZero ? 'Not entered' : ''; }
-  differs(f: Field) { const v = getPath(this.i, f.path); return f.override ? v != null : JSON.stringify(v) !== JSON.stringify(getPath(this.defaults, f.path)); }
+  placeholder(f: Field, calc: number | null): string { return f.blankNotEntered ? 'Not entered' : f.override ? (calc != null ? 'calc ' + (f.kind === 'pct' ? (calc * 100).toFixed(f.digits ?? 2) : calc.toFixed(2)) : 'calculated') : f.notEnteredWhenZero ? 'Not entered' : ''; }
+  differs(f: Field) { const v = getPath(this.i, f.path); return f.override ? overrideSet(v) : JSON.stringify(v) !== JSON.stringify(getPath(this.defaults, f.path)); }
 
   /** the input's text as it should read now */
   shown(f: Field, v: any): string {
-    if (v == null) return '';
+    if (v == null || (f.override && !overrideSet(v))) return '';
     if (f.kind === 'pct') return v === '' ? '' : String(+(+v * 100).toFixed(f.digits ?? 2));
     if (f.kind === 'money') return f.notEnteredWhenZero && !v ? '' : String(v);
     return String(v);
@@ -117,7 +126,7 @@ export class QuoteApp {
   fieldHtml(f: Field): string {
     const i = this.i, v = getPath(i, f.path), id = 'qf-' + f.id.replace(/\./g, '-');
     const calc = f.calc ? f.calc(this.o, i) : null;
-    const origin = f.override ? (v == null ? 'calc' : 'override') : f.notEnteredWhenZero && !v ? 'missing' : f.id === 'propertyTaxAmount' && /Manual|Estimate/.test(i.taxSourceType) ? 'estimate' : 'entered';
+    const origin = f.override ? (!overrideSet(v) ? (f.blankNotEntered ? 'missing' : 'calc') : f.blankNotEntered ? 'entered' : 'override') : f.notEnteredWhenZero && !v ? 'missing' : f.id === 'propertyTaxAmount' && /Manual|Estimate/.test(i.taxSourceType) ? 'estimate' : 'entered';
     const tag = origin === 'override' ? '<span class="q-o o-ovr">override</span>' : origin === 'calc' ? '<span class="q-o o-calc">calculated</span>' : origin === 'missing' ? '<span class="q-o o-miss">not entered</span>' : origin === 'estimate' ? '<span class="q-o o-est">estimate</span>' : '';
     let ctl = '';
     if (f.kind === 'select') ctl = `<select id="${id}" data-f="${f.id}">` + (f.options || []).map(([val, lab]) => `<option value="${esc(val)}"${String(v) === val ? ' selected' : ''}>${esc(lab)}</option>`).join('') + `</select>`;
@@ -129,7 +138,7 @@ export class QuoteApp {
     const pair = FIELDS.find(p => p.id === f.pair);
     const pairCtl = pair ? `<select data-f="${pair.id}" aria-label="${esc(pair.label)}" class="q-pair">` + (pair.options || []).map(([val, lab]) => `<option value="${esc(val)}"${getPath(i, pair.path) === val ? ' selected' : ''}>${esc(lab)}</option>`).join('') + `</select>` : '';
     const unit = f.unit && !pair ? `<span class="q-unit">${esc(f.unit)}</span>` : f.unit === '$' && pair ? `<span class="q-unit">$</span>` : '';
-    const reset = f.override && v != null ? `<button type="button" class="q-reset" data-act="useCalc" data-f="${f.id}">Use calculated value</button>` : '';
+    const reset = f.override && !f.blankNotEntered && overrideSet(v) ? `<button type="button" class="q-reset" data-act="useCalc" data-f="${f.id}">Use calculated value</button>` : '';
     const sugg = f.id === 'reno.contingencyPct' && this.o.renovationOut && Math.abs(this.o.renovationOut.suggestedContingencyPct - v) > 1e-9 ? `<small class="q-sugg">suggested ${pct(this.o.renovationOut.suggestedContingencyPct)}</small>` : '';
     return `<div class="q-f o-${origin}" data-fid="${f.id}"><label for="${id}">${esc(f.label)} ${tag}</label><div class="q-in">${ctl}${unit}${pairCtl}</div>${f.hint ? `<small>${esc(f.hint)}</small>` : ''}${sugg}${reset}</div>`;
   }
@@ -154,9 +163,10 @@ export class QuoteApp {
     if (id === 'housing') r = row('Taxes', usd(o.payment.monthlyTaxes, true) + ' a month') + row('Insurance', usd(o.payment.monthlyInsurance, true) + ' a month') + (o.payment.usingTiOverride ? row('Taxes & insurance used (override)', usd(o.payment.monthlyTaxesAndInsuranceUsed, true), 'q-ovr') : '') +
       row(o.isFha ? 'FHA MIP' : 'PMI', usd(o.isFha ? o.payment.monthlyFhaMip : o.payment.monthlyPmi, true)) + row('Total monthly payment', usd(o.payment.totalMonthlyPayment, true), 'q-tot');
     if (id === 'closing') {
+      const G = gapOf(o), C = creditOf(o);
       r = row('Estimated closing costs', usd(o.cash.buyerClosingCosts, true)) + row('Required investment', usd(o.cash.requiredInvestment, true)) +
-        (o.cash.additionalFundsRequired > 0 ? row('Not financed - borrower brings', usd(o.cash.additionalFundsRequired, true), 'q-warn') : '') +
-        (o.cash.sellerConcessionRequested > 0 ? row('Seller credit requested / allowed', usd(o.cash.sellerConcessionRequested, true) + ' / ' + usd(o.cash.sellerConcessionAllowed, true)) + row('Seller credit applied', '-' + usd(o.cash.sellerConcessionApplied, true)) + (o.cash.sellerConcessionUnused > 0 ? row('Unused credit (not cash back)', usd(o.cash.sellerConcessionUnused, true), 'q-warn') : '') : '') +
+        (G.amount > 0 ? row(G.inCash ? 'Not financed - borrower brings' : 'Not financed - NOT in the cash to close below', usd(G.amount, true), 'q-warn') : '') +
+        (C.requested > 0 ? row('Seller credit requested / allowed', usd(C.requested, true) + ' / ' + usd(C.allowed, true)) + row('Seller credit applied', '-' + usd(C.applied, true)) + (C.unused > 0 ? row('Unused credit (not cash back)', usd(C.unused, true), 'q-warn') : '') : '') +
         (o.cash.earnestMoneyDeposit > 0 ? row('Deposit already paid', '-' + usd(o.cash.earnestMoneyDeposit, true)) : '') + (o.cash.deficit > 0 ? row('Deposit returned at closing', usd(o.cash.deficit, true), 'q-warn') : '') + row('Cash to close', usd(o.cash.cashToClose, true), 'q-tot') +
         `<details class="q-lines"><summary>Closing cost lines</summary>` + (o.closing.lines || []).map((l: any) => row(esc(l.label) + (l.overridden ? ' <span class="q-o o-ovr">override</span>' : ''), usd(l.amount, true))).join('') + `</details>`;
     }
@@ -195,7 +205,7 @@ export class QuoteApp {
     if (this.last[key] === k) { this.syncValues(box); return; }
     const ae = document.activeElement as HTMLInputElement | null, inside = ae && box.contains(ae), fk = inside ? (ae!.dataset.f || ae!.dataset.bp) : null, sel = inside && ae!.type === 'text' ? [ae!.selectionStart, ae!.selectionEnd] : null, val = inside ? ae!.value : null;
     box.innerHTML = html; this.last[key] = k;
-    if (fk) { const n = box.querySelector<HTMLInputElement>(`[data-f="${fk}"],[data-bp="${fk}"]`); if (n) { if (val != null && n.type === 'text') n.value = val; n.focus({ preventScroll: true }); if (sel && sel[0] != null) try { n.setSelectionRange(sel[0], sel[1]); } catch { /* not a text field */ } } }
+    if (fk) { const n = box.querySelector<HTMLInputElement>(`[data-f="${fk}"],[data-bp="${fk}"]`); if (n) { if (val != null && n.type === 'text' && ae!.tagName === 'INPUT' && ae!.type === 'text') n.value = val; n.focus({ preventScroll: true }); if (sel && sel[0] != null) try { n.setSelectionRange(sel[0], sel[1]); } catch { /* not a text field */ } } }
   }
   /** bring every input in a part up to date with the scenario, except the one being typed in */
   syncValues(box: HTMLElement) {
@@ -241,7 +251,10 @@ export class QuoteApp {
 
   /* ------------------------------------------------------------ updates: only what changed */
   schedule() { if (this.pending) return; this.pending = true; queueMicrotask(() => { this.pending = false; this.refresh(); }); }
+  /** shown again after the classic screen: catch up once */
+  setHidden(h: boolean) { this.hidden = h; if (!h && this.stale) { this.stale = false; this.refresh(); } }
   refresh() {
+    if (this.hidden) { this.stale = true; return; }
     const t0 = performance.now();
     this.renderHead(); SECTIONS.forEach(s => this.renderSection(s.id)); this.renderAssumptions(); this.renderSummary(); this.renderCompare();
     this.timings.push(performance.now() - t0); if (this.timings.length > 200) this.timings.shift();
@@ -251,7 +264,7 @@ export class QuoteApp {
   parse(f: Field, raw: string): any {
     const t = raw.trim();
     if (f.kind === 'text') return raw;
-    if (t === '') return f.override ? null : 0;
+    if (t === '') return f.override ? (MODE.classic ? 0 : null) : 0;
     const n = Number(t.replace(/[$,\s%]/g, ''));
     if (!isFinite(n)) return undefined;
     if (f.kind === 'pct') return Math.round(n * 1e7) / 1e9;
@@ -300,7 +313,9 @@ export class QuoteApp {
     const a = b.dataset.act;
     if (a === 'mode') { this.mode = b.dataset.v === 'advanced' ? 'advanced' : 'simple'; this.opened.clear(); this.refresh(); return; }
     if (a === 'group') { const k = b.dataset.s + '|' + b.dataset.g; if (this.mode === 'advanced') return; this.opened.has(k) ? this.opened.delete(k) : this.opened.add(k); this.renderSection(b.dataset.s as SectionId); (this.root.querySelector(`[data-act="group"][data-g="${CSS.escape(b.dataset.g!)}"]`) as HTMLElement)?.focus(); return; }
-    if (a === 'useCalc') { const f = byId[b.dataset.f!]; this.store.setField(f.path, null, f.label + ' (use calculated)'); return; }
+    if (a === 'useCalc') { const f = byId[b.dataset.f!]; this.store.setField(f.path, MODE.classic ? 0 : null, f.label + ' (use calculated)'); return; }
+    if (a === 'classic') { window.dispatchEvent(new CustomEvent('mt57:view', { detail: 'advanced' })); return; }
+    if (a === 'tab') { const t = this.tabs[+b.dataset.i!]; if (t && t.open) t.open(); return; }
     if (a === 'open') { e.preventDefault(); this.reveal(b.dataset.f!); return; }
     if (a === 'go') { e.preventDefault(); const s = b.dataset.s!; this.root.querySelector(`#q-${s}`)?.scrollIntoView({ block: 'start', behavior: 'smooth' }); this.root.querySelectorAll('.q-nav a').forEach(x => x.removeAttribute('aria-current')); if (b.tagName === 'A') b.setAttribute('aria-current', 'page'); return; }
     if (a === 'sum') { this.summaryState = b.dataset.v as any; pref.set(SUMMARY_KEY, this.summaryState); this.renderSummary(); return; }
@@ -347,7 +362,7 @@ export class QuoteApp {
     const w = window as any; w.mortgageSuite = w.mortgageSuite || {}; w.mortgageSuite.store = this.store;
     if (w.MTBuild) return w.MTBuild.open();
     this.showNote('Loading the document builder…');
-    const s = document.createElement('script'); s.src = 'assets/doc-builder.js?v=56.7';
+    const s = document.createElement('script'); s.src = 'assets/doc-builder.js?v=56.8';
     s.onload = () => { this.showNote(''); w.MTBuild && w.MTBuild.open(); };
     s.onerror = () => this.showNote('The document builder could not be loaded - check the connection and try again.');
     document.head.appendChild(s);

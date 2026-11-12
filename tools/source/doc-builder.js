@@ -7,7 +7,7 @@
    except a property search the user starts (OpenStreetMap / Google). */
 (function () {
   'use strict';
-  if (window.MTBuild) return;
+  if (window.MTBuild && !window.MTBuild.__lazy) return;          /* v57: the lazy stand-in (mt-build-lazy.js) gives way to the real builder */
   var $ = function (id) { return document.getElementById(id); };
   function G(n) { try { return (0, eval)(n); } catch (e) { return undefined; } }
   function esc(v) { return String(v == null ? '' : v).replace(/[&<>"]/g, function (c) { return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]; }); }
@@ -2375,7 +2375,8 @@
       var head = host.querySelector(':scope > .section-head, :scope > header'); head && head.nextSibling ? host.insertBefore(d, head.nextSibling) : host.insertBefore(d, host.firstChild);
     });
   }
-  setInterval(hooks, 1500); setTimeout(hooks, 400);
+  /* v57 phase 4: no polling - hooks run when the page is ready and shortly after clicks, when the Documents panels appear */
+  var hT = 0; setTimeout(hooks, 400); setTimeout(hooks, 1500); document.addEventListener('click', function () { clearTimeout(hT); hT = setTimeout(hooks, 300); }, true);
   /* what search can find without opening the builder: every document type, layout and sample scope */
   function catalog() {
     var lists = {addendum: ADD_STYLES, lease: LEASE_STYLES, estimate: EST_STYLES, pl: PL_STYLES, pay: PAY_STYLES, gift: GIFT_TYPES, schc: [['analysis', 'Cash-flow analysis'], ['summary', 'One-page summary']]};

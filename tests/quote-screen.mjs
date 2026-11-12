@@ -67,6 +67,21 @@ const run = i => Q.runScenario(i);
   check('renovation off: the kept budget is listed as not counted', A.some(a => a.kind === 'inactive' && /kept but not counted/.test(a.text)));
 }
 
+/* inside the Full Suite: the same screen on the 56.5 calculation, where 0 means "calculate" / "not entered" */
+{
+  const { loadEngine } = await import('./engine-loader.mjs');
+  const E = loadEngine(), D = E.require('src/core/defaults'), R = E.require('src/core/calc/engine');
+  Q.MODE.classic = true;
+  try {
+    const i = D.defaultScenario('2026-11-12', 'c'); i.asIsValue = 400000; i.afterRepairValue = 520000; i.fhaMipOverrideRate = 0; i.assets.liquidAssets = 0;
+    const o = R.runScenario(i), C = Q.checks(i, o), G = Q.gapOf(o), gap = C.find(c => c.id === 'gap');
+    check('Full Suite: the unfinanced amount is worked out and flagged as not in the classic cash to close', G.amount > 0 && !G.inCash && gap.status === 'review' && /leaves it out of cash to close/.test(gap.detail), gap.detail.slice(0, 100));
+    check('Full Suite: an MI override of 0 reads as "calculated", not as an override', !Q.assumptions(i, o, D.defaultScenario('2026-11-12', 'd')).some(a => /MIP overridden/.test(a.text)));
+    check('Full Suite: $0 assets read as not entered (the 56.5 meaning)', C.find(c => c.id === 'funds').status === 'missing');
+    const s = Q.summary(i, o); check('Full Suite: the summary says the gap is not in the cash-to-close figure', /not in this figure/.test(s.primary.find(f => f.id === 'cash').note));
+  } finally { Q.MODE.classic = false; }
+}
+
 const w = Math.max(...results.map(r => r.name.length));
 for (const r of results) console.log((r.ok ? 'PASS ' : 'FAIL ') + r.name.padEnd(w) + (r.ok || !r.detail ? '' : '   ' + r.detail));
 const failed = results.filter(r => !r.ok).length;

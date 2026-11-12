@@ -154,6 +154,23 @@
 - **Pasting:** each reader also has **Paste text / several** - a tray that gathers several screenshots and pasted text (an email, a web page) and reads them in order into one file for readers that take one. Pressing Ctrl+V with text while a builder or the document library is open (and no field is selected) opens the tray with that text. Windows Snipping Tool (Win+Shift+S) and Mac clipboard screenshots paste with Ctrl+V / Cmd+V. The gift letter reader also understands typed labels such as "Donor:" and "Relationship:".
 - Tested in the browser: relative dates and the lease term; versions; Fill from on the Income Calculator; Schedule C both year orders; Loan Estimate lines and totals; every lease layout, leaving every section out, rewording, custom sections, the initials line; draw schedules in all estimate layouts; the conditions rows from a real export and a rendered screenshot; email and copy text (clipboard stubbed - no email was sent); all 10 builders and their layouts with no errors. Not tested: a real low-resolution screenshot of a full conditions grid (OCR on small text may miss rows - pasting the copied rows is the reliable route), and the mail link opening a real email program.
 
+## Release 56.8 - the Simple quote screen in the Full Suite, and lighter pages
+
+- **Simple | Advanced in the Full Suite.** The Full Suite and the Loan Suite File page now open on the Simple quote screen:
+  - **What it shows:** seven sections, the live summary, assumptions in use, and every check.
+  - **One scenario:** it works on the suite's own scenario and calculation, so the two views always agree.
+  - **Advanced** is the full suite, as before.
+  - **Section tabs:** the suite's section tabs lead the Simple screen. File, Renovation, Loan, Housing, Costs, Underwriting and Results go to their Simple section; Documents, Rates, Property and Max mortgage open the full suite on that tab.
+  - **Default:** each fresh visit opens Simple; the choice is kept while the tab stays open.
+- **The amount a loan cannot cover is shown.** The classic calculation leaves it out of cash to close. The Simple screen works it out and says "plus $X not financed (not in this figure)" until v57's calculation, which includes it, replaces the classic one.
+- **Loaded when used:**
+  - **Libraries:** the PDF writer and reader (about 0.9 MB from the CDN) load only when a PDF is made or read, not on the first click.
+  - **Document Builder:** loads on first open (a 4 KB stand-in keeps its buttons working).
+  - **Lookups:** ZIP and census lookups run only when a ZIP is changed, not when a page opens.
+- **Scanned PDFs read properly in the Loan Suite readers.** A PDF waits for the real PDF reader instead of being handed to a text-only stand-in. The libraries also no longer get captured by the suite's module loader.
+- **Less polling:** the document center and builder no longer re-check the page every 1.5 seconds.
+- **Assets:** the Simple screen shows blank assets as "not entered", not "calculated".
+
 ## Release 55.14b - self-employment, rental and more of the income worksheet; one look across the pages
 
 - **Self-employment follows the income worksheet** (sections A-E and Tables!J20:K31), proven against the workbook (16 of 16 cases). Fixed: K-1 amounts were multiplied by the ownership percentage a second time (a 10% partner's $10,748 K-1 counted as $1,075); with only one year of returns entered the income was halved; the 1120 net operating loss is added back and dividends are subtracted, as on the worksheet and Form 1084. Added: Schedule F (farm), Schedule D (recurring capital gains - the worksheet takes the larger year), Schedule C line 6 non-recurring income, 1065 line 4 income from other partnerships, business mileage decided on its own with the worksheet's rate table.

@@ -257,7 +257,8 @@
     return true;
   }
   function loadLoanPdfJs() {
-    if (window.pdfjsLib) return Promise.resolve(true);
+    if (window.pdfjsLib && !window.pdfjsLib.__mtgcalcNative) return Promise.resolve(true);
+    if (window.LOS_LIBS) return window.LOS_LIBS.need('pdf');
     if (loadLoanPdfJs.promise) return loadLoanPdfJs.promise;
     loadLoanPdfJs.promise = new Promise(function (resolve) {
       const urls = [
@@ -296,7 +297,9 @@
             (/\.pdf$/i.test(Array.from(input.files).map(function (file) { return file.name || ''; }).join(' ') || '') ||
              input.id === 'v50SharedDocFile' || input.id === 'docFile' ||
              /\.pdf/i.test(input.accept || ''))) {
-          nativePdfStub(input.files);
+          /* v57 phase 4: the page loader (LOS_LIBS) now holds a PDF until the real reader is loaded, so the text-only
+             stand-in is installed only where that loader is absent */
+          if (!window.LOS_LIBS) nativePdfStub(input.files);
         }
       }, true);
     }
@@ -305,13 +308,9 @@
     const wrapped = async function (files) {
       const list = Array.from(files || []), hasPdf = list.some(function (file) { return /\.pdf$/i.test(file.name || ''); });
       if (hasPdf && !window.pdfjsLib) {
-        /* Prefer the browser-native parser immediately.  The CDN reader is
-           still attempted in the background for scanned PDFs, but a normal
-           text PDF should never wait on a network timeout before opening. */
-        nativePdfStub(list);
-        loadLoanPdfJs().then(function (loaded) {
-          if (!loaded && !window.pdfjsLib) nativePdfStub(list);
-        });
+        /* v57 phase 4: load the real reader (scanned pages need it); the browser-native text reader is the fallback when it cannot load */
+        const loaded = await loadLoanPdfJs();
+        if (!loaded && !window.pdfjsLib) nativePdfStub(list);
       }
       return legacy.call(this, files);
     };

@@ -2,6 +2,22 @@
 // and the summary figures - all read from the engine's outputs, so the screen shows nothing the engine did not calculate.
 import { FIELDS, Field, getPath } from './fields';
 
+/** classic: running inside the Full Suite on the 56.5 calculation, where 0 in an override or asset field means "calculate" /
+    "not entered" and the funding-gap and credit figures are not produced. Removed when the suite moves to v57 (phase 5). */
+export const MODE = { classic: false };
+const isSet = (v: any) => v != null && !(MODE.classic && v === 0);
+/** the amount the loan cannot cover: the engine's figure, or (classic) worked out from the same loan figures */
+export function gapOf(o: any): { amount: number; inCash: boolean } {
+  if (o.loan.additionalFundsRequired != null) return { amount: o.loan.additionalFundsRequired, inCash: true };
+  const g = Math.round(Math.max(0, (o.loan.totalAcquisitionCost || 0) - (o.loan.maximumBaseLoan || 0) - (o.loan.requiredInvestment || 0)) * 100) / 100;
+  return { amount: g, inCash: false };
+}
+export function creditOf(o: any) {
+  const c = o.cash, p = o.purchase;
+  return { requested: c.sellerConcessionRequested ?? p.sellerConcessionAmount ?? 0, allowed: c.sellerConcessionAllowed ?? p.sellerConcessionAllowed ?? 0, applied: c.sellerConcessionApplied ?? 0, unused: c.sellerConcessionUnused ?? 0, notes: c.creditNotes || [] };
+}
+export const assetsEntered = (i: any) => !!i.assets && isSet(i.assets.liquidAssets);
+export const overrideSet = isSet;
 export type Status = 'pass' | 'fail' | 'review' | 'missing' | 'na';
 export const STATUS_LABEL: Record<Status, string> = { pass: 'Pass', fail: 'Fail', review: 'Review needed', missing: 'Not entered', na: 'Not applicable' };
 export interface Check { id: string; title: string; status: Status; detail: string; field?: string; }
@@ -19,8 +35,8 @@ export function checks(i: any, o: any): Check[] {
   if (reno && !(i.reno.baseCost > 0)) add({ id: 'budget', title: 'Renovation budget', status: 'missing', detail: 'Renovation is on but no construction budget is entered.', field: 'reno.baseCost' });
 
   /* financing: anything the loan cannot cover is in cash to close, with the reasons */
-  const gap = o.loan.additionalFundsRequired || 0;
-  if (gap > 0) add({ id: 'gap', title: 'Funding gap', status: 'review', detail: `The loan cannot cover ${usd(gap, true)}; it is included in cash to close. ` + (o.loan.additionalFundsReasons || []).map((r: any) => (typeof r === 'string' ? r : `${r.label || r.reason}: ${usd(r.amount, true)}`)).join('; '), field: 'finalDownPaymentPct' });
+  const G = gapOf(o), gap = G.amount;
+  if (gap > 0) add({ id: 'gap', title: 'Funding gap', status: 'review', detail: `The loan cannot cover ${usd(gap, true)}; ` + (G.inCash ? 'it is included in cash to close. ' : 'the classic calculation leaves it out of cash to close, so the borrower needs this much more than shown (v57 adds it). ') + (o.loan.additionalFundsReasons || []).map((r: any) => (typeof r === 'string' ? r : `${r.label || r.reason}: ${usd(r.amount, true)}`)).join('; '), field: 'finalDownPaymentPct' });
   else add({ id: 'gap', title: 'Loan covers the project', status: 'pass', detail: o.loan.fhaLimitStatus && o.isFha ? o.loan.fhaLimitStatus + '.' : 'No amount is left unfinanced.' });
 
   /* value */
@@ -30,16 +46,16 @@ export function checks(i: any, o: any): Check[] {
   } else add({ id: 'arv', title: 'After-repair value', status: 'na', detail: 'Not a renovation loan.' });
 
   /* seller credit: requested, allowed, applied, unused */
-  const req = o.cash.sellerConcessionRequested || 0;
+  const cr = creditOf(o), req = cr.requested;
   if (!(req > 0)) add({ id: 'credit', title: 'Seller credit', status: 'na', detail: 'No seller credit requested.' });
-  else if ((o.purchase.sellerConcessionOverLimit || 0) > 0 || (o.cash.sellerConcessionUnused || 0) > 0) add({ id: 'credit', title: 'Seller credit', status: 'review', detail: `Requested ${usd(req, true)}, allowed ${usd(o.cash.sellerConcessionAllowed, true)}, applied ${usd(o.cash.sellerConcessionApplied, true)}, unused ${usd(o.cash.sellerConcessionUnused, true)}. ` + (o.cash.creditNotes || []).join(' '), field: 'sellerConcessionPct' });
-  else add({ id: 'credit', title: 'Seller credit', status: 'pass', detail: `${usd(o.cash.sellerConcessionApplied, true)} applied to closing costs (limit ${pct(o.purchase.sellerConcessionLimitPct)}).` });
+  else if ((o.purchase.sellerConcessionOverLimit || 0) > 0 || cr.unused > 0) add({ id: 'credit', title: 'Seller credit', status: 'review', detail: `Requested ${usd(req, true)}, allowed ${usd(cr.allowed, true)}, applied ${usd(cr.applied, true)}, unused ${usd(cr.unused, true)}. ` + cr.notes.join(' '), field: 'sellerConcessionPct' });
+  else add({ id: 'credit', title: 'Seller credit', status: 'pass', detail: `${usd(cr.applied, true)} applied to closing costs (limit ${pct(o.purchase.sellerConcessionLimitPct)}).` });
 
   /* qualification */
   const a = o.aus;
   if (a.overallDti === 'ENTER INCOME') add({ id: 'dti', title: 'Debt-to-income', status: 'missing', detail: 'Enter qualifying income. The DTI is not 0% - it is not calculated yet.', field: 'income' });
   else add({ id: 'dti', title: 'Debt-to-income', status: a.overallDti === 'PASS' ? 'pass' : 'fail', detail: `Housing ${pct(a.frontEndDti)} (limit ${pct(a.frontEndLimit)}), total ${pct(a.backEndDti)} (limit ${pct(a.backEndLimit)}).`, field: 'income' });
-  const assetsIn = i.assets && i.assets.liquidAssets != null;
+  const assetsIn = assetsEntered(i);
   if (!assetsIn) add({ id: 'funds', title: 'Funds to close', status: 'missing', detail: `Enter available assets to check them against ${usd(o.cash.cashToClose)} cash to close.`, field: 'assets.liquidAssets' });
   else add({ id: 'funds', title: 'Funds to close', status: a.assetsRemainingAfterClosing >= 0 ? 'pass' : 'fail', detail: a.assetsRemainingAfterClosing >= 0 ? `${usd(a.assetsRemainingAfterClosing)} left after closing.` : `Short ${usd(-a.assetsRemainingAfterClosing)} for cash to close.`, field: 'assets.liquidAssets' });
   const rs = String(a.reserveStatus || '');
@@ -65,14 +81,14 @@ export function assumptions(i: any, o: any, d: any): Assumption[] {
   for (const f of FIELDS) {
     if (!show(f)) continue;
     const v = getPath(i, f.path), dv = getPath(d, f.path);
-    if (f.override) { if (v != null && f.group !== 'Assets and reserves' && f.id !== 'assets.liquidAssets') L.push({ text: `${f.label} overridden: ${fmt(f, v)}` + (f.calc ? ` (calculated ${fmt(f, f.calc(o, i))})` : ''), field: f.id, kind: 'override' }); continue; }
+    if (f.override) { if (isSet(v) && f.group !== 'Assets and reserves' && f.id !== 'assets.liquidAssets') L.push({ text: `${f.label} overridden: ${fmt(f, v)}` + (f.calc ? ` (calculated ${fmt(f, f.calc(o, i))})` : ''), field: f.id, kind: 'override' }); continue; }
     if (f.group && f.kind !== 'text' && JSON.stringify(v) !== JSON.stringify(dv)) L.push({ text: `${f.label}: ${fmt(f, v)} (standard ${fmt(f, dv)})`, field: f.id, kind: 'setting' });
   }
   if (i.renovation && i.reno.paymentReserveMonths > 0) L.unshift({ text: `${i.reno.paymentReserveMonths} financed payment${i.reno.paymentReserveMonths > 1 ? 's' : ''} (${usd(o.renovationOut.paymentReserve)})`, field: 'reno.paymentReserveMonths', kind: 'setting' });
   if (/Manual|Estimate/i.test(i.taxSourceType)) L.push({ text: `Property taxes are ${/Estimate/.test(i.taxSourceType) ? 'an online estimate' : 'entered by hand'} - not from a tax certificate`, field: 'taxSourceType', kind: 'estimate' });
   if (!i.renovation && i.reno && i.reno.baseCost > 0) L.push({ text: `Renovation is off - the ${usd(i.reno.baseCost)} budget is kept but not counted`, field: 'renovation', kind: 'inactive' });
-  if (i.loanProgram !== 'FHA' && i.fhaMipOverrideRate != null) L.push({ text: 'An FHA MIP override is kept but not used under Conventional', field: 'fhaMipOverrideRate', kind: 'inactive' });
-  if (i.loanProgram !== 'Conventional' && i.pmiOverrideRate != null) L.push({ text: 'A PMI override is kept but not used under FHA', field: 'pmiOverrideRate', kind: 'inactive' });
+  if (i.loanProgram !== 'FHA' && isSet(i.fhaMipOverrideRate)) L.push({ text: 'An FHA MIP override is kept but not used under Conventional', field: 'fhaMipOverrideRate', kind: 'inactive' });
+  if (i.loanProgram !== 'Conventional' && isSet(i.pmiOverrideRate)) L.push({ text: 'A PMI override is kept but not used under FHA', field: 'pmiOverrideRate', kind: 'inactive' });
   if (i.conventionalRatePremiumApplied > 0) L.push({ text: `Conventional rate premium of ${pct(i.conventionalRatePremiumApplied, 3)} is in the rate`, field: 'interestRate', kind: 'setting' });
   return L;
 }
@@ -90,11 +106,11 @@ export function fmt(f: Field, v: any): string {
 export interface Figure { id: string; label: string; value: string; note?: string; tone?: 'bad' | 'warn' | 'muted'; }
 /** the summary: four primary figures, the rest on demand (spec item 14) */
 export function summary(i: any, o: any): { primary: Figure[]; more: Figure[] } {
-  const a = o.aus, noIncome = a.overallDti === 'ENTER INCOME', assetsIn = i.assets && i.assets.liquidAssets != null;
+  const a = o.aus, noIncome = a.overallDti === 'ENTER INCOME', assetsIn = assetsEntered(i), G = gapOf(o);
   const primary: Figure[] = [
     { id: 'payment', label: 'Monthly payment', value: usd(o.payment.totalMonthlyPayment, true), note: 'P&I, MI, taxes, insurance, HOA' },
     { id: 'loan', label: 'Total loan', value: usd(o.loan.totalLoan, true), note: o.loan.ufmip > 0 ? `incl. ${usd(o.loan.ufmip, true)} upfront MIP` : '' },
-    { id: 'cash', label: 'Cash to close', value: usd(o.cash.cashToClose, true), note: o.loan.additionalFundsRequired > 0 ? `incl. ${usd(o.loan.additionalFundsRequired)} not financed` : '', tone: o.loan.additionalFundsRequired > 0 ? 'warn' : undefined },
+    { id: 'cash', label: 'Cash to close', value: usd(o.cash.cashToClose, true), note: G.amount > 0 ? (G.inCash ? `incl. ${usd(G.amount)} not financed` : `plus ${usd(G.amount)} not financed (not in this figure)`) : '', tone: G.amount > 0 ? 'warn' : undefined },
     { id: 'dti', label: 'DTI (total)', value: noIncome ? 'Not entered' : pct(a.backEndDti), note: noIncome ? 'enter income' : `limit ${pct(a.backEndLimit)}`, tone: noIncome ? 'muted' : a.backEndResult === 'PASS' ? undefined : 'bad' },
   ];
   const more: Figure[] = [
@@ -107,6 +123,6 @@ export function summary(i: any, o: any): { primary: Figure[]; more: Figure[] } {
     { id: 'arv', label: 'ARV cushion', value: !i.renovation ? 'N/A' : !(i.afterRepairValue > 0) ? 'Not entered' : usd(o.value.valueCushion), tone: !i.renovation ? 'muted' : !(i.afterRepairValue > 0) ? 'muted' : o.value.valueCushion < 0 ? 'bad' : undefined, note: i.renovation && i.afterRepairValue > 0 && o.value.valueCushion < 0 ? 'shortfall' : '' },
     { id: 'ltv', label: 'LTV / loan-to-cost', value: pct(o.loan.ltvOnFinalValue, 1) },
   ];
-  if (o.cash.sellerConcessionUnused > 0) more.push({ id: 'unused', label: 'Unused seller credit', value: usd(o.cash.sellerConcessionUnused, true), tone: 'warn' });
+  if ((o.cash.sellerConcessionUnused || 0) > 0) more.push({ id: 'unused', label: 'Unused seller credit', value: usd(o.cash.sellerConcessionUnused, true), tone: 'warn' });
   return { primary, more };
 }

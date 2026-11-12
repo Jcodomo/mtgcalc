@@ -572,7 +572,8 @@
     });
     /* place values that were waiting for this page */
     var n = 0; (function drain() { if ((PAGE === 'suite' && suiteStore() && suiteStore().setField) || (PAGE === 'income' && calcState() && typeof window.RECALC === 'function')) { setTimeout(drainQueue, 900); return; } if (n++ < 120) setTimeout(drain, 150); })();
-    setInterval(inline, 1500);
+    /* v57 phase 4: no polling - the inline library is placed when the page is ready and shortly after clicks, when the Documents panels appear */
+    var it = 0; setTimeout(inline, 1500); document.addEventListener('click', function () { clearTimeout(it); it = setTimeout(inline, 300); }, true);
   }
   window.MTDocs = {__v56: true, readText: readText, detect: detect, extract: extract, TYPES: TYPES, DEST: DEST, SECTIONS: SECTIONS, open: open, close: close, list: function () { return mem; }, add: add, send: send, queue: queue, EX: EX};
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
