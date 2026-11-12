@@ -132,6 +132,33 @@
 - **Address suggestions match known addresses instantly:** the loan file's property, the document builders' properties, addresses picked before and full addresses typed into an address box are matched on every keystroke without waiting for the network (tagged "Loan file", "Document builder", "Used before", "Typed before"); OpenStreetMap results join them, now after 0.2 seconds and from the third character.
 - The MI & renovation worksheet's program is a typeable box (FHA, FHA 203(k), Conventional, HomeStyle, VA, USDA or anything else). Choices that drive a calculation - pay frequency, filing status, the state tax table, lease type and each builder's style - stay as lists.
 
+## 2026-11-12 - everything released today (56.6 to 57.2)
+
+The release entries below have the details. In short:
+
+- **56.6 - documents:** documents print and save as PDF without cut-off text, with page layout and margin choices. Export waits for the last edit, and a screenshot can be pasted into any document reader.
+- **56.7 - search and builders:** search on every page and dates in words. Schedule C and Loan Estimate drafts. Lease sections can be edited and removed, there are two new lease layouts, and contractor draws can be removed. A commitment letter can be made from a pasted or screenshotted conditions list, with an email of the checked-off conditions.
+- **56.8 - Simple quote screen:** the Simple quote screen opens inside the Full Suite, with a Simple | Advanced switch, and the PDF libraries load only when needed.
+- **56.9 - Advanced view:** a tighter Advanced view, with a "← Simple" button always in reach.
+- **57.0 - the v57 calculation goes live:**
+  - The Loan Suite runs the v57 calculation: cash to close includes any amount the loan cannot cover, seller credit is capped, draws add up to the cent, and blank fields mean "calculate".
+  - Saved scenarios are converted once, with a rollback copy.
+  - Excel and Google Sheets rows paste into builder lists, pastes of any length work, and OCR on screenshots is better.
+  - New commitment-letter and income-report layouts.
+  - A Simple Income Calculator, which keeps Other Income, VA and Assets in Advanced.
+- **57.1 - checked against the NMB Income Worksheet:**
+  - The Income Calculator matches the workbook on 29 of 29 test cases.
+  - Fixes: whole-day counts for 1099 and union-worker income, the gross-up rounded down to the cent, and DU Refi Plus using the most recent year.
+  - Added a self-employment loan type and a choice of mileage table.
+  - New NMB Income Worksheet report layout.
+- **57.2 - more NMB pages:** Union Worker W2, Freddie 1099 and Retirement Income pages in the NMB report.
+- **Behind the scenes, with no change to the site on their own:**
+  - The 56.5 calculation was recovered into readable TypeScript (src/) and gives identical results on 3,000 scenarios.
+  - Engine fixes D1-D5 were written with tests.
+  - A shared scenario model (schema 57) handles migration, IDs and import errors.
+  - The deploy step now installs its build tools before testing and publishes without them.
+  - Reports for v57 phases 1-5 are in docs/v57/.
+
 ## Release 56.6 - documents print and save as PDF without cut-off text, page layout and margin choices, paste a screenshot into any document reader
 
 - **No more cut-off pages.** Long documents used to be photographed as one tall page and sliced every 11 inches, which could split a line of text and dropped the margins on later pages. The Document Builder now sets documents out on real pages before printing or saving: breaks fall between paragraphs, table rows (the table header repeats on the next page), list items (numbering continues) and signature lines; headings stay with what follows them; every page keeps its margins; multi-page documents get "Page 1 of 3" numbers. Preview, Print and Download PDF show the same pages, and each PDF page is exactly one letter-size sheet.
@@ -153,6 +180,33 @@
 - **Commitment letter from a conditions list:** paste the condition rows copied from your loan system or a spreadsheet (with the header row), or drop or paste a screenshot of the list, and each row becomes a condition - category, borrower-facing wording, internal note, prior-to-docs or at-closing, and "Received / cleared" from the status column. Lender-internal rows (approval, disclosures, funder, escrow) start unticked. Each condition has a **Received / cleared** box. **Email the conditions** opens your email program with the still-needed items unchecked and received items checked off (a long list is copied for pasting); **Copy for email** puts a table with check boxes on the clipboard for Outlook or Gmail; **Copy as spreadsheet rows** gives tab-separated rows for Excel.
 - **Pasting:** each reader also has **Paste text / several** - a tray that gathers several screenshots and pasted text (an email, a web page) and reads them in order into one file for readers that take one. Pressing Ctrl+V with text while a builder or the document library is open (and no field is selected) opens the tray with that text. Windows Snipping Tool (Win+Shift+S) and Mac clipboard screenshots paste with Ctrl+V / Cmd+V. The gift letter reader also understands typed labels such as "Donor:" and "Relationship:".
 - Tested in the browser: relative dates and the lease term; versions; Fill from on the Income Calculator; Schedule C both year orders; Loan Estimate lines and totals; every lease layout, leaving every section out, rewording, custom sections, the initials line; draw schedules in all estimate layouts; the conditions rows from a real export and a rendered screenshot; email and copy text (clipboard stubbed - no email was sent); all 10 builders and their layouts with no errors. Not tested: a real low-resolution screenshot of a full conditions grid (OCR on small text may miss rows - pasting the copied rows is the reliable route), and the mail link opening a real email program.
+
+## Release 56.8 - the Simple quote screen in the Full Suite, and lighter pages
+
+- **Simple | Advanced in the Full Suite.** The Full Suite and the Loan Suite File page now open on the Simple quote screen:
+  - **What it shows:** seven sections, the live summary, assumptions in use, and every check.
+  - **One scenario:** it works on the suite's own scenario and calculation, so the two views always agree.
+  - **Advanced** is the full suite, as before.
+  - **Section tabs:** the suite's section tabs lead the Simple screen. File, Renovation, Loan, Housing, Costs, Underwriting and Results go to their Simple section; Documents, Rates, Property and Max mortgage open the full suite on that tab.
+  - **Default:** each fresh visit opens Simple; the choice is kept while the tab stays open.
+- **The amount a loan cannot cover is shown.** The classic calculation leaves it out of cash to close. The Simple screen works it out and says "plus $X not financed (not in this figure)" until v57's calculation, which includes it, replaces the classic one.
+- **Loaded when used:**
+  - **Libraries:** the PDF writer and reader (about 0.9 MB from the CDN) load only when a PDF is made or read, not on the first click.
+  - **Document Builder:** loads on first open (a 4 KB stand-in keeps its buttons working).
+  - **Lookups:** ZIP and census lookups run only when a ZIP is changed, not when a page opens.
+- **Scanned PDFs read properly in the Loan Suite readers.** A PDF waits for the real PDF reader instead of being handed to a text-only stand-in. The libraries also no longer get captured by the suite's module loader.
+- **Less polling:** the document center and builder no longer re-check the page every 1.5 seconds.
+- **Assets:** the Simple screen shows blank assets as "not entered", not "calculated".
+
+## Release 56.9 - a tighter Advanced view, with the way back to Simple always in reach
+
+- **← Simple** is now the first item in the full suite's section tabs. The tabs stay under the top bar while you scroll, so the switch back is always one click away (the top-bar Simple | Advanced switch stays too). Switching either way opens at the top of the page.
+- **Tighter Advanced view** (only while Advanced is showing; Simple and the other Loan Suite pages are unchanged):
+  - The row of pills repeating loan, payment, cash to close, DTI and rate is gone; the four summary cards just below show the same figures.
+  - The colour legend at the bottom is gone; Simple labels where each figure comes from.
+  - The scenario picker and its name box share one row on wider screens.
+  - The toolbar no longer shows a scrollbar.
+  - The content starts higher on the page.
 
 ## Release 57.0 - the Loan Suite runs the v57 calculation; spreadsheet pastes, better OCR, a Simple Income Calculator
 
@@ -178,15 +232,6 @@
   - **Hidden income:** amounts in those sections still count, and a note says so.
   - **Faster start:** the PDF libraries (550 KB) load only when a report or PDF is made, so the page is ready in about half the time (74 ms against 144 ms in the same browser).
 
-## Release 57.2 - Union Worker, Freddie 1099 and Retirement Income pages in the NMB worksheet report
-
-- **Three more NMB Income Worksheet pages**, drawn from the workbook's own sheets like the others:
-  - **Union Worker W2:** when W-2 jobs are combined with the union-worker method. Each job's YTD, prior-year and two-years-prior totals go on one row (up to six), followed by the three income trends and the lowest one, which is used.
-  - **Freddie 1099:** one page for each 1099 / contract entry that uses the YTD + prior-year method. It shows the YTD trend, the YTD + prior-year trend and which one is used.
-  - **Retirement Income:** Social Security, pension and annuity / IRA rows, plus up to four other income entries a page, listed by name underneath. Each row shows its gross-up percentage and amount, and the grossed-up total matches the calculator.
-- Cells the workbook leaves unformatted, such as the 1099 sheet's "income to be used" line, take the style of the line above them.
-- Asset version 57.2.
-
 ## Release 57.1 - Income Calculator checked against the NMB Income Worksheet; NMB worksheet report layout
 
 - **Checked against the NMB Income Worksheet (01/29/2025)** - tests/nmb-parity.js writes the workbook's formulas out on their own and runs them against the calculator: 29 of 29 cases match to the cent.
@@ -203,32 +248,14 @@
   - **Not drawn as their own pages yet:** the Union Worker W2, Freddie 1099 and Retirement sheets. They were added in 57.2.
   - **PITIA:** the Rental sheet's itemized PITIA rows are hidden in the workbook, and the calculator keeps one PITIA figure.
 
-## Release 56.9 - a tighter Advanced view, with the way back to Simple always in reach
+## Release 57.2 - Union Worker, Freddie 1099 and Retirement Income pages in the NMB worksheet report
 
-- **← Simple** is now the first item in the full suite's section tabs. The tabs stay under the top bar while you scroll, so the switch back is always one click away (the top-bar Simple | Advanced switch stays too). Switching either way opens at the top of the page.
-- **Tighter Advanced view** (only while Advanced is showing; Simple and the other Loan Suite pages are unchanged):
-  - The row of pills repeating loan, payment, cash to close, DTI and rate is gone; the four summary cards just below show the same figures.
-  - The colour legend at the bottom is gone; Simple labels where each figure comes from.
-  - The scenario picker and its name box share one row on wider screens.
-  - The toolbar no longer shows a scrollbar.
-  - The content starts higher on the page.
-
-## Release 56.8 - the Simple quote screen in the Full Suite, and lighter pages
-
-- **Simple | Advanced in the Full Suite.** The Full Suite and the Loan Suite File page now open on the Simple quote screen:
-  - **What it shows:** seven sections, the live summary, assumptions in use, and every check.
-  - **One scenario:** it works on the suite's own scenario and calculation, so the two views always agree.
-  - **Advanced** is the full suite, as before.
-  - **Section tabs:** the suite's section tabs lead the Simple screen. File, Renovation, Loan, Housing, Costs, Underwriting and Results go to their Simple section; Documents, Rates, Property and Max mortgage open the full suite on that tab.
-  - **Default:** each fresh visit opens Simple; the choice is kept while the tab stays open.
-- **The amount a loan cannot cover is shown.** The classic calculation leaves it out of cash to close. The Simple screen works it out and says "plus $X not financed (not in this figure)" until v57's calculation, which includes it, replaces the classic one.
-- **Loaded when used:**
-  - **Libraries:** the PDF writer and reader (about 0.9 MB from the CDN) load only when a PDF is made or read, not on the first click.
-  - **Document Builder:** loads on first open (a 4 KB stand-in keeps its buttons working).
-  - **Lookups:** ZIP and census lookups run only when a ZIP is changed, not when a page opens.
-- **Scanned PDFs read properly in the Loan Suite readers.** A PDF waits for the real PDF reader instead of being handed to a text-only stand-in. The libraries also no longer get captured by the suite's module loader.
-- **Less polling:** the document center and builder no longer re-check the page every 1.5 seconds.
-- **Assets:** the Simple screen shows blank assets as "not entered", not "calculated".
+- **Three more NMB Income Worksheet pages**, drawn from the workbook's own sheets like the others:
+  - **Union Worker W2:** when W-2 jobs are combined with the union-worker method. Each job's YTD, prior-year and two-years-prior totals go on one row (up to six), followed by the three income trends and the lowest one, which is used.
+  - **Freddie 1099:** one page for each 1099 / contract entry that uses the YTD + prior-year method. It shows the YTD trend, the YTD + prior-year trend and which one is used.
+  - **Retirement Income:** Social Security, pension and annuity / IRA rows, plus up to four other income entries a page, listed by name underneath. Each row shows its gross-up percentage and amount, and the grossed-up total matches the calculator.
+- Cells the workbook leaves unformatted, such as the 1099 sheet's "income to be used" line, take the style of the line above them.
+- Asset version 57.2.
 
 ## Release 55.14b - self-employment, rental and more of the income worksheet; one look across the pages
 
