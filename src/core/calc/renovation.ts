@@ -1,15 +1,94 @@
-// Recovered from the 56.5 compiled engine: AMD module "src/core/calc/renovation".
-// The function body is the original compiled code, unchanged; it receives its dependencies as arguments.
-// Replace this file with a readable rewrite only together with a passing tests/engine-equivalence.mjs run.
-// @ts-nocheck
-import * as dep0 from '../data/renovationRules';
-import * as dep1 from '../utils/num';
-import * as dep2 from './trace';
+// Renovation budget (HUD-92700 section B): rehabilitation escrow, fees released at closing, financed payments and the
+// draw schedule. Line references (B1-B14) follow the 203(k) Maximum Mortgage Worksheet; HomeStyle uses the same pieces.
+import { suggestDrawCount } from '../data/renovationRules';
+import { nonNegative, clamp, round, sum } from '../utils/num';
+import { money, pct, count } from './trace';
 
-const moduleExports: Record<string, any> = {};
-const declared: Record<string, unknown> = { 'src/core/data/renovationRules': dep0, 'src/core/utils/num': dep1, 'src/core/calc/trace': dep2 };
-const requireDep = (name: string) => { if (name in declared) return declared[name]; throw new Error('src/core/calc/renovation: undeclared runtime require of ' + name); };
-(function (e, t, n, a, r) {"use strict";Object.defineProperty(t,"__esModule",{value:!0}),t.calculateRenovation=function calculateRenovation(e,t,s,l){const c=e.reno,u=(0,a.nonNegative)(c.baseCost),d=(0,a.nonNegative)(c.contingencyPct),m=c.utilitiesOff?.2:.1,{suggested:p}=(0,n.suggestDrawCount)(u),y=e.draws.manualOverride?Math.round((0,a.clamp)(e.draws.manualDrawCount,0,12)):p,v=(0,a.round)(y*(0,a.nonNegative)(e.draws.inspectionFeePerDraw),2),g=(0,a.round)(y*(0,a.nonNegative)(e.draws.titleFeePerDraw),2),b=c.syncDrawFees?v:(0,a.nonNegative)(c.inspectionFees),w=c.syncDrawFees?g:(0,a.nonNegative)(c.titleUpdateFees);if(!t)return{active:!1,baseCost:0,contingencyReserve:0,suggestedContingencyPct:m,inspectionFees:0,titleUpdateFees:0,rehabEscrowSubtotal:0,subtotalB10:0,supplementalOrigination:0,discountPointsRehab:0,releasedAtClosing:0,paymentReserve:0,energyImprovements:0,finalRenovationAmount:0,escrowHoldback:0,softCosts:0,suggestedDrawCount:p,drawCount:0,expectedInspectionFees:0,expectedTitleFees:0,drawSchedule:[],initialMaterialRelease:0};const A=(0,a.round)(u*d,2),C=(0,a.nonNegative)(s),T=(0,a.round)((0,a.sum)(u,A,b,w,C),2),x=(0,a.nonNegative)(c.architectural),I=(0,a.nonNegative)(c.consultant),N=(0,a.nonNegative)(c.permits),L=(0,a.round)((0,a.nonNegative)(c.feasibilityOther)+(0,a.nonNegative)(c.otherFinanceable),2),F=(0,a.round)(T+x+I+N+L,2),E=(0,a.nonNegative)(c.supplementalOriginationOverride)>0?(0,a.nonNegative)(c.supplementalOriginationOverride):F<=0?0:(0,a.round)(Math.max(350,.015*F),2),O=(0,a.round)(F*(0,a.nonNegative)(c.discountPointsRehabPct),2),k=(0,a.round)(x+I+N+L+E+O,2),$=(0,a.nonNegative)(c.energyImprovements),_=Math.max(0,(0,a.round)(T+k-$,2)),B=function stagesFor(e){if(e<=0)return[];const t=i[e];if(t)return t;const n=1/e;return Array.from({length:e},(t,a)=>({stage:0===a?"Initial / material release":a===e-1?"Final / completion":`Construction stage ${a+1}`,share:n}))}(y);let V=0;const H=B.map((t,n)=>{const r=(0,a.round)(u*t.share,2);return V=(0,a.round)(V+r,2),{draw:n+1,stage:t.stage,scopeShare:t.share,releaseAmount:r,inspectionFee:(0,a.nonNegative)(e.draws.inspectionFeePerDraw),titleFee:(0,a.nonNegative)(e.draws.titleFeePerDraw),cumulativeRelease:V,remainingHoldback:Math.max(0,(0,a.round)(T-V,2))}});l&&(l.record("contingencyReserve","Contingency reserve (B2)","Contingency = Base Renovation x Contingency %",[(0,r.money)("Base renovation",u),(0,r.pct)("Contingency %",d)],A,{resultFormat:"currency",notes:[`Suggested contingency with utilities ${c.utilitiesOff?"off":"on"}: ${(100*m).toFixed(0)}%`]}),l.record("drawInspectionFees","Draw inspection fees (B3)","Inspection Fees = Number of Draws x Inspection Fee per Draw",[(0,r.count)("Draws",y),(0,r.money)("Fee per draw",e.draws.inspectionFeePerDraw)],b,{resultFormat:"currency",overridesApplied:c.syncDrawFees?[]:["Manually entered total (not synced to the draw planner)"]}),l.record("drawTitleFees","Title update fees (B3)","Title Update Fees = Number of Draws x Title Update Fee per Draw",[(0,r.count)("Draws",y),(0,r.money)("Fee per draw",e.draws.titleFeePerDraw)],w,{resultFormat:"currency",overridesApplied:c.syncDrawFees?[]:["Manually entered total (not synced to the draw planner)"]}),l.record("supplementalOrigination","Supplemental origination fee (B11)","B11 = MAX($350, 1.5% x B10 sub-total)",[(0,r.money)("B10 sub-total",F)],E,{resultFormat:"currency",overridesApplied:(0,a.nonNegative)(c.supplementalOriginationOverride)>0?["Manual override in use"]:[],notes:["Recalculates automatically whenever any renovation cost changes."]}),l.record("finalRenovationAmount","Total rehabilitation cost (B14)","B14 = B5 (rehab escrow) + B13 (released at closing) - A6 (energy improvements)",[(0,r.money)("B1 base construction",u),(0,r.money)("B2 contingency reserve",A),(0,r.money)("B3 inspections + title updates",(0,a.round)(b+w,2)),(0,r.money)("B4 mortgage payments escrowed",C),(0,r.money)("B5 rehabilitation escrow",T),(0,r.money)("B6 architectural / engineering",x),(0,r.money)("B7 consultant",I),(0,r.money)("B8 permits",N),(0,r.money)("B9 other fees",L),(0,r.money)("B11 supplemental origination",E),(0,r.money)("B12 discount points on rehab",O),(0,r.money)("A6 energy improvements",$)],_,{resultFormat:"currency",notes:[`B10 sub-total ${F.toFixed(2)}; B13 released at closing ${k.toFixed(2)}.`,"Energy improvements are financed separately and added to the acquisition basis."]}));return{active:!0,baseCost:u,contingencyReserve:A,suggestedContingencyPct:m,inspectionFees:b,titleUpdateFees:w,rehabEscrowSubtotal:T,subtotalB10:F,supplementalOrigination:E,discountPointsRehab:O,releasedAtClosing:k,paymentReserve:C,energyImprovements:$,finalRenovationAmount:_,escrowHoldback:T,softCosts:(0,a.round)(x+I+N+L,2),suggestedDrawCount:p,drawCount:y,expectedInspectionFees:v,expectedTitleFees:g,drawSchedule:H,initialMaterialRelease:"Conventional"===e.loanProgram?(0,a.nonNegative)(e.draws.initialMaterialRelease):0}};const i={1:[{stage:"Completion / final release",share:1}],2:[{stage:"Initial / material release",share:.5},{stage:"Completion / final release",share:.5}],3:[{stage:"Demolition & structural",share:.4},{stage:"Rough mechanicals & drywall",share:.35},{stage:"Finish work & final",share:.25}],4:[{stage:"Initial / material release",share:.25},{stage:"Demolition, foundation & framing",share:.3},{stage:"Rough mechanicals & drywall",share:.25},{stage:"Finish work & final",share:.2}],5:[{stage:"Initial / material release",share:.2},{stage:"Demolition & framing",share:.2},{stage:"Rough mechanicals (plumbing, electrical, HVAC)",share:.2},{stage:"Drywall & interior",share:.2},{stage:"Finish work & final",share:.2}],6:[{stage:"Initial / material release",share:.15},{stage:"Demolition",share:.15},{stage:"Foundation & framing",share:.2},{stage:"Rough mechanicals",share:.2},{stage:"Drywall & interior",share:.15},{stage:"Finish work & final",share:.15}],7:[{stage:"Initial / material release",share:.14},{stage:"Demolition",share:.13},{stage:"Foundation & framing",share:.16},{stage:"Rough mechanicals",share:.17},{stage:"Drywall",share:.14},{stage:"Finish work",share:.14},{stage:"Final / completion",share:.12}]}})(requireDep, moduleExports, dep0, dep1, dep2);
+export interface DrawRow { draw: number; stage: string; scopeShare: number; releaseAmount: number; inspectionFee: number; titleFee: number; cumulativeRelease: number; remainingHoldback: number; }
 
-export const calculateRenovation = moduleExports.calculateRenovation;
-export default moduleExports;
+/** Planned share of the construction cost released at each draw, by number of draws (1-7); 8-12 draws split evenly. */
+const DRAW_STAGES: Record<number, {stage: string; share: number}[]> = {
+  1: [{stage: 'Completion / final release', share: 1}],
+  2: [{stage: 'Initial / material release', share: 0.5}, {stage: 'Completion / final release', share: 0.5}],
+  3: [{stage: 'Demolition & structural', share: 0.4}, {stage: 'Rough mechanicals & drywall', share: 0.35}, {stage: 'Finish work & final', share: 0.25}],
+  4: [{stage: 'Initial / material release', share: 0.25}, {stage: 'Demolition, foundation & framing', share: 0.3}, {stage: 'Rough mechanicals & drywall', share: 0.25}, {stage: 'Finish work & final', share: 0.2}],
+  5: [{stage: 'Initial / material release', share: 0.2}, {stage: 'Demolition & framing', share: 0.2}, {stage: 'Rough mechanicals (plumbing, electrical, HVAC)', share: 0.2}, {stage: 'Drywall & interior', share: 0.2}, {stage: 'Finish work & final', share: 0.2}],
+  6: [{stage: 'Initial / material release', share: 0.15}, {stage: 'Demolition', share: 0.15}, {stage: 'Foundation & framing', share: 0.2}, {stage: 'Rough mechanicals', share: 0.2}, {stage: 'Drywall & interior', share: 0.15}, {stage: 'Finish work & final', share: 0.15}],
+  7: [{stage: 'Initial / material release', share: 0.14}, {stage: 'Demolition', share: 0.13}, {stage: 'Foundation & framing', share: 0.16}, {stage: 'Rough mechanicals', share: 0.17}, {stage: 'Drywall', share: 0.14}, {stage: 'Finish work', share: 0.14}, {stage: 'Final / completion', share: 0.12}],
+};
+function stagesFor(draws: number) {
+  if (draws <= 0) return [];
+  if (DRAW_STAGES[draws]) return DRAW_STAGES[draws];
+  const share = 1 / draws;
+  return Array.from({length: draws}, (_, i) => ({stage: i === 0 ? 'Initial / material release' : i === draws - 1 ? 'Final / completion' : `Construction stage ${i + 1}`, share}));
+}
+
+/**
+ * @param paymentReserve financed mortgage payments (B4) in dollars - the engine passes 0 on its first pass and
+ *        months x the first-pass monthly payment on the second (see docs/v57 S1).
+ */
+export function calculateRenovation(inputs: any, active: boolean, paymentReserve: unknown, trace?: any) {
+  const reno = inputs.reno, draws = inputs.draws;
+  const baseCost = nonNegative(reno.baseCost);
+  const contingencyPct = nonNegative(reno.contingencyPct);
+  const suggestedContingencyPct = reno.utilitiesOff ? 0.2 : 0.1;
+  const {suggested: suggestedDrawCount} = suggestDrawCount(baseCost);
+  const drawCount = draws.manualOverride ? Math.round(clamp(draws.manualDrawCount, 0, 12)) : suggestedDrawCount;
+  const expectedInspectionFees = round(drawCount * nonNegative(draws.inspectionFeePerDraw), 2);
+  const expectedTitleFees = round(drawCount * nonNegative(draws.titleFeePerDraw), 2);
+  const inspectionFees = reno.syncDrawFees ? expectedInspectionFees : nonNegative(reno.inspectionFees);
+  const titleUpdateFees = reno.syncDrawFees ? expectedTitleFees : nonNegative(reno.titleUpdateFees);
+
+  if (!active) return {active: false, baseCost: 0, contingencyReserve: 0, suggestedContingencyPct, inspectionFees: 0, titleUpdateFees: 0, rehabEscrowSubtotal: 0, subtotalB10: 0,
+    supplementalOrigination: 0, discountPointsRehab: 0, releasedAtClosing: 0, paymentReserve: 0, energyImprovements: 0, finalRenovationAmount: 0, escrowHoldback: 0, softCosts: 0,
+    suggestedDrawCount, drawCount: 0, expectedInspectionFees: 0, expectedTitleFees: 0, drawSchedule: [] as DrawRow[], initialMaterialRelease: 0};
+
+  const contingency = round(baseCost * contingencyPct, 2);                                   // B2
+  const reserve = nonNegative(paymentReserve);                                                // B4
+  const rehabEscrow = round(sum(baseCost, contingency, inspectionFees, titleUpdateFees, reserve), 2);   // B5 = B1 + B2 + B3 + B4
+  const architectural = nonNegative(reno.architectural);                                      // B6
+  const consultant = nonNegative(reno.consultant);                                            // B7
+  const permits = nonNegative(reno.permits);                                                  // B8
+  const otherFees = round(nonNegative(reno.feasibilityOther) + nonNegative(reno.otherFinanceable), 2);   // B9
+  const subtotalB10 = round(rehabEscrow + architectural + consultant + permits + otherFees, 2);           // B10
+  const suppOverride = nonNegative(reno.supplementalOriginationOverride) > 0;
+  const supplementalOrigination = suppOverride ? nonNegative(reno.supplementalOriginationOverride)       // B11 (56.5: an entered 0 means "calculate")
+    : subtotalB10 <= 0 ? 0 : round(Math.max(350, 0.015 * subtotalB10), 2);
+  const discountPointsRehab = round(subtotalB10 * nonNegative(reno.discountPointsRehabPct), 2);           // B12
+  const releasedAtClosing = round(architectural + consultant + permits + otherFees + supplementalOrigination + discountPointsRehab, 2);  // B13
+  const energyImprovements = nonNegative(reno.energyImprovements);                            // A6
+  const finalRenovationAmount = Math.max(0, round(rehabEscrow + releasedAtClosing - energyImprovements, 2));   // B14
+
+  /* draw schedule: each release is the stage's share of the construction cost, rounded to the cent (56.5: no final-cent adjustment - docs/v57 D4) */
+  let cumulative = 0;
+  const drawSchedule: DrawRow[] = stagesFor(drawCount).map((s, i) => {
+    const releaseAmount = round(baseCost * s.share, 2);
+    cumulative = round(cumulative + releaseAmount, 2);
+    return {draw: i + 1, stage: s.stage, scopeShare: s.share, releaseAmount, inspectionFee: nonNegative(draws.inspectionFeePerDraw), titleFee: nonNegative(draws.titleFeePerDraw),
+      cumulativeRelease: cumulative, remainingHoldback: Math.max(0, round(rehabEscrow - cumulative, 2))};
+  });
+
+  if (trace) {
+    trace.record('contingencyReserve', 'Contingency reserve (B2)', 'Contingency = Base Renovation x Contingency %', [money('Base renovation', baseCost), pct('Contingency %', contingencyPct)], contingency,
+      {resultFormat: 'currency', notes: [`Suggested contingency with utilities ${reno.utilitiesOff ? 'off' : 'on'}: ${(100 * suggestedContingencyPct).toFixed(0)}%`]});
+    trace.record('drawInspectionFees', 'Draw inspection fees (B3)', 'Inspection Fees = Number of Draws x Inspection Fee per Draw', [count('Draws', drawCount), money('Fee per draw', draws.inspectionFeePerDraw)], inspectionFees,
+      {resultFormat: 'currency', overridesApplied: reno.syncDrawFees ? [] : ['Manually entered total (not synced to the draw planner)']});
+    trace.record('drawTitleFees', 'Title update fees (B3)', 'Title Update Fees = Number of Draws x Title Update Fee per Draw', [count('Draws', drawCount), money('Fee per draw', draws.titleFeePerDraw)], titleUpdateFees,
+      {resultFormat: 'currency', overridesApplied: reno.syncDrawFees ? [] : ['Manually entered total (not synced to the draw planner)']});
+    trace.record('supplementalOrigination', 'Supplemental origination fee (B11)', 'B11 = MAX($350, 1.5% x B10 sub-total)', [money('B10 sub-total', subtotalB10)], supplementalOrigination,
+      {resultFormat: 'currency', overridesApplied: suppOverride ? ['Manual override in use'] : [], notes: ['Recalculates automatically whenever any renovation cost changes.']});
+    trace.record('finalRenovationAmount', 'Total rehabilitation cost (B14)', 'B14 = B5 (rehab escrow) + B13 (released at closing) - A6 (energy improvements)', [
+      money('B1 base construction', baseCost), money('B2 contingency reserve', contingency), money('B3 inspections + title updates', round(inspectionFees + titleUpdateFees, 2)),
+      money('B4 mortgage payments escrowed', reserve), money('B5 rehabilitation escrow', rehabEscrow), money('B6 architectural / engineering', architectural), money('B7 consultant', consultant),
+      money('B8 permits', permits), money('B9 other fees', otherFees), money('B11 supplemental origination', supplementalOrigination), money('B12 discount points on rehab', discountPointsRehab),
+      money('A6 energy improvements', energyImprovements)], finalRenovationAmount,
+      {resultFormat: 'currency', notes: [`B10 sub-total ${subtotalB10.toFixed(2)}; B13 released at closing ${releasedAtClosing.toFixed(2)}.`, 'Energy improvements are financed separately and added to the acquisition basis.']});
+  }
+
+  return {active: true, baseCost, contingencyReserve: contingency, suggestedContingencyPct, inspectionFees, titleUpdateFees, rehabEscrowSubtotal: rehabEscrow, subtotalB10, supplementalOrigination,
+    discountPointsRehab, releasedAtClosing, paymentReserve: reserve, energyImprovements, finalRenovationAmount, escrowHoldback: rehabEscrow,
+    softCosts: round(architectural + consultant + permits + otherFees, 2), suggestedDrawCount, drawCount, expectedInspectionFees, expectedTitleFees, drawSchedule,
+    initialMaterialRelease: inputs.loanProgram === 'Conventional' ? nonNegative(draws.initialMaterialRelease) : 0};
+}
+
+export default {calculateRenovation};

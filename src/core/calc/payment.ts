@@ -1,18 +1,79 @@
-// Recovered from the 56.5 compiled engine: AMD module "src/core/calc/payment".
-// The function body is the original compiled code, unchanged; it receives its dependencies as arguments.
-// Replace this file with a readable rewrite only together with a passing tests/engine-equivalence.mjs run.
-// @ts-nocheck
-import * as dep0 from '../data/mortgageInsurance';
-import * as dep1 from '../data/qualificationRules';
-import * as dep2 from '../utils/num';
-import * as dep3 from './trace';
+// Monthly housing payment: principal & interest, mortgage insurance, taxes, insurance and HOA.
+import { suggestFhaMipRate, suggestPmiRate, PMI_CANCELLATION_LTV } from '../data/mortgageInsurance';
+import { creditTierFromScore } from '../data/qualificationRules';
+import { num, nonNegative, round, roundDownTo, safeDivide } from '../utils/num';
+import { money, pct, count } from './trace';
 
-const moduleExports: Record<string, any> = {};
-const declared: Record<string, unknown> = { 'src/core/data/mortgageInsurance': dep0, 'src/core/data/qualificationRules': dep1, 'src/core/utils/num': dep2, 'src/core/calc/trace': dep3 };
-const requireDep = (name: string) => { if (name in declared) return declared[name]; throw new Error('src/core/calc/payment: undeclared runtime require of ' + name); };
-(function (e, t, n, a, r, i) {"use strict";function principalAndInterest(e,t,n){const a=(0,r.nonNegative)(e),i=Math.round(12*(0,r.nonNegative)(n));if(a<=0||i<=0)return 0;const s=(0,r.nonNegative)(t)/12;if(0===s)return a/i;const l=Math.pow(1+s,i);return a*s*l/(l-1)}function paymentSpread(e){const t=(0,r.num)(e);return t<5e3?200:t<=7e3?225:250}Object.defineProperty(t,"__esModule",{value:!0}),t.principalAndInterest=principalAndInterest,t.paymentSpread=paymentSpread,t.calculatePayment=function calculatePayment({inputs:e,program:t,loan:s,finalPurchasePrice:l,renovationAmount:c,trace:u}){const d=(0,r.round)(principalAndInterest(s.totalLoan,e.interestRate,e.termYears),2),m=(0,n.suggestFhaMipRate)(s.maximumBaseLoan,s.loanToCost,void 0,(0,r.num)(e.termYears,30)),p=t.fhaMipEnabled?m.rate:0,y=t.fhaMipEnabled?(0,r.nonNegative)(e.fhaMipOverrideRate)>0?(0,r.nonNegative)(e.fhaMipOverrideRate):e.fhaMipManual?(0,r.nonNegative)(e.fhaAnnualMipRate):m.rate:0,v=t.fhaMipEnabled?(0,r.round)(s.maximumBaseLoan*y/12,2):0,g=(0,a.creditTierFromScore)((0,r.nonNegative)(e.creditScore)),b=t.pmiEnabled?(0,n.suggestPmiRate)(g,(0,r.nonNegative)(e.finalDownPaymentPct)):0,w=t.pmiEnabled?(0,r.nonNegative)(e.pmiOverrideRate)>0?(0,r.nonNegative)(e.pmiOverrideRate):b:0,A=t.pmiEnabled?(0,r.round)(s.maximumBaseLoan*w/12,2):0,C="Annual"===e.propertyTaxBasis?(0,r.round)((0,r.nonNegative)(e.propertyTaxAmount)/12,2):(0,r.nonNegative)(e.propertyTaxAmount),T="Annual"===e.insuranceBasis?(0,r.round)((0,r.nonNegative)(e.insuranceAmount)/12,2):(0,r.nonNegative)(e.insuranceAmount),x=(0,r.nonNegative)(e.taxInsuranceOverrideMonthly),I=x>0,N=I?x:(0,r.round)(C+T,2),L=(0,r.nonNegative)(e.hoaMonthly),F=(0,r.round)(d+v+A+N+L,2),E=(0,r.num)(e.paymentRoundingIncrement,50)||50,O=(0,r.roundDownTo)(F,E),k=paymentSpread(F),$=O+k,_=t.pmiEnabled?(0,r.round)((0,r.safeDivide)(s.maximumBaseLoan,n.PMI_CANCELLATION_LTV,0),2):0,B=t.renovationActive?(0,r.nonNegative)(e.afterRepairValue)||l+c:(0,r.nonNegative)(e.asIsValue)||l,V=(0,r.safeDivide)(s.maximumBaseLoan,B,0);u&&(u.record("principalAndInterest","Principal & interest","P&I = L x [ r(1+r)^n / ((1+r)^n - 1) ]",[(0,i.money)("Total loan (L)",s.totalLoan),(0,i.pct)("Annual rate",e.interestRate),(0,i.count)("Term (years)",e.termYears)],d,{resultFormat:"currency"}),u.record("monthlyFhaMip","Monthly FHA MIP",t.fhaMipEnabled?"Monthly MIP = FHA Base Loan x Annual MIP Rate / 12":"Monthly MIP = $0 (Conventional financing)",[(0,i.money)("FHA base loan",t.fhaMipEnabled?s.maximumBaseLoan:0),(0,i.pct)("Annual MIP rate",y)],v,{resultFormat:"currency",overridesApplied:t.fhaMipEnabled&&(0,r.nonNegative)(e.fhaMipOverrideRate)>0?[`Manual MIP rate override ${(100*e.fhaMipOverrideRate).toFixed(3)}%`]:[],notes:t.fhaMipEnabled?[`Suggested planning rate from LTC ${(100*s.loanToCost).toFixed(2)}%: ${(100*p).toFixed(3)}%`]:[]}),u.record("monthlyPmi","Monthly conventional PMI",t.pmiEnabled?"Monthly PMI = Conventional Base Loan x Annual PMI Rate / 12":"Monthly PMI = $0 (FHA financing)",[(0,i.money)("Base loan",t.pmiEnabled?s.maximumBaseLoan:0),(0,i.pct)("Annual PMI rate",w)],A,{resultFormat:"currency",overridesApplied:t.pmiEnabled&&(0,r.nonNegative)(e.pmiOverrideRate)>0?[`Manual PMI rate override ${(100*e.pmiOverrideRate).toFixed(3)}%`]:[],notes:t.pmiEnabled?["PMI is an ESTIMATE. The actual rate requires an insurer quote."]:[]}),u.record("totalMonthlyPayment","Total monthly payment","Payment = P&I + MI + Taxes + Insurance + HOA",[(0,i.money)("Principal & interest",d),(0,i.money)("FHA MIP",v),(0,i.money)("Conventional PMI",A),(0,i.money)("Taxes + insurance used",N),(0,i.money)("HOA / other monthly",L)],F,{resultFormat:"currency",overridesApplied:I?[`Combined monthly taxes + insurance override of ${x.toFixed(2)} replaces the separate fields`]:[]}),u.record("paymentRange","Borrower payment range","Low = ROUNDDOWN(Payment / Increment) x Increment; High = Low + $200 / $225 / $250",[(0,i.money)("Exact payment",F),(0,i.count)("Rounding increment",E),(0,i.money)("Spread applied",k)],$,{resultFormat:"currency",notes:[`Low ${O.toFixed(0)} / High ${$.toFixed(0)}`]}));return{principalAndInterest:d,monthlyFhaMip:v,monthlyPmi:A,pmiRateUsed:w,pmiSuggestedRate:b,fhaMipRateUsed:y,fhaMipSuggestedRate:p,monthlyTaxes:C,monthlyInsurance:T,usingTiOverride:I,monthlyTaxesAndInsuranceUsed:N,hoaMonthly:L,totalMonthlyPayment:F,paymentLow:O,paymentHigh:$,paymentSpread:k,pmiCancelValue:_,currentLtv:V,creditTier:g}}})(requireDep, moduleExports, dep0, dep1, dep2, dep3);
+/** Level monthly principal & interest on `loan` at `annualRate` for `termYears`; a 0% rate is simply loan / months. */
+export function principalAndInterest(loan: unknown, annualRate: unknown, termYears: unknown): number {
+  const principal = nonNegative(loan), months = Math.round(12 * nonNegative(termYears));
+  if (principal <= 0 || months <= 0) return 0;
+  const r = nonNegative(annualRate) / 12;
+  if (r === 0) return principal / months;
+  const growth = Math.pow(1 + r, months);
+  return principal * r * growth / (growth - 1);
+}
 
-export const principalAndInterest = moduleExports.principalAndInterest;
-export const paymentSpread = moduleExports.paymentSpread;
-export const calculatePayment = moduleExports.calculatePayment;
-export default moduleExports;
+/** Width of the borrower-facing payment range above the rounded-down payment. */
+export function paymentSpread(payment: unknown): number {
+  const p = num(payment);
+  return p < 5000 ? 200 : p <= 7000 ? 225 : 250;
+}
+
+export function calculatePayment({inputs, program, loan, finalPurchasePrice, renovationAmount, trace}: any) {
+  const pi = round(principalAndInterest(loan.totalLoan, inputs.interestRate, inputs.termYears), 2);
+
+  /* FHA annual MIP: the planning table's rate unless a rate is entered (56.5: an entered 0 means "use the table") */
+  const mipSuggestion = suggestFhaMipRate(loan.maximumBaseLoan, loan.loanToCost, undefined, num(inputs.termYears, 30));
+  const mipSuggested = program.fhaMipEnabled ? mipSuggestion.rate : 0;
+  const mipOverride = nonNegative(inputs.fhaMipOverrideRate) > 0;
+  const mipRate = program.fhaMipEnabled ? (mipOverride ? nonNegative(inputs.fhaMipOverrideRate) : inputs.fhaMipManual ? nonNegative(inputs.fhaAnnualMipRate) : mipSuggestion.rate) : 0;
+  const monthlyMip = program.fhaMipEnabled ? round(loan.maximumBaseLoan * mipRate / 12, 2) : 0;
+
+  /* conventional PMI: suggested from credit tier and down payment unless a rate is entered (56.5: 0 means "use the suggestion") */
+  const creditTier = creditTierFromScore(nonNegative(inputs.creditScore));
+  const pmiSuggested = program.pmiEnabled ? suggestPmiRate(creditTier, nonNegative(inputs.finalDownPaymentPct)) : 0;
+  const pmiOverride = nonNegative(inputs.pmiOverrideRate) > 0;
+  const pmiRate = program.pmiEnabled ? (pmiOverride ? nonNegative(inputs.pmiOverrideRate) : pmiSuggested) : 0;
+  const monthlyPmi = program.pmiEnabled ? round(loan.maximumBaseLoan * pmiRate / 12, 2) : 0;
+
+  /* taxes and insurance: entered annually or monthly; a combined monthly override replaces both (56.5: 0 means "no override") */
+  const monthlyTaxes = inputs.propertyTaxBasis === 'Annual' ? round(nonNegative(inputs.propertyTaxAmount) / 12, 2) : nonNegative(inputs.propertyTaxAmount);
+  const monthlyInsurance = inputs.insuranceBasis === 'Annual' ? round(nonNegative(inputs.insuranceAmount) / 12, 2) : nonNegative(inputs.insuranceAmount);
+  const tiOverride = nonNegative(inputs.taxInsuranceOverrideMonthly), usingTiOverride = tiOverride > 0;
+  const taxesAndInsurance = usingTiOverride ? tiOverride : round(monthlyTaxes + monthlyInsurance, 2);
+  const hoa = nonNegative(inputs.hoaMonthly);
+
+  const total = round(pi + monthlyMip + monthlyPmi + taxesAndInsurance + hoa, 2);
+  const increment = num(inputs.paymentRoundingIncrement, 50) || 50;
+  const low = roundDownTo(total, increment), spread = paymentSpread(total), high = low + spread;
+  const pmiCancelValue = program.pmiEnabled ? round(safeDivide(loan.maximumBaseLoan, PMI_CANCELLATION_LTV, 0), 2) : 0;
+  const currentValue = program.renovationActive ? (nonNegative(inputs.afterRepairValue) || finalPurchasePrice + renovationAmount) : (nonNegative(inputs.asIsValue) || finalPurchasePrice);
+  const currentLtv = safeDivide(loan.maximumBaseLoan, currentValue, 0);
+
+  if (trace) {
+    trace.record('principalAndInterest', 'Principal & interest', 'P&I = L x [ r(1+r)^n / ((1+r)^n - 1) ]',
+      [money('Total loan (L)', loan.totalLoan), pct('Annual rate', inputs.interestRate), count('Term (years)', inputs.termYears)], pi, {resultFormat: 'currency'});
+    trace.record('monthlyFhaMip', 'Monthly FHA MIP', program.fhaMipEnabled ? 'Monthly MIP = FHA Base Loan x Annual MIP Rate / 12' : 'Monthly MIP = $0 (Conventional financing)',
+      [money('FHA base loan', program.fhaMipEnabled ? loan.maximumBaseLoan : 0), pct('Annual MIP rate', mipRate)], monthlyMip, {
+        resultFormat: 'currency',
+        overridesApplied: program.fhaMipEnabled && mipOverride ? [`Manual MIP rate override ${(100 * inputs.fhaMipOverrideRate).toFixed(3)}%`] : [],
+        notes: program.fhaMipEnabled ? [`Suggested planning rate from LTC ${(100 * loan.loanToCost).toFixed(2)}%: ${(100 * mipSuggested).toFixed(3)}%`] : []});
+    trace.record('monthlyPmi', 'Monthly conventional PMI', program.pmiEnabled ? 'Monthly PMI = Conventional Base Loan x Annual PMI Rate / 12' : 'Monthly PMI = $0 (FHA financing)',
+      [money('Base loan', program.pmiEnabled ? loan.maximumBaseLoan : 0), pct('Annual PMI rate', pmiRate)], monthlyPmi, {
+        resultFormat: 'currency',
+        overridesApplied: program.pmiEnabled && pmiOverride ? [`Manual PMI rate override ${(100 * inputs.pmiOverrideRate).toFixed(3)}%`] : [],
+        notes: program.pmiEnabled ? ['PMI is an ESTIMATE. The actual rate requires an insurer quote.'] : []});
+    trace.record('totalMonthlyPayment', 'Total monthly payment', 'Payment = P&I + MI + Taxes + Insurance + HOA',
+      [money('Principal & interest', pi), money('FHA MIP', monthlyMip), money('Conventional PMI', monthlyPmi), money('Taxes + insurance used', taxesAndInsurance), money('HOA / other monthly', hoa)], total, {
+        resultFormat: 'currency', overridesApplied: usingTiOverride ? [`Combined monthly taxes + insurance override of ${tiOverride.toFixed(2)} replaces the separate fields`] : []});
+    trace.record('paymentRange', 'Borrower payment range', 'Low = ROUNDDOWN(Payment / Increment) x Increment; High = Low + $200 / $225 / $250',
+      [money('Exact payment', total), count('Rounding increment', increment), money('Spread applied', spread)], high, {resultFormat: 'currency', notes: [`Low ${low.toFixed(0)} / High ${high.toFixed(0)}`]});
+  }
+
+  return {principalAndInterest: pi, monthlyFhaMip: monthlyMip, monthlyPmi, pmiRateUsed: pmiRate, pmiSuggestedRate: pmiSuggested, fhaMipRateUsed: mipRate, fhaMipSuggestedRate: mipSuggested,
+    monthlyTaxes, monthlyInsurance, usingTiOverride, monthlyTaxesAndInsuranceUsed: taxesAndInsurance, hoaMonthly: hoa, totalMonthlyPayment: total, paymentLow: low, paymentHigh: high,
+    paymentSpread: spread, pmiCancelValue, currentLtv, creditTier};
+}
+
+export default {principalAndInterest, paymentSpread, calculatePayment};

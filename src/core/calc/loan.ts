@@ -1,21 +1,121 @@
-// Recovered from the 56.5 compiled engine: AMD module "src/core/calc/loan".
-// The function body is the original compiled code, unchanged; it receives its dependencies as arguments.
-// Replace this file with a readable rewrite only together with a passing tests/engine-equivalence.mjs run.
-// @ts-nocheck
-import * as dep0 from '../data/fhaLimits';
-import * as dep1 from '../utils/num';
-import * as dep2 from './trace';
-import * as dep3 from '../data/renovationRules';
+// Loan amount: total acquisition cost, the FHA value basis (HUD-92700 C3), minimum statutory investment, required
+// investment, base loan before limits, FHA county limit and value caps, upfront MIP and total loan.
+import { suggestFhaTier, fhaStandardFloor, lookupFhaLimit } from '../data/fhaLimits';
+import { nonNegative, round, safeDivide } from '../utils/num';
+import { money, pct, count, text } from './trace';
+import { HOMESTYLE_MAX_LTV, FHA_203K_ARV_FACTOR } from '../data/renovationRules';
 
-const moduleExports: Record<string, any> = {};
-const declared: Record<string, unknown> = { 'src/core/data/fhaLimits': dep0, 'src/core/utils/num': dep1, 'src/core/calc/trace': dep2, 'src/core/data/renovationRules': dep3 };
-const requireDep = (name: string) => { if (name in declared) return declared[name]; throw new Error('src/core/calc/loan: undeclared runtime require of ' + name); };
-(function (e, t, n, a, r, i) {"use strict";function calculateTotalAcquisition(e,t,n=0){return(0,a.round)((0,a.nonNegative)(e)+(0,a.nonNegative)(t)+(0,a.nonNegative)(n),2)}Object.defineProperty(t,"__esModule",{value:!0}),t.calculateTotalAcquisition=calculateTotalAcquisition,t.calculateValueBasis=calculateValueBasis,t.calculateRequiredInvestment=calculateRequiredInvestment,t.valueSupportedBaseLoan=valueSupportedBaseLoan,t.calculateFhaLimit=calculateFhaLimit,t.calculateLoan=function calculateLoan({inputs:e,program:t,purchase:n,finalRenovationAmount:s,energyImprovements:l,trace:c}){var u;const d=t.renovationActive?(0,a.nonNegative)(s):0,m=t.renovationActive?(0,a.nonNegative)(l):0,p=calculateTotalAcquisition(n.finalPurchasePrice,d,m),y=(0,a.nonNegative)(e.finalDownPaymentPct),v=calculateValueBasis(n.finalPurchasePrice,e.asIsValue,d,e.afterRepairValue);let g,b,w;t.isFha?(g=(0,a.round)(v.valueBasis*y,2),b=Math.max(0,(0,a.round)(v.valueBasis*(1-y)+m,2)),w="HUD-92700 line C3 value basis"):(g=(0,a.round)(p*y,2),b=Math.max(0,(0,a.round)(p-Math.max(g,n.finalDownPayment),2)),w="Total acquisition cost");const A=calculateRequiredInvestment(g,n.finalDownPayment),C=calculateFhaLimit(e,t.isFha),T=t.renovationActive?i.HOMESTYLE_MAX_LTV:1,x=valueSupportedBaseLoan(e.afterRepairValue,y,t.isFha,T);let I=b;const N=[],L=t.fhaLimitsEnabled&&C.limit<b;L&&(I=C.limit,N.push(`FHA limit ${C.limit.toLocaleString()}`));const F=!t.isFha&&null!==x&&x<I;F&&(I=x,N.push(t.renovationActive?`HomeStyle ${percentLabel(i.HOMESTYLE_MAX_LTV)} LTV of the as-completed value`:`Value-supported loan ${x.toLocaleString()}`));t.isFha&&v.cappedByArv&&N.push("110% of after-repair value (inside the C3 basis)");I=Math.max(0,(0,a.round)(I,2));const E=L&&(F||v.cappedByArv)?"both":L?"fha-limit":F||t.isFha&&v.cappedByArv?"value":"none",O=t.fhaLimitsEnabled?Math.max(0,(0,a.round)(b-C.limit,2)):0,k=t.ufmipEnabled?(0,a.round)(I*(0,a.nonNegative)(e.ufmipRate),2):0,$=(0,a.round)(I+k,2),_=t.fhaLimitsEnabled?O>0?`LOAN EXCEEDS FHA LIMIT by ${O.toLocaleString("en-US",{style:"currency",currency:"USD",maximumFractionDigits:0})}`:"Within selected FHA loan limit":"N/A - Conventional financing",B=(0,a.safeDivide)(I,p,0),V=t.renovationActive?(0,a.nonNegative)(e.afterRepairValue)||p:(0,a.nonNegative)(e.asIsValue)||n.finalPurchasePrice,H=(0,a.safeDivide)(I,V,0),q=(0,a.safeDivide)($,(0,a.nonNegative)(e.afterRepairValue),0);c&&(c.record("totalAcquisitionCost","Total acquisition cost",t.renovationActive?"Total Acquisition = Final Purchase Price + Total Rehabilitation Cost + Energy Improvements":"Total Acquisition = Final Purchase Price (renovation excluded)",[(0,r.money)("Final purchase price",n.finalPurchasePrice),(0,r.money)("Total rehabilitation cost",d),(0,r.money)("Energy improvements",m)],p,{resultFormat:"currency"}),c.record("valueBasis","Value basis (HUD-92700 C3)","C3 = MIN( MIN(Sales Price, As-Is Value) + Rehabilitation Cost , 110% of ARV )",[(0,r.money)("Contract sales price",n.finalPurchasePrice),(0,r.money)("As-is value",e.asIsValue),(0,r.money)("C1 lesser of price / as-is",v.c1),(0,r.money)("Total rehabilitation cost",d),(0,r.money)("110% of ARV",null!==(u=v.arv110)&&void 0!==u?u:0)],v.valueBasis,{resultFormat:"currency",limitsApplied:v.cappedByArv?["Capped by 110% of the after-repair value"]:[],notes:null===v.arv110?["No ARV entered, so the 110% cap has not been applied."]:[]}),c.record("minimumStatutoryInvestment","Minimum statutory investment",t.isFha?"MSI = C3 Value Basis x Down Payment %  (HUD-92700 line C5)":"MSI = Total Acquisition Cost x Down Payment %",[(0,r.money)(t.isFha?"C3 value basis":"Total acquisition",t.isFha?v.valueBasis:p),(0,r.pct)("Down payment %",y)],g,{resultFormat:"currency",notes:[t.isFha?"FHA takes the statutory investment against the C3 value basis, not against total acquisition cost.":"Conventional minimum investment is measured against total acquisition cost."]}),c.record("requiredInvestment","Required investment","Required Investment = MAX(Minimum Statutory Investment, Selected Down Payment)",[(0,r.money)("Minimum statutory investment",g),(0,r.money)("Selected down payment",n.finalDownPayment)],A,{resultFormat:"currency",notes:[g>n.finalDownPayment?"The statutory minimum is higher than the entered down payment, so the statutory minimum controls.":"The entered down payment meets or exceeds the statutory minimum."]}),c.record("baseLoanBeforeLimits","Base loan before limits",t.isFha?"Base Loan = C3 Value Basis x (1 - Down Payment %) + Energy Improvements":"Base Loan = Total Acquisition Cost - Required Investment",t.isFha?[(0,r.money)("C3 value basis",v.valueBasis),(0,r.pct)("Down payment %",y),(0,r.money)("Energy improvements",m)]:[(0,r.money)("Total acquisition",p),(0,r.money)("Required investment",A)],b,{resultFormat:"currency"}),c.record("maximumBaseLoan","Maximum base loan",t.fhaLimitsEnabled?"Max Base Loan = MIN(Base Loan, FHA County Limit)":"Max Base Loan = MIN(Base Loan, Value-Supported Loan)",[(0,r.money)("Base loan before limits",b),...t.fhaLimitsEnabled?[(0,r.money)("Applied FHA limit",C.limit)]:[],...null!==x?[(0,r.money)("Value-supported loan",x)]:[]],I,{resultFormat:"currency",limitsApplied:N}),c.record("ufmip","FHA upfront MIP",t.ufmipEnabled?"UFMIP = Maximum (capped) Base Loan x UFMIP Rate":"UFMIP = $0 (Conventional financing)",[(0,r.money)("Maximum base loan",I),(0,r.pct)("UFMIP rate",t.ufmipEnabled?e.ufmipRate:0)],k,{resultFormat:"currency"}),c.record("totalLoan","Total loan amount",t.ufmipEnabled?"Total Loan = Base Loan + UFMIP":"Total Loan = Base Loan",[(0,r.money)("Maximum base loan",I),(0,r.money)("UFMIP",k)],$,{resultFormat:"currency"}),c.record("fhaLimit","FHA loan limit check","Applied Limit = lookup(State, Area Tier, Units)",[(0,r.text)("State",e.state),(0,r.text)("Area tier",t.fhaLimitsEnabled?String(C.appliedTier):"N/A"),(0,r.count)("Units",C.units),(0,r.money)("Standard floor",C.standardFloor),(0,r.money)("Base loan before limits",b)],t.fhaLimitsEnabled?C.limit:0,{resultFormat:"currency",notes:[_,C.usedFallback?"No exact county row found - national tier fallback used.":C.areaDescription],overridesApplied:"Auto"!==e.fhaAreaSelection?[`Area tier manually set to ${e.fhaAreaSelection} (auto suggestion: ${C.suggestedTier})`]:[]}));return{totalAcquisitionCost:p,valueBasis:v.valueBasis,minimumStatutoryInvestment:g,msiBasisLabel:w,selectedDownPayment:n.finalDownPayment,requiredInvestment:A,baseLoanBeforeLimits:b,fhaLimitApplied:t.fhaLimitsEnabled?C.limit:0,fhaStandardFloor:C.standardFloor,fhaTier:t.fhaLimitsEnabled?C.appliedTier:null,valueSupportedBaseLoan:x,maximumBaseLoan:I,limitBinding:E,amountOverFhaLimit:O,fhaLimitStatus:_,ufmip:k,totalLoan:$,loanToCost:B,ltvOnFinalValue:H,arvLtv:q}};const percentLabel=e=>`${(100*e).toFixed(0)}%`;function calculateValueBasis(e,t,n,r){const i=(0,a.nonNegative)(e),s=(0,a.nonNegative)(t),l=s>0?Math.min(i,s):i,c=(0,a.round)(l+(0,a.nonNegative)(n),2),u=(0,a.nonNegative)(r)>0?(0,a.round)(1.1*(0,a.nonNegative)(r),2):null,d=null!==u?Math.min(c,u):c;return{valueBasis:(0,a.round)(d,2),c1:l,arv110:u,cappedByArv:null!==u&&u<c}}function calculateRequiredInvestment(e,t){return Math.max((0,a.nonNegative)(e),(0,a.nonNegative)(t))}function valueSupportedBaseLoan(e,t,n,r=1){const s=(0,a.nonNegative)(e);if(s<=0)return null;const l=1-(0,a.nonNegative)(t);return n?(0,a.round)(s*i.FHA_203K_ARV_FACTOR*l,2):(0,a.round)(s*Math.min(l,(0,a.nonNegative)(r)),2)}function calculateFhaLimit(e,t){var a;const r=Math.min(4,Math.max(1,Math.round(e.units))),i=(0,n.suggestFhaTier)(e.state,"New York"===e.state?e.nyCounty:"","New York"===e.state&&e.isNYC),s="Auto"===e.fhaAreaSelection?i:e.fhaAreaSelection;if(!t)return{units:r,suggestedTier:i,appliedTier:null,limit:0,standardFloor:(0,n.fhaStandardFloor)(r),usedFallback:!1,areaDescription:"N/A - Conventional financing"};const{limit:l,row:c,usedFallback:u}=(0,n.lookupFhaLimit)(e.state,s,r);return{units:r,suggestedTier:i,appliedTier:s,limit:l,standardFloor:(0,n.fhaStandardFloor)(r),usedFallback:u,areaDescription:null!==(a=null==c?void 0:c.area)&&void 0!==a?a:"National tier fallback"}}})(requireDep, moduleExports, dep0, dep1, dep2, dep3);
+/** Price + rehabilitation + energy improvements, to the cent. */
+export function calculateTotalAcquisition(price: unknown, rehab: unknown, energy: unknown = 0): number {
+  return round(nonNegative(price) + nonNegative(rehab) + nonNegative(energy), 2);
+}
 
-export const calculateTotalAcquisition = moduleExports.calculateTotalAcquisition;
-export const calculateValueBasis = moduleExports.calculateValueBasis;
-export const calculateRequiredInvestment = moduleExports.calculateRequiredInvestment;
-export const valueSupportedBaseLoan = moduleExports.valueSupportedBaseLoan;
-export const calculateFhaLimit = moduleExports.calculateFhaLimit;
-export const calculateLoan = moduleExports.calculateLoan;
-export default moduleExports;
+/** HUD-92700 C3: MIN( MIN(price, as-is value) + rehabilitation , 110% of ARV ); no ARV means no 110% cap. */
+export function calculateValueBasis(price: unknown, asIsValue: unknown, rehab: unknown, afterRepairValue: unknown) {
+  const p = nonNegative(price), asIs = nonNegative(asIsValue);
+  const c1 = asIs > 0 ? Math.min(p, asIs) : p;
+  const beforeCap = round(c1 + nonNegative(rehab), 2);
+  const arv110 = nonNegative(afterRepairValue) > 0 ? round(1.1 * nonNegative(afterRepairValue), 2) : null;
+  const basis = arv110 !== null ? Math.min(beforeCap, arv110) : beforeCap;
+  return {valueBasis: round(basis, 2), c1, arv110, cappedByArv: arv110 !== null && arv110 < beforeCap};
+}
+
+export function calculateRequiredInvestment(minimumStatutoryInvestment: unknown, selectedDownPayment: unknown): number {
+  return Math.max(nonNegative(minimumStatutoryInvestment), nonNegative(selectedDownPayment));
+}
+
+/** Largest base loan the after-repair value supports, or null when no ARV is entered. */
+export function valueSupportedBaseLoan(afterRepairValue: unknown, downPaymentPct: unknown, isFha: boolean, maxLtv: unknown = 1): number | null {
+  const arv = nonNegative(afterRepairValue);
+  if (arv <= 0) return null;
+  const financedShare = 1 - nonNegative(downPaymentPct);
+  return isFha ? round(arv * FHA_203K_ARV_FACTOR * financedShare, 2) : round(arv * Math.min(financedShare, nonNegative(maxLtv)), 2);
+}
+
+export function calculateFhaLimit(inputs: any, isFha: boolean) {
+  const units = Math.min(4, Math.max(1, Math.round(inputs.units)));
+  const ny = inputs.state === 'New York';
+  const suggestedTier = suggestFhaTier(inputs.state, ny ? inputs.nyCounty : '', ny && inputs.isNYC);
+  const appliedTier = inputs.fhaAreaSelection === 'Auto' ? suggestedTier : inputs.fhaAreaSelection;
+  if (!isFha) return {units, suggestedTier, appliedTier: null, limit: 0, standardFloor: fhaStandardFloor(units), usedFallback: false, areaDescription: 'N/A - Conventional financing'};
+  const {limit, row, usedFallback} = lookupFhaLimit(inputs.state, appliedTier, units);
+  return {units, suggestedTier, appliedTier, limit, standardFloor: fhaStandardFloor(units), usedFallback, areaDescription: row?.area ?? 'National tier fallback'};
+}
+
+const percentLabel = (x: number) => `${(100 * x).toFixed(0)}%`;
+
+export function calculateLoan({inputs, program, purchase, finalRenovationAmount, energyImprovements, trace}: any) {
+  const rehab = program.renovationActive ? nonNegative(finalRenovationAmount) : 0;
+  const energy = program.renovationActive ? nonNegative(energyImprovements) : 0;
+  const totalAcquisition = calculateTotalAcquisition(purchase.finalPurchasePrice, rehab, energy);
+  const downPct = nonNegative(inputs.finalDownPaymentPct);
+  const value = calculateValueBasis(purchase.finalPurchasePrice, inputs.asIsValue, rehab, inputs.afterRepairValue);
+
+  /* FHA measures the statutory investment and the loan against the C3 value basis; conventional against total acquisition */
+  let msi: number, baseBeforeLimits: number, msiBasisLabel: string;
+  if (program.isFha) {
+    msi = round(value.valueBasis * downPct, 2);
+    baseBeforeLimits = Math.max(0, round(value.valueBasis * (1 - downPct) + energy, 2));
+    msiBasisLabel = 'HUD-92700 line C3 value basis';
+  } else {
+    msi = round(totalAcquisition * downPct, 2);
+    baseBeforeLimits = Math.max(0, round(totalAcquisition - Math.max(msi, purchase.finalDownPayment), 2));
+    msiBasisLabel = 'Total acquisition cost';
+  }
+  const requiredInvestment = calculateRequiredInvestment(msi, purchase.finalDownPayment);
+  const fha = calculateFhaLimit(inputs, program.isFha);
+  const maxLtv = program.renovationActive ? HOMESTYLE_MAX_LTV : 1;
+  const valueSupported = valueSupportedBaseLoan(inputs.afterRepairValue, downPct, program.isFha, maxLtv);
+
+  let maximumBaseLoan = baseBeforeLimits;
+  const limitsApplied: string[] = [];
+  const fhaLimitBinds = program.fhaLimitsEnabled && fha.limit < baseBeforeLimits;
+  if (fhaLimitBinds) { maximumBaseLoan = fha.limit; limitsApplied.push(`FHA limit ${fha.limit.toLocaleString()}`); }
+  const valueBinds = !program.isFha && valueSupported !== null && valueSupported < maximumBaseLoan;
+  if (valueBinds) { maximumBaseLoan = valueSupported as number; limitsApplied.push(program.renovationActive ? `HomeStyle ${percentLabel(HOMESTYLE_MAX_LTV)} LTV of the as-completed value` : `Value-supported loan ${(valueSupported as number).toLocaleString()}`); }
+  if (program.isFha && value.cappedByArv) limitsApplied.push('110% of after-repair value (inside the C3 basis)');
+  maximumBaseLoan = Math.max(0, round(maximumBaseLoan, 2));
+
+  const limitBinding = fhaLimitBinds && (valueBinds || value.cappedByArv) ? 'both' : fhaLimitBinds ? 'fha-limit' : valueBinds || (program.isFha && value.cappedByArv) ? 'value' : 'none';
+  const amountOverFhaLimit = program.fhaLimitsEnabled ? Math.max(0, round(baseBeforeLimits - fha.limit, 2)) : 0;
+  const ufmip = program.ufmipEnabled ? round(maximumBaseLoan * nonNegative(inputs.ufmipRate), 2) : 0;
+  const totalLoan = round(maximumBaseLoan + ufmip, 2);
+  const fhaLimitStatus = program.fhaLimitsEnabled ? (amountOverFhaLimit > 0 ? `LOAN EXCEEDS FHA LIMIT by ${amountOverFhaLimit.toLocaleString('en-US', {style: 'currency', currency: 'USD', maximumFractionDigits: 0})}` : 'Within selected FHA loan limit') : 'N/A - Conventional financing';
+  const loanToCost = safeDivide(maximumBaseLoan, totalAcquisition, 0);
+  const finalValue = program.renovationActive ? (nonNegative(inputs.afterRepairValue) || totalAcquisition) : (nonNegative(inputs.asIsValue) || purchase.finalPurchasePrice);
+  const ltvOnFinalValue = safeDivide(maximumBaseLoan, finalValue, 0);
+  const arvLtv = safeDivide(totalLoan, nonNegative(inputs.afterRepairValue), 0);
+
+  if (trace) {
+    trace.record('totalAcquisitionCost', 'Total acquisition cost', program.renovationActive ? 'Total Acquisition = Final Purchase Price + Total Rehabilitation Cost + Energy Improvements' : 'Total Acquisition = Final Purchase Price (renovation excluded)',
+      [money('Final purchase price', purchase.finalPurchasePrice), money('Total rehabilitation cost', rehab), money('Energy improvements', energy)], totalAcquisition, {resultFormat: 'currency'});
+    trace.record('valueBasis', 'Value basis (HUD-92700 C3)', 'C3 = MIN( MIN(Sales Price, As-Is Value) + Rehabilitation Cost , 110% of ARV )',
+      [money('Contract sales price', purchase.finalPurchasePrice), money('As-is value', inputs.asIsValue), money('C1 lesser of price / as-is', value.c1), money('Total rehabilitation cost', rehab), money('110% of ARV', value.arv110 ?? 0)], value.valueBasis,
+      {resultFormat: 'currency', limitsApplied: value.cappedByArv ? ['Capped by 110% of the after-repair value'] : [], notes: value.arv110 === null ? ['No ARV entered, so the 110% cap has not been applied.'] : []});
+    trace.record('minimumStatutoryInvestment', 'Minimum statutory investment', program.isFha ? 'MSI = C3 Value Basis x Down Payment %  (HUD-92700 line C5)' : 'MSI = Total Acquisition Cost x Down Payment %',
+      [money(program.isFha ? 'C3 value basis' : 'Total acquisition', program.isFha ? value.valueBasis : totalAcquisition), pct('Down payment %', downPct)], msi,
+      {resultFormat: 'currency', notes: [program.isFha ? 'FHA takes the statutory investment against the C3 value basis, not against total acquisition cost.' : 'Conventional minimum investment is measured against total acquisition cost.']});
+    trace.record('requiredInvestment', 'Required investment', 'Required Investment = MAX(Minimum Statutory Investment, Selected Down Payment)',
+      [money('Minimum statutory investment', msi), money('Selected down payment', purchase.finalDownPayment)], requiredInvestment,
+      {resultFormat: 'currency', notes: [msi > purchase.finalDownPayment ? 'The statutory minimum is higher than the entered down payment, so the statutory minimum controls.' : 'The entered down payment meets or exceeds the statutory minimum.']});
+    trace.record('baseLoanBeforeLimits', 'Base loan before limits', program.isFha ? 'Base Loan = C3 Value Basis x (1 - Down Payment %) + Energy Improvements' : 'Base Loan = Total Acquisition Cost - Required Investment',
+      program.isFha ? [money('C3 value basis', value.valueBasis), pct('Down payment %', downPct), money('Energy improvements', energy)] : [money('Total acquisition', totalAcquisition), money('Required investment', requiredInvestment)], baseBeforeLimits, {resultFormat: 'currency'});
+    trace.record('maximumBaseLoan', 'Maximum base loan', program.fhaLimitsEnabled ? 'Max Base Loan = MIN(Base Loan, FHA County Limit)' : 'Max Base Loan = MIN(Base Loan, Value-Supported Loan)',
+      [money('Base loan before limits', baseBeforeLimits), ...(program.fhaLimitsEnabled ? [money('Applied FHA limit', fha.limit)] : []), ...(valueSupported !== null ? [money('Value-supported loan', valueSupported)] : [])], maximumBaseLoan,
+      {resultFormat: 'currency', limitsApplied});
+    trace.record('ufmip', 'FHA upfront MIP', program.ufmipEnabled ? 'UFMIP = Maximum (capped) Base Loan x UFMIP Rate' : 'UFMIP = $0 (Conventional financing)',
+      [money('Maximum base loan', maximumBaseLoan), pct('UFMIP rate', program.ufmipEnabled ? inputs.ufmipRate : 0)], ufmip, {resultFormat: 'currency'});
+    trace.record('totalLoan', 'Total loan amount', program.ufmipEnabled ? 'Total Loan = Base Loan + UFMIP' : 'Total Loan = Base Loan', [money('Maximum base loan', maximumBaseLoan), money('UFMIP', ufmip)], totalLoan, {resultFormat: 'currency'});
+    trace.record('fhaLimit', 'FHA loan limit check', 'Applied Limit = lookup(State, Area Tier, Units)',
+      [text('State', inputs.state), text('Area tier', program.fhaLimitsEnabled ? String(fha.appliedTier) : 'N/A'), count('Units', fha.units), money('Standard floor', fha.standardFloor), money('Base loan before limits', baseBeforeLimits)],
+      program.fhaLimitsEnabled ? fha.limit : 0,
+      {resultFormat: 'currency', notes: [fhaLimitStatus, fha.usedFallback ? 'No exact county row found - national tier fallback used.' : fha.areaDescription],
+        overridesApplied: inputs.fhaAreaSelection !== 'Auto' ? [`Area tier manually set to ${inputs.fhaAreaSelection} (auto suggestion: ${fha.suggestedTier})`] : []});
+  }
+
+  return {totalAcquisitionCost: totalAcquisition, valueBasis: value.valueBasis, minimumStatutoryInvestment: msi, msiBasisLabel, selectedDownPayment: purchase.finalDownPayment, requiredInvestment,
+    baseLoanBeforeLimits: baseBeforeLimits, fhaLimitApplied: program.fhaLimitsEnabled ? fha.limit : 0, fhaStandardFloor: fha.standardFloor, fhaTier: program.fhaLimitsEnabled ? fha.appliedTier : null,
+    valueSupportedBaseLoan: valueSupported, maximumBaseLoan, limitBinding, amountOverFhaLimit, fhaLimitStatus, ufmip, totalLoan, loanToCost, ltvOnFinalValue, arvLtv};
+}
+
+export default {calculateTotalAcquisition, calculateValueBasis, calculateRequiredInvestment, valueSupportedBaseLoan, calculateFhaLimit, calculateLoan};
