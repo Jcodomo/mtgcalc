@@ -2001,9 +2001,44 @@ const SCHD_LINES = [
   {k:'capg',   sign:1,  label:'Recurring Capital Gains (2 years of returns required)', cite:'Sch D Ln 7 &amp; 15'}
 ];
 function setSchForm(id, v){ const r=S.schc.find(x=>x.id===id); if(!r) return; r.form=v; [...SCHC_LINES,...SCHF_LINES,...SCHD_LINES].forEach(l=>['y1','y2'].forEach(y=>{ if(r[y][l.k]==null) r[y][l.k]=0; })); renderAll(); }
-function schLines(b){ return b.form==='F' ? SCHF_LINES : b.form==='D' ? SCHD_LINES : SCHC_LINES; }
+/* v57: the worksheet's loan type for self-employment. FHA leaves out meals, non-recurring income, business use of home and
+   amortization on Schedules C and F; DU Refi Plus uses the most recent year only. Blank follows the agency chosen above. */
+function seType(){ return S.seLoanType || (S.agency==='FHA' ? 'FHA' : S.agency==='VA' ? 'VA' : 'Conventional'); }
+const FHA_SE_DROP = new Set(['meals','nonrec6','home30','amort','coop','nonrec8','amort32','home']);
+function schLines(b){ const L = b.form==='F' ? SCHF_LINES : b.form==='D' ? SCHD_LINES : SCHC_LINES; return seType()==='FHA' ? L.filter(l=>!FHA_SE_DROP.has(l.k)) : L; }
+function seTotals(){
+  let older=0, recent=0;
+  (S.schc||[]).filter(b=>b.use!==false).forEach(b=>{ const r=schYears(b); older += r.base2 + r.mile2; recent += r.base1 + r.mile1; });
+  (S.corp||[]).filter(e=>e.use!==false).forEach(e=>{ older += corpYearVal(e,'y2'); recent += corpYearVal(e,'y1'); });
+  return {older, recent, drop: older > 0 ? (older - recent) / older : 0};
+}
+function seTypeRow(){
+  const t = seType(), T = seTotals(), auto = !S.seLoanType;
+  const opt = (v, l) => `<option value="${v}" ${(S.seLoanType||'')===v?'selected':''}>${l}</option>`;
+  const warn = t==='FHA' && T.drop >= 0.2 ? `<div class="note warn" style="margin-top:6px;color:#b45309"><b>Income has declined ${(T.drop*100).toFixed(1)}% from the prior year (20% or more).</b> FHA loans must be downgraded to manual underwriting.</div>` : '';
+  return `<div class="notice" style="display:block;margin:0 0 12px;font-size:12.5px">
+    <label style="font-weight:700">Loan type for self-employment
+      <select class="cell-input" style="width:auto;display:inline-block;margin-left:6px" onchange="S.seLoanType=this.value;renderSchC();renderCorp();RECALC()">
+        ${opt('', 'Follow the agency (' + t + ')')}${opt('Conventional','Conventional')}${opt('FHA','FHA')}${opt('VA','VA')}${opt('DURP','DU Refi Plus - most recent year only')}</select></label>
+    <label style="margin-left:14px">Mileage rate table
+      <select class="cell-input" style="width:auto;display:inline-block;margin-left:6px" onchange="S.mileTable=this.value;renderSchC();RECALC()">
+        <option value="irs" ${S.mileTable!=='worksheet'?'selected':''}>IRS depreciation rate by tax year</option>
+        <option value="worksheet" ${S.mileTable==='worksheet'?'selected':''}>NMB worksheet table (one year behind)</option></select></label>
+    ${t==='FHA' ? '<div class="muted small" style="margin-top:4px">FHA: meals, non-recurring income, business use of home and amortization are left out of Schedules C and F.</div>' : ''}
+    ${t==='DURP' ? '<div class="muted small" style="margin-top:4px">DU Refi Plus: each business uses its most recent year only.</div>' : ''}${warn}</div>`;
+}
 /* the worksheet's business-mileage depreciation table (Tables!J2:K5) is keyed to today's year */
-function wsMileRate(yr){ const d = new Date().getFullYear() - N(yr); return ({4:0.27, 3:0.26, 2:0.26, 1:0.28})[d]; }
+/* v57: the IRS depreciation share of the business standard mileage rate, by tax year (IRS notices: 2025 Notice 2025-5).
+   The NMB worksheet's own table (Tables!J2:K5) is keyed to today's year and runs a year behind the IRS figures; it can be
+   chosen in the self-employment settings to reproduce the worksheet exactly. Years after the last one listed use the
+   latest known rate - confirm it against the IRS notice for that year. */
+const IRS_MILE_DEPR = {2019:0.26, 2020:0.27, 2021:0.26, 2022:0.26, 2023:0.28, 2024:0.30, 2025:0.33};
+function wsMileRate(yr){
+  if (S && S.mileTable === 'worksheet') { const d = new Date().getFullYear() - N(yr); return ({4:0.27, 3:0.26, 2:0.26, 1:0.28})[d]; }
+  const y = Math.round(N(yr)); if (!y) return undefined;
+  if (IRS_MILE_DEPR[y] != null) return IRS_MILE_DEPR[y];
+  const ks = Object.keys(IRS_MILE_DEPR).map(Number); return y > Math.max(...ks) ? IRS_MILE_DEPR[Math.max(...ks)] : IRS_MILE_DEPR[Math.min(...ks)];
+}
 /* worksheet Tables!K31: when the older year is empty in every section, every section uses the most recent year */
 function seOneYear(){
   let older = 0;
@@ -2045,7 +2080,8 @@ function calcSchC(b){
   const m1=a1/12, m2=a2/12, avg=(a1+a2)/24;
   const declining = a2 > a1;
   let method = (b.mode==='auto') ? 'auto' : b.method, monthly;
-  if (method==='auto' || method==='worksheet') { monthly = (pick(r.base1, r.base2, b.form) + pick(r.mile1, r.mile2, 'C')) / 12; method = one ? 'recent' : (b.form==='D' ? 'larger' : (declining ? 'recent' : 'avg2')); }
+  if ((method==='auto' || method==='worksheet') && seType()==='DURP') { monthly = (r.base1 + r.mile1) / 12; method = 'recent'; }
+  else if (method==='auto' || method==='worksheet') { monthly = (pick(r.base1, r.base2, b.form) + pick(r.mile1, r.mile2, 'C')) / 12; method = one ? 'recent' : (b.form==='D' ? 'larger' : (declining ? 'recent' : 'avg2')); }
   else if (method==='recent') monthly=m1;
   else if (method==='avg2') monthly=avg;
   else if (method==='lower') monthly=Math.min(m1,m2);
@@ -2053,7 +2089,7 @@ function calcSchC(b){
   return {a1,a2,m1,m2,avg,declining,monthly,methodUsed:method, oneYear:one};
 }
 function renderSchC(){
-  $('schcList').innerHTML = S.schc.map((b,i)=>{
+  $('schcList').innerHTML = (S.schc.length ? seTypeRow() : '') + S.schc.map((b,i)=>{
     const P=`schc-${b.id}`;
     const rows = schLines(b).map(L=>`
       <tr><td class="rowlabel">${L.label}<span class="muted mono" style="margin-left:8px">${L.cite}</span></td>
@@ -2206,14 +2242,14 @@ function calcCorp(e){
   const m1=a1/12, m2=a2/12, avg=(a1+a2)/24;
   const declining = a2 > a1;
   let method = (e.mode==='auto') ? 'auto' : e.method, monthly;
-  if (method==='auto') method = (one || declining) ? 'recent' : 'avg2';
+  if (method==='auto') method = (one || declining || seType()==='DURP') ? 'recent' : 'avg2';
   if (method==='recent') monthly=m1; else if (method==='avg2') monthly=avg;
   else if (method==='lower') monthly=Math.min(m1,m2); else monthly=N(e.custom);
   const quick = N(e.curLiab) ? N(e.curAssets)/N(e.curLiab) : 0;
   return {a1,a2,m1,m2,avg,monthly,declining,methodUsed:method,quick,own,gov,oneYear:one};
 }
 function renderCorp(){
-  $('corpList').innerHTML = S.corp.map((e,i)=>{
+  $('corpList').innerHTML = (S.corp.length ? seTypeRow() : '') + S.corp.map((e,i)=>{
     const P=`corp-${e.id}`;
     const lines = e.form==='1120' ? C1120 : [...K1_LINES,...BIZ_ADJ];
     const rows = lines.filter(l=>!(e.form==='1120S' && l.k==='guar') && !(l.only && l.only!==e.form)).map(L=>`
@@ -2329,14 +2365,6 @@ function newSchE(){
     fairDays:365, personalDays:0, monthsOverride:0, subject:false,
     rents:0, ins:0, mortInt:0, taxes:0, depr:0, otherAdd:0, totalExp:0,
     leaseRent:0, vacancy:75, pitia:0 };
-}
-/* Months in service from Schedule E Line 2 "Fair Rental Days" (365-day year basis).
-   A manual override wins when it is greater than zero. */
-function scheMonths(p){
-  if (N(p.monthsOverride) > 0) return Math.min(12, N(p.monthsOverride));
-  const d = N(p.fairDays);
-  if (d > 0) return Math.max(0.25, Math.min(12, d/365*12));
-  return 12;
 }
 function calcSchE(p){
   let monthly=0, basis='';
@@ -2469,14 +2497,15 @@ function calcOther(o){
      decreasing; and its Portion Non-Taxable sheet - gross up only the non-taxable share of the income */
   let base=N(o.amt), f1099=null;
   if (o.type==='1099' && (N(o.ytd1099) || N(o.prior1099))) {
-    const e = pDate(o.thru1099), days = e ? (e - new Date(e.getFullYear(),0,1)) / 86400000 : 0;
+    const e = pDate(o.thru1099), days = e ? Math.round((e - new Date(e.getFullYear(),0,1)) / 86400000) : 0;   /* whole days, as the worksheet counts them (a daylight-saving hour must not shift it) */
     const ytd = days ? N(o.ytd1099)/days*360/12 : 0, y12 = (N(o.ytd1099)+N(o.prior1099)) / (12 + days/30), prior = N(o.prior1099)/12;
     const decreasing = ytd < prior;
     f1099 = {days, ytd, y12, decreasing, used: decreasing ? ytd : y12}; base = f1099.used;
   }
   const share = o.ntPct == null || o.ntPct === '' ? 1 : Math.max(0, Math.min(100, N(o.ntPct)))/100;
   const up = o.nonTax ? base*share*N(o.grossUp)/100 : 0;
-  return {base, up, total:base+up, f1099};
+  const total = o.nonTax && up ? Math.floor((base + up) * 100 + 1e-7) / 100 : base + up;   /* worksheet: ROUNDDOWN(..., 2) */
+  return {base, up, total, f1099};
 }
 function renderOther(){
   $('otherList').innerHTML = S.other.length ? `<div class="card"><div class="card-body">
@@ -3931,7 +3960,7 @@ function rptTotalBox(label, amount, sub){
 }
 
 /* ---------------- SELECTION + ASSEMBLE ---------------- */
-const RPT = { pick:null, summary:false, detail:false, worksheets:true, encompass:false, miws:false, t1008:false };
+const RPT = { pick:null, summary:false, detail:false, worksheets:true, encompass:false, miws:false, t1008:false, nmb:false };
 function reportItems(){
   const it = [];
   S.w2.forEach((j,i)=>   it.push({k:'w2:'+j.id,   g:'W-2 / Salary Employment', n:esc(j.employer)||`Job #${i+1}`,             a:calcW2(j).total}));
@@ -4033,8 +4062,19 @@ function rpt1008Page(){
     </div>${rptRatioBox(t)}
     <div style="margin-top:10px;font-size:8.5pt;color:#555">Prepared from this calculator for the file. It is not the lender's Form 1008; transfer the figures into the loan origination system.</div>`;
 }
+/* v57: the NMB Income Worksheet layout, drawn from the workbook's own grid (nmb-template.js + nmb-report.js, loaded on first use) */
+function nmbLoad(){
+  if (window.NMBReport && window.NMB_TEMPLATE) return Promise.resolve(true);
+  if (nmbLoad.p) return nmbLoad.p;
+  const add = src => new Promise(res => { const s=document.createElement('script'); s.src=src; s.onload=()=>res(true); s.onerror=()=>res(false); document.head.appendChild(s); });
+  return nmbLoad.p = add('assets/nmb-template.js?v=57.1').then(a => add('assets/nmb-report.js?v=57.1').then(b => a && b));
+}
 function buildReportPages(){
   const pages = [];
+  if (RPT.nmb){
+    if (window.NMBReport && window.NMB_TEMPLATE) { try { NMBReport.pages().forEach(h => pages.push(h)); } catch(e){ pages.push(`${rptHead('NMB Income Worksheet','The layout could not be drawn')}<div class="rpt-frame rpt-pad">${esc(e.message)}</div>`); } }
+    else { pages.push(`${rptHead('NMB Income Worksheet','Loading the worksheet layout…')}`); nmbLoad().then(ok => { if (ok) refreshReport(); }); }
+  }
   if (RPT.miws) pages.push(rptMIWorksheetPage());
   if (RPT.t1008) pages.push(rpt1008Page());
   if (RPT.summary) pages.push(rptSummaryPage());
@@ -4098,6 +4138,7 @@ function renderPicker(){
       <label><input type="checkbox" ${RPT.worksheets?'checked':''} onchange="RPT.worksheets=this.checked;refreshReport()"> Worksheet pages</label>
       <label><input type="checkbox" ${RPT.detail?'checked':''} onchange="RPT.detail=this.checked;refreshReport()"> Calculation detail pages</label>
       <label title="Section 1a personal information, 1b employment with the Gross Monthly Income grid, and 1e other income — laid out the way Encompass takes it"><input type="checkbox" ${RPT.encompass?'checked':''} onchange="RPT.encompass=this.checked;refreshReport()"> Encompass / URLA 1003 pages</label>
+      <label title="Laid out exactly like the NMB Income Worksheet workbook: Wage Earner, SE &amp; Other Income, Rental and Quick Ratio pages, filled with these figures"><input type="checkbox" ${RPT.nmb?'checked':''} onchange="RPT.nmb=this.checked;refreshReport()"> NMB Income Worksheet layout</label>
       <label title="One page: each source, its method, monthly and annual amounts, totals and ratios - the format of the mortgage-insurer income calculators"><input type="checkbox" ${RPT.miws?'checked':''} onchange="RPT.miws=this.checked;refreshReport()"> Income calculation worksheet (one page)</label>
       <label title="Stable monthly income by type, proposed housing payment and ratios, in the order of a transmittal summary (Form 1008)"><input type="checkbox" ${RPT.t1008?'checked':''} onchange="RPT.t1008=this.checked;refreshReport()"> Transmittal summary (1008 style)</label>
       <span class="rpt-count">${onCount} of ${items.length} sources &nbsp;|&nbsp; selected income <b>${money(t.income)}</b> / mo</span>
@@ -5488,7 +5529,7 @@ function calcCombined(jobs){
   let total = parts.base+parts.ot+parts.comm+parts.bonus+parts.other;
   /* 55.14: the income worksheet's Union Worker method - all pay stubs and W-2s together, 360-day basis, lowest of three */
   const ends = J.map(j=>pDate(j.ytdThru)).filter(Boolean).sort((a,b)=>b-a), end = ends[0];
-  const days = end ? (end - new Date(end.getFullYear(),0,1)) / 86400000 : 0;
+  const days = end ? Math.round((end - new Date(end.getFullYear(),0,1)) / 86400000) : 0;   /* whole days (worksheet L18) */
   const union = {days, ytd: days ? t1/days*360/12 : 0, y12: (t1+t2)/(12 + days/30), y24: days+730 ? (t1+t2+t3)/(days+730)*360/12 : 0};
   union.used = Math.min(union.ytd, union.y12, union.y24);
   if (S.combine.method === 'union') total = union.used;

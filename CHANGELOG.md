@@ -178,6 +178,22 @@
   - **Hidden income:** amounts in those sections still count, and a note says so.
   - **Faster start:** the PDF libraries (550 KB) load only when a report or PDF is made, so the page is ready in about half the time (74 ms against 144 ms in the same browser).
 
+## Release 57.1 - Income Calculator checked against the NMB Income Worksheet; NMB worksheet report layout
+
+- **Checked against the NMB Income Worksheet (01/29/2025)** - tests/nmb-parity.js writes the workbook's formulas out on their own and runs them against the calculator: 29 of 29 cases match to the cent.
+  - **Covered:** W-2 rules, Schedule C/F/D, DU Refi Plus, the 1120-S, 1065 and 1120 sections, the conventional, FHA owner-occupied, FHA non-owner and VA rental sheets, Freddie 1099, union worker and the non-taxable gross-up.
+- **Fixed to match the worksheet:**
+  - **1099 and union-worker day counts** are whole days. A daylight-saving hour had shifted the Freddie 1099 figure by $0.41.
+  - **Non-taxable gross-up** is rounded down to the cent, as the worksheet does.
+  - **DU Refi Plus** uses the most recent year only (Schedule C and business returns).
+- **Added from the worksheet:**
+  - **Loan type for self-employment** (Conventional / FHA / VA / DU Refi Plus). FHA leaves out the lines the worksheet drops, such as meals, business use of home and amortization, and warns when income fell 20% or more.
+  - **Mileage table choice.** The default is the IRS business-mileage depreciation rate for each tax year (2019-2025). The worksheet's own table, which runs one year behind the IRS rates, can be chosen instead.
+- **NMB Income Worksheet report layout:** a new option in the report picker. It draws the workbook's pages with their column widths, row heights, merges, fonts, fills, borders and number formats (tools/nmb/extract.py reads them from the .xlsm, and no macros are run), then fills them with the calculator's figures. The PDF and JPEG downloads include these pages.
+  - **Pages:** Wage Earner (one per job), SE & Other Income (one per business), Conventional Rental (five properties a page), Rent - FHA Owner Occ., Rent - FHA NOO & VA, Rent - Purchase (lease / 75%) and the Quick Ratio Test.
+  - **Not drawn as their own pages:** the Union Worker W2, Freddie 1099 and Retirement sheets. Those amounts are still in the calculation and the other report pages.
+  - **PITIA:** the Rental sheet's itemized PITIA rows are hidden in the workbook, and the calculator keeps one PITIA figure.
+
 ## Release 56.9 - a tighter Advanced view, with the way back to Simple always in reach
 
 - **← Simple** is now the first item in the full suite's section tabs. The tabs stay under the top bar while you scroll, so the switch back is always one click away (the top-bar Simple | Advanced switch stays too). Switching either way opens at the top of the page.
