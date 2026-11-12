@@ -8,6 +8,7 @@ import { loadEngine } from './engine-loader.mjs';
 const engineArg = (process.argv.find(a => a.startsWith('--engine=')) || '').slice(9);
 const E = loadEngine(engineArg ? new URL('../' + engineArg, import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1') : undefined);
 if (engineArg) console.log('Engine:', engineArg);
+const v57 = !!(E.modules.includes('src/core/model/overrides'));
 const D = E.require('src/core/defaults'), R = E.require('src/core/calc/engine'), P = E.require('src/core/calc/payment');
 const run = mut => { const s = D.defaultScenario(); mut(s); return R.runScenario(s); };
 const near = (a, b, tol = 0.005) => Math.abs(a - b) <= tol;
@@ -81,7 +82,24 @@ const cases = [
   {id: 'missing-income', area: 'Missing information', name: 'No qualifying income is not shown as a passing DTI', check: () => {
     const o = run(s => s.borrowers.forEach(b => { b.grossMonthlyIncome = 0; b.otherMonthlyIncome = 0; })); return [!/pass/i.test(String(o.aus.overallDti)), `DTI result "${o.aus.overallDti}"`]; }},
   {id: 'missing-assets', area: 'Missing information', name: 'No assets entered is not shown as a passing reserve check', known: 'D5 "not entered" reported as PASS',
-    check: () => { const o = run(s => { s.assets.liquidAssets = 0; s.assets.retirementOtherAssets = 0; s.assets.giftFunds = 0; }); return [!/^pass/i.test(String(o.aus.reserveStatus)), `reserve status "${o.aus.reserveStatus}"`]; }},
+    check: () => { const o = run(s => { s.assets.liquidAssets = null; s.assets.retirementOtherAssets = null; s.assets.giftFunds = null; }); return [!/^pass/i.test(String(o.aus.reserveStatus)), `reserve status "${o.aus.reserveStatus}"`]; }},
+  // ---------------------------------------------------------------- v57 behaviour (these run only against an engine that has it)
+  ...(v57 ? [
+  {id: 'assets-entered-zero', area: 'Missing information', name: 'Assets entered as $0 are a real answer, not "not entered"', check: () => {
+    const o = run(s => { s.assets.liquidAssets = 0; s.assets.retirementOtherAssets = 0; s.assets.giftFunds = 0; }); return [o.aus.reserveStatus !== 'NOT ENTERED', `reserve status "${o.aus.reserveStatus}"`]; }},
+  {id: 'fha-mip-zero-rejected', area: 'Overrides', name: 'FHA annual MIP of 0% is rejected: calculated rate used, with an explanation', check: () => {
+    const s = D.defaultScenario(); s.renovation = false; s.fhaMipOverrideRate = 0; const o = R.runScenario(s);
+    const w = (o.warnings || []).find(x => x.code === 'OVERRIDE_ZERO_REJECTED'); return [o.payment.monthlyFhaMip > 0 && !!w, `monthly MIP ${money(o.payment.monthlyFhaMip)}; warning: ${w ? w.title : 'none'}`]; }},
+  {id: 'ti-zero-review', area: 'Overrides', name: 'Taxes + insurance override of $0 is used and flagged for review', check: () => {
+    const s = D.defaultScenario(); s.taxInsuranceOverrideMonthly = 0; const o = R.runScenario(s); const w = (o.warnings || []).find(x => x.code === 'OVERRIDE_ZERO_REVIEW');
+    return [o.payment.monthlyTaxesAndInsuranceUsed === 0 && o.payment.usingTiOverride && !!w, `T&I used ${money(o.payment.monthlyTaxesAndInsuranceUsed)}, warning: ${w ? w.title : 'none'}`]; }},
+  {id: 'gap-reasons', area: 'Funding gaps', name: 'The unfinanced amount is explained line by line and the lines add up', check: () => {
+    const o = run(s => { s.basePurchasePrice = 500000; s.asIsValue = 450000; s.reno.baseCost = 150000; s.afterRepairValue = 560000; });
+    const sumR = o.loan.additionalFundsReasons.reduce((t, r) => t + r.amount, 0); return [o.loan.additionalFundsRequired > 0 && near(sumR, o.loan.additionalFundsRequired, .011), `additional ${money(o.loan.additionalFundsRequired)} = ` + o.loan.additionalFundsReasons.map(r => r.label + ' ' + money(r.amount)).join(' + ')]; }},
+  {id: 'credit-unused-shown', area: 'Credits', name: 'Credit above the closing costs is shown as unused with the reason', check: () => {
+    const o = run(s => { s.loanProgram = 'Conventional'; s.renovation = false; s.basePurchasePrice = 400000; s.finalDownPaymentPct = .25; s.baseDownPaymentPct = .25; s.sellerConcessionPct = .09; s.concessionIncreasesPrice = false; s.closing.earnestMoneyDeposit = 0; });
+    const c = o.cash; return [c.sellerConcessionUnused > 0 && near(c.sellerConcessionApplied + c.sellerConcessionUnused, c.sellerConcessionAllowed) && c.creditNotes.length > 0, `allowed ${money(c.sellerConcessionAllowed)}, applied ${money(c.sellerConcessionApplied)}, unused ${money(c.sellerConcessionUnused)}`]; }},
+  ] : []),
 ];
 
 let pass = 0, fail = 0, knownFail = 0, fixed = 0, review = 0; const rows = [];

@@ -3,6 +3,7 @@
 import { suggestDrawCount } from '../data/renovationRules';
 import { nonNegative, clamp, round, sum } from '../utils/num';
 import { money, pct, count } from './trace';
+import { overrideValue } from '../model/overrides';
 
 export interface DrawRow { draw: number; stage: string; scopeShare: number; releaseAmount: number; inspectionFee: number; titleFee: number; cumulativeRelease: number; remainingHoldback: number; }
 
@@ -51,18 +52,20 @@ export function calculateRenovation(inputs: any, active: boolean, paymentReserve
   const permits = nonNegative(reno.permits);                                                  // B8
   const otherFees = round(nonNegative(reno.feasibilityOther) + nonNegative(reno.otherFinanceable), 2);   // B9
   const subtotalB10 = round(rehabEscrow + architectural + consultant + permits + otherFees, 2);           // B10
-  const suppOverride = nonNegative(reno.supplementalOriginationOverride) > 0;
-  const supplementalOrigination = suppOverride ? nonNegative(reno.supplementalOriginationOverride)       // B11 (56.5: an entered 0 means "calculate")
+  const suppEntered = overrideValue(inputs, 'reno.supplementalOriginationOverride'), suppOverride = suppEntered !== null;
+  const supplementalOrigination = suppOverride ? (suppEntered as number)                                  // B11: blank = calculate, $0 = waived
     : subtotalB10 <= 0 ? 0 : round(Math.max(350, 0.015 * subtotalB10), 2);
   const discountPointsRehab = round(subtotalB10 * nonNegative(reno.discountPointsRehabPct), 2);           // B12
   const releasedAtClosing = round(architectural + consultant + permits + otherFees + supplementalOrigination + discountPointsRehab, 2);  // B13
   const energyImprovements = nonNegative(reno.energyImprovements);                            // A6
   const finalRenovationAmount = Math.max(0, round(rehabEscrow + releasedAtClosing - energyImprovements, 2));   // B14
 
-  /* draw schedule: each release is the stage's share of the construction cost, rounded to the cent (56.5: no final-cent adjustment - docs/v57 D4) */
+  /* draw schedule: each release is the stage's share of the construction cost, rounded to the cent; the final draw takes
+     whatever is left, so the releases always add up to the construction cost exactly (docs/v57 D4) */
   let cumulative = 0;
-  const drawSchedule: DrawRow[] = stagesFor(drawCount).map((s, i) => {
-    const releaseAmount = round(baseCost * s.share, 2);
+  const stages = stagesFor(drawCount);
+  const drawSchedule: DrawRow[] = stages.map((s, i) => {
+    const releaseAmount = i === stages.length - 1 ? round(baseCost - cumulative, 2) : round(baseCost * s.share, 2);
     cumulative = round(cumulative + releaseAmount, 2);
     return {draw: i + 1, stage: s.stage, scopeShare: s.share, releaseAmount, inspectionFee: nonNegative(draws.inspectionFeePerDraw), titleFee: nonNegative(draws.titleFeePerDraw),
       cumulativeRelease: cumulative, remainingHoldback: Math.max(0, round(rehabEscrow - cumulative, 2))};

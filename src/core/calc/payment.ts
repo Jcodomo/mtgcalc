@@ -3,6 +3,7 @@ import { suggestFhaMipRate, suggestPmiRate, PMI_CANCELLATION_LTV } from '../data
 import { creditTierFromScore } from '../data/qualificationRules';
 import { num, nonNegative, round, roundDownTo, safeDivide } from '../utils/num';
 import { money, pct, count } from './trace';
+import { overrideValue } from '../model/overrides';
 
 /** Level monthly principal & interest on `loan` at `annualRate` for `termYears`; a 0% rate is simply loan / months. */
 export function principalAndInterest(loan: unknown, annualRate: unknown, termYears: unknown): number {
@@ -23,24 +24,27 @@ export function paymentSpread(payment: unknown): number {
 export function calculatePayment({inputs, program, loan, finalPurchasePrice, renovationAmount, trace}: any) {
   const pi = round(principalAndInterest(loan.totalLoan, inputs.interestRate, inputs.termYears), 2);
 
-  /* FHA annual MIP: the planning table's rate unless a rate is entered (56.5: an entered 0 means "use the table") */
+  /* FHA annual MIP: the planning table's rate unless a rate is entered. Blank = calculate; 0% is not allowed for FHA and
+     is rejected with a warning (overrides.ts), so the calculated rate applies. */
   const mipSuggestion = suggestFhaMipRate(loan.maximumBaseLoan, loan.loanToCost, undefined, num(inputs.termYears, 30));
   const mipSuggested = program.fhaMipEnabled ? mipSuggestion.rate : 0;
-  const mipOverride = nonNegative(inputs.fhaMipOverrideRate) > 0;
-  const mipRate = program.fhaMipEnabled ? (mipOverride ? nonNegative(inputs.fhaMipOverrideRate) : inputs.fhaMipManual ? nonNegative(inputs.fhaAnnualMipRate) : mipSuggestion.rate) : 0;
+  const mipEntered = overrideValue(inputs, 'fhaMipOverrideRate'), mipOverride = mipEntered !== null;
+  const mipRate = program.fhaMipEnabled ? (mipOverride ? (mipEntered as number) : inputs.fhaMipManual ? nonNegative(inputs.fhaAnnualMipRate) : mipSuggestion.rate) : 0;
   const monthlyMip = program.fhaMipEnabled ? round(loan.maximumBaseLoan * mipRate / 12, 2) : 0;
 
-  /* conventional PMI: suggested from credit tier and down payment unless a rate is entered (56.5: 0 means "use the suggestion") */
+  /* conventional PMI: suggested from credit tier and down payment unless a rate is entered. Blank = calculate; an entered 0%
+     means no monthly PMI (lender-paid, or no MI required). */
   const creditTier = creditTierFromScore(nonNegative(inputs.creditScore));
   const pmiSuggested = program.pmiEnabled ? suggestPmiRate(creditTier, nonNegative(inputs.finalDownPaymentPct)) : 0;
-  const pmiOverride = nonNegative(inputs.pmiOverrideRate) > 0;
-  const pmiRate = program.pmiEnabled ? (pmiOverride ? nonNegative(inputs.pmiOverrideRate) : pmiSuggested) : 0;
+  const pmiEntered = overrideValue(inputs, 'pmiOverrideRate'), pmiOverride = pmiEntered !== null;
+  const pmiRate = program.pmiEnabled ? (pmiOverride ? (pmiEntered as number) : pmiSuggested) : 0;
   const monthlyPmi = program.pmiEnabled ? round(loan.maximumBaseLoan * pmiRate / 12, 2) : 0;
 
-  /* taxes and insurance: entered annually or monthly; a combined monthly override replaces both (56.5: 0 means "no override") */
+  /* taxes and insurance: entered annually or monthly; a combined monthly override replaces both. Blank = no override;
+     an entered $0 is used and flagged for review. */
   const monthlyTaxes = inputs.propertyTaxBasis === 'Annual' ? round(nonNegative(inputs.propertyTaxAmount) / 12, 2) : nonNegative(inputs.propertyTaxAmount);
   const monthlyInsurance = inputs.insuranceBasis === 'Annual' ? round(nonNegative(inputs.insuranceAmount) / 12, 2) : nonNegative(inputs.insuranceAmount);
-  const tiOverride = nonNegative(inputs.taxInsuranceOverrideMonthly), usingTiOverride = tiOverride > 0;
+  const tiEntered = overrideValue(inputs, 'taxInsuranceOverrideMonthly'), usingTiOverride = tiEntered !== null, tiOverride = tiEntered ?? 0;
   const taxesAndInsurance = usingTiOverride ? tiOverride : round(monthlyTaxes + monthlyInsurance, 2);
   const hoa = nonNegative(inputs.hoaMonthly);
 

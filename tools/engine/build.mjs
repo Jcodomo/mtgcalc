@@ -12,8 +12,11 @@ const out = path.resolve(root, process.argv[2] || 'dist/engine.js');
 const tslib = fs.readFileSync(path.join(root, 'src/core/_tslib.ts'), 'utf8');
 const helpersDecl = tslib.split('\n').find(l => l.startsWith('var '));
 
+const listTs = d => fs.readdirSync(d, {withFileTypes: true}).flatMap(e => e.isDirectory() ? listTs(path.join(d, e.name)) : e.name.endsWith('.ts') ? [path.join(d, e.name)] : []);
+const extra = listTs(path.join(root, 'src')).map(f => path.relative(root, f).split(path.sep).join('/').replace(/\.ts$/, '')).filter(n => n !== 'src/core/_tslib' && !manifest.order.includes(n) && !n.startsWith('src/app/'));
+const allModules = [...manifest.order, ...extra.sort()];
 const parts = ['/* Mortgage Suite engine - built from src/ by tools/engine/build.mjs. Do not edit; edit src/ and rebuild. */', helpersDecl];
-for (const name of manifest.order) {
+for (const name of allModules) {
   const file = path.join(root, name + '.ts');
   const code = fs.readFileSync(file, 'utf8');
   /* every relative import of this module, resolved to its AMD name */
@@ -33,4 +36,4 @@ return module.exports;
 }
 fs.mkdirSync(path.dirname(out), {recursive: true});
 fs.writeFileSync(out, parts.join('\n'));
-console.log(`built ${manifest.order.length} modules -> ${path.relative(root, out)} (${(fs.statSync(out).size / 1024).toFixed(0)} KB)`);
+console.log(`built ${allModules.length} modules -> ${path.relative(root, out)} (${(fs.statSync(out).size / 1024).toFixed(0)} KB)`);

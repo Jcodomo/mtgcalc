@@ -86,6 +86,25 @@ export function calculateLoan({inputs, program, purchase, finalRenovationAmount,
   const ltvOnFinalValue = safeDivide(maximumBaseLoan, finalValue, 0);
   const arvLtv = safeDivide(totalLoan, nonNegative(inputs.afterRepairValue), 0);
 
+  /* Additional funds (docs/v57 D1): whatever the acquisition costs beyond the loan and the required investment must come
+     from the borrower. Causes: a loan limit or value cap, and (FHA) a price above the as-is value or a 110%-of-ARV cap,
+     which keep the C3 value basis below the purchase cost. */
+  const additionalFundsRequired = Math.max(0, round(totalAcquisition - maximumBaseLoan - requiredInvestment, 2));
+  const additionalFundsReasons: {label: string; amount: number}[] = [];
+  if (additionalFundsRequired > 0) {
+    const limitShortfall = Math.max(0, round(baseBeforeLimits - maximumBaseLoan, 2));
+    if (limitShortfall > 0) additionalFundsReasons.push({label: fhaLimitBinds && !valueBinds ? `FHA county loan limit (${fha.limit.toLocaleString('en-US', {style: 'currency', currency: 'USD', maximumFractionDigits: 0})}) - loan reduced` : valueBinds && !fhaLimitBinds ? (program.renovationActive ? `HomeStyle ${percentLabel(HOMESTYLE_MAX_LTV)} of the as-completed value - loan reduced` : 'Value-supported loan - loan reduced') : 'Loan limit and value cap - loan reduced', amount: limitShortfall});
+    if (program.isFha) {
+      const priceOverValue = Math.max(0, round(nonNegative(purchase.finalPurchasePrice) - value.c1, 2));
+      const arvGap = value.cappedByArv && value.arv110 !== null ? Math.max(0, round(round(value.c1 + rehab, 2) - value.arv110, 2)) : 0;
+      if (priceOverValue > 0) additionalFundsReasons.push({label: 'Purchase price above the as-is value (not in the FHA value basis)', amount: priceOverValue});
+      if (arvGap > 0) additionalFundsReasons.push({label: 'Cost above 110% of the after-repair value (not in the FHA value basis)', amount: arvGap});
+    }
+    const explained = round(additionalFundsReasons.reduce((t, r) => t + r.amount, 0), 2);
+    const rest = round(additionalFundsRequired - explained, 2);
+    if (Math.abs(rest) >= 0.01) additionalFundsReasons.push({label: rest > 0 ? 'Other difference between the purchase cost and the loan plus required investment' : 'Less: down payment already above the minimum', amount: rest});
+  }
+
   if (trace) {
     trace.record('totalAcquisitionCost', 'Total acquisition cost', program.renovationActive ? 'Total Acquisition = Final Purchase Price + Total Rehabilitation Cost + Energy Improvements' : 'Total Acquisition = Final Purchase Price (renovation excluded)',
       [money('Final purchase price', purchase.finalPurchasePrice), money('Total rehabilitation cost', rehab), money('Energy improvements', energy)], totalAcquisition, {resultFormat: 'currency'});
@@ -103,6 +122,9 @@ export function calculateLoan({inputs, program, purchase, finalRenovationAmount,
     trace.record('maximumBaseLoan', 'Maximum base loan', program.fhaLimitsEnabled ? 'Max Base Loan = MIN(Base Loan, FHA County Limit)' : 'Max Base Loan = MIN(Base Loan, Value-Supported Loan)',
       [money('Base loan before limits', baseBeforeLimits), ...(program.fhaLimitsEnabled ? [money('Applied FHA limit', fha.limit)] : []), ...(valueSupported !== null ? [money('Value-supported loan', valueSupported)] : [])], maximumBaseLoan,
       {resultFormat: 'currency', limitsApplied});
+    if (additionalFundsRequired > 0) trace.record('additionalFundsRequired', 'Additional funds required (not financed)', 'Additional Funds = MAX(0, Total Acquisition - Maximum Base Loan - Required Investment)',
+      [money('Total acquisition', totalAcquisition), money('Maximum base loan', maximumBaseLoan), money('Required investment', requiredInvestment)], additionalFundsRequired,
+      {resultFormat: 'currency', notes: additionalFundsReasons.map(r => `${r.label}: ${r.amount.toFixed(2)}`)});
     trace.record('ufmip', 'FHA upfront MIP', program.ufmipEnabled ? 'UFMIP = Maximum (capped) Base Loan x UFMIP Rate' : 'UFMIP = $0 (Conventional financing)',
       [money('Maximum base loan', maximumBaseLoan), pct('UFMIP rate', program.ufmipEnabled ? inputs.ufmipRate : 0)], ufmip, {resultFormat: 'currency'});
     trace.record('totalLoan', 'Total loan amount', program.ufmipEnabled ? 'Total Loan = Base Loan + UFMIP' : 'Total Loan = Base Loan', [money('Maximum base loan', maximumBaseLoan), money('UFMIP', ufmip)], totalLoan, {resultFormat: 'currency'});
@@ -115,7 +137,8 @@ export function calculateLoan({inputs, program, purchase, finalRenovationAmount,
 
   return {totalAcquisitionCost: totalAcquisition, valueBasis: value.valueBasis, minimumStatutoryInvestment: msi, msiBasisLabel, selectedDownPayment: purchase.finalDownPayment, requiredInvestment,
     baseLoanBeforeLimits: baseBeforeLimits, fhaLimitApplied: program.fhaLimitsEnabled ? fha.limit : 0, fhaStandardFloor: fha.standardFloor, fhaTier: program.fhaLimitsEnabled ? fha.appliedTier : null,
-    valueSupportedBaseLoan: valueSupported, maximumBaseLoan, limitBinding, amountOverFhaLimit, fhaLimitStatus, ufmip, totalLoan, loanToCost, ltvOnFinalValue, arvLtv};
+    valueSupportedBaseLoan: valueSupported, maximumBaseLoan, limitBinding, amountOverFhaLimit, fhaLimitStatus, ufmip, totalLoan, loanToCost, ltvOnFinalValue, arvLtv,
+    additionalFundsRequired, additionalFundsReasons};
 }
 
 export default {calculateTotalAcquisition, calculateValueBasis, calculateRequiredInvestment, valueSupportedBaseLoan, calculateFhaLimit, calculateLoan};

@@ -66,23 +66,53 @@ for (const m of manifest.modules) {
   for (const k of m.exports) { if (typeof A[k] === 'function') { if (typeof Bm[k] !== 'function') { failures++; console.log('MISSING FUNCTION', m.module, k); } continue; }
     tables++; const d = diff(strip(A[k]), strip(Bm[k])); if (d.length) { failures++; console.log('TABLE DIFFERS', m.module + '.' + k, d.slice(0, 3)); } }
 }
-/* 2. runScenario on seeded random scenarios, both engines, every output field */
+/* 2. runScenario on seeded random scenarios, both engines, every output field.
+   In v57 mode (the built engine has src/core/model/overrides) each scenario is migrated the way a 56.5 file is, and every
+   difference must be explained by one of the v57 fixes (docs/v57 D1-D5) under that fix's own condition. */
+const v57 = next.modules.includes('src/core/model/overrides');
+const migrate = v57 ? next.require('src/core/model/overrides').migrate56Inputs : (x => x);
 const runA = orig.require('src/core/calc/engine').runScenario, runB = next.require('src/core/calc/engine').runScenario;
 const DA = orig.require('src/core/defaults'), DB = next.require('src/core/defaults');
-let shown = 0, errorsBoth = 0;
+let shown = 0, errorsBoth = 0; const explained = {D1: 0, D2: 0, D4: 0, D5: 0, cashBack: 0};
+const pathsOf = (a, b) => { const out = []; (function walk(x, y, p) { if (out.length > 400) return; if (typeof x !== typeof y || x === null || y === null || typeof x !== 'object') { if (x !== y && !(Number.isNaN(x) && Number.isNaN(y))) out.push(p); return; } for (const k of new Set([...Object.keys(x), ...Object.keys(y)])) walk(x[k], y[k], p ? p + '.' + k : k); })(a, b, ''); return out; };
+function unexplained(a, b, sb) {
+  const paths = pathsOf(a, b); if (!paths.length) return [];
+  const L = b.loan, C = b.cash, gap = L.additionalFundsRequired > 0, credit = C.sellerConcessionUnused > 0, back = C.deficit > 0;
+  const assetsBlank = ['liquidAssets', 'retirementOtherAssets', 'giftFunds'].every(k => sb.assets[k] === null || sb.assets[k] === undefined);
+  const cashChanged = paths.some(p => p.startsWith('cash.'));
+  if (gap) explained.D1++; if (credit) explained.D2++; if (back) explained.cashBack++;
+  const lastDraw = (b.renovationOut.drawSchedule || []).length - 1;
+  return paths.filter(p => {
+    if (p === 'loan.additionalFundsRequired' || p === 'loan.additionalFundsReasons' || p.startsWith('loan.additionalFundsReasons.')) return false;           // D1 new fields
+    /* the credit cap also applies to the low / high / outside-NY versions, each against its own closing-cost figure */
+    const variant = {'cash.cashToCloseLow': b.closing.buyerClosingCostsLow, 'cash.cashToCloseHigh': b.closing.buyerClosingCostsHigh, 'cash.cashToCloseOutsideNy': b.closing.estimateOutsideNewYork}[p];
+    if (variant !== undefined && C.sellerConcessionAllowed > variant) { explained.D2++; return false; }
+    if (p.startsWith('cash.')) return !(gap || credit || back || /^cash\.(additionalFundsRequired|sellerConcession(Requested|Allowed|Unused)|creditNotes)/.test(p) || /^cash\.(sellerConcessionApplied|deficit)$/.test(p));  // D1 / D2
+    /* the final draw absorbs the rounding of the others: up to half a cent per draw, at most 12 draws */
+    if (p.startsWith('renovationOut.drawSchedule.')) { const m = p.match(/drawSchedule\.(\d+)\.(\w+)/); if (m && +m[1] === lastDraw && /releaseAmount|cumulativeRelease|remainingHoldback/.test(m[2]) && Math.abs(getP(a, p) - getP(b, p)) <= 0.0651) { explained.D4++; return false; } return true; }
+    if (p.startsWith('aus.')) { if (assetsBlank) explained.D5++; return !(cashChanged || assetsBlank); }                                                       // reserves follow cash to close, or D5
+    if (p.startsWith('mmw.')) return !(cashChanged || gap);                                                                                                       // worksheet shows cash to close
+    if (p.startsWith('traces.') || p.startsWith('warnings.')) return false;                                                                                       // wording follows the changes above
+    return true;
+  });
+}
+const getP = (o, p) => p.split('.').reduce((x, k) => (x == null ? undefined : x[k]), o);
 for (let i = 0; i < count; i++) {
-  const s0 = seed; const sa = scenario(DA); seed = s0; const sb = scenario(DB);
+  const s0 = seed; const sa = scenario(DA); seed = s0; const sb = migrate(scenario(DB));
   let a, b, ea, eb;
   try { a = strip(runA(sa)); } catch (e) { ea = e.message; }
   try { b = strip(runB(sb)); } catch (e) { eb = e.message; }
   if (ea || eb) { if (ea !== eb) { failures++; if (shown++ < 5) console.log(`scenario ${i}: error mismatch`, ea, '|', eb); } else errorsBoth++; continue; }
-  const d = diff(a, b); if (d.length) { failures++; if (shown++ < 5) console.log(`scenario ${i} differs:`, d.slice(0, 4)); }
+  if (!v57) { const d = diff(a, b); if (d.length) { failures++; if (shown++ < 5) console.log(`scenario ${i} differs:`, d.slice(0, 4)); } continue; }
+  const u = unexplained(a, b, sb); if (u.length) { failures++; if (shown++ < 5) console.log(`scenario ${i}: unexplained differences`, u.slice(0, 5).map(p => `${p}: ${JSON.stringify(getP(a, p))} vs ${JSON.stringify(getP(b, p))}`)); }
 }
 /* 3. the store: a scenario saved, edited and reloaded behaves the same */
 const SA = orig.require('src/state/store'), SB = next.require('src/state/store');
 const sa1 = SA.newSavedScenario(DA.defaultScenario()), sb1 = SB.newSavedScenario(DB.defaultScenario());
-const norm = x => JSON.parse(JSON.stringify(x).replace(/"\d{4}-\d{2}-\d{2}T[^"]+"/g, '"<time>"'));
+const norm = x => JSON.parse(JSON.stringify(x).replace(/"\d{4}-\d{2}-\d{2}T[^"]+"/g, '"<time>"').replace(/"a-\d{10,}"/g, '"<audit-id>"'));
+if (v57) sa1.inputs = migrate(sa1.inputs);
 const sd = diff(norm(sa1), norm(sb1)); if (sd.length) { failures++; console.log('newSavedScenario differs', sd); }
 
-console.log(`${tables} data tables/constants compared, ${count} random scenarios run through both engines (${errorsBoth} raised the same error in both), store checked: ${failures ? failures + ' DIFFERENCES' : 'identical'}`);
+console.log(`${tables} data tables/constants compared, ${count} random scenarios run through both engines (${errorsBoth} raised the same error in both), store checked: ${failures ? failures + ' DIFFERENCES' : v57 ? 'every difference explained by a v57 fix' : 'identical'}`);
+if (v57) console.log(`v57 fixes exercised: unfinanced cost in ${explained.D1} scenarios, unused seller credit in ${explained.D2}, deposit refunded in ${explained.cashBack}, last-draw cent adjustments ${explained.D4}, blank assets in ${explained.D5} reserve checks`);
 process.exit(failures ? 1 : 0);

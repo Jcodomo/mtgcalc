@@ -75,17 +75,19 @@ export function calculateAus({inputs, program, loan, payment, cashToCloseHigh, t
   const reserveRule = requiredReserveMonths(program.isFha ? 'FHA' : 'Conventional', propertyType, loan.loanToCost);
   const requiredReserveDollars = round(housing * reserveRule.months, 2);
   const reserveCushion = round(ownReserves - requiredReserveDollars, 2);
-  const reserveStatus = reserveCushion >= 0 ? `PASS by ${currency(reserveCushion)}` : `FAIL by ${currency(Math.abs(reserveCushion))}`;    // 56.5: "PASS by $0" with nothing entered (docs/v57 D5)
-  const reservesOk = reserveCushion >= 0;
-  const overallRentalReserve = selfSufficiencyApplies ? (reservesOk && selfSufficiencyCushion >= 0 ? 'PASS' : 'AT RISK') : reservesOk ? 'PASS' : 'AT RISK';
+  /* no asset entered (every asset field blank) is "NOT ENTERED", never a pass (docs/v57 D5); an entered $0 is a real answer */
+  const assetsEntered = ['liquidAssets', 'retirementOtherAssets', 'giftFunds'].some(k => inputs.assets[k] !== null && inputs.assets[k] !== undefined);
+  const reserveStatus = !assetsEntered ? 'NOT ENTERED' : reserveCushion >= 0 ? `PASS by ${currency(reserveCushion)}` : `FAIL by ${currency(Math.abs(reserveCushion))}`;
+  const reservesOk = assetsEntered && reserveCushion >= 0;
+  const overallRentalReserve = selfSufficiencyApplies && selfSufficiencyCushion < 0 ? 'AT RISK' : !assetsEntered ? 'NOT ENTERED' : reservesOk ? 'PASS' : 'AT RISK';
 
   /* risk factors and planning score */
   const creditScore = nonNegative(inputs.creditScore), creditTier = creditTierFromScore(creditScore);
   const creditRisk = creditScore > 640 ? 'PASS' : 'AT RISK';
   const dtiRisk = overallDti === 'PASS' ? 'PASS' : 'AT RISK';
-  const assetRisk = assetsRemaining >= 3 * housing ? 'PASS' : assetsRemaining >= housing ? 'HIGH RISK' : 'AT RISK';
-  const reserveRisk = reserveMonthsAvailable >= reserveRule.months ? 'PASS' : reserveMonthsAvailable >= Math.max(1, reserveRule.months - 1) ? 'HIGH RISK' : 'AT RISK';
-  const rentalRisk = overallRentalReserve === 'PASS' ? 'PASS' : 'AT RISK';
+  const assetRisk = !assetsEntered ? 'NOT ENTERED' : assetsRemaining >= 3 * housing ? 'PASS' : assetsRemaining >= housing ? 'HIGH RISK' : 'AT RISK';
+  const reserveRisk = !assetsEntered ? 'NOT ENTERED' : reserveMonthsAvailable >= reserveRule.months ? 'PASS' : reserveMonthsAvailable >= Math.max(1, reserveRule.months - 1) ? 'HIGH RISK' : 'AT RISK';
+  const rentalRisk = overallRentalReserve === 'PASS' ? 'PASS' : overallRentalReserve === 'NOT ENTERED' ? 'NOT ENTERED' : 'AT RISK';
   const giftRisk = giftUtilization === 'None' ? 'PASS' : 'HIGH RISK';
   let score = 100;
   if (qualifyingIncome === 0) score -= 35;
