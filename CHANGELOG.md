@@ -154,6 +154,30 @@
 - **Pasting:** each reader also has **Paste text / several** - a tray that gathers several screenshots and pasted text (an email, a web page) and reads them in order into one file for readers that take one. Pressing Ctrl+V with text while a builder or the document library is open (and no field is selected) opens the tray with that text. Windows Snipping Tool (Win+Shift+S) and Mac clipboard screenshots paste with Ctrl+V / Cmd+V. The gift letter reader also understands typed labels such as "Donor:" and "Relationship:".
 - Tested in the browser: relative dates and the lease term; versions; Fill from on the Income Calculator; Schedule C both year orders; Loan Estimate lines and totals; every lease layout, leaving every section out, rewording, custom sections, the initials line; draw schedules in all estimate layouts; the conditions rows from a real export and a rendered screenshot; email and copy text (clipboard stubbed - no email was sent); all 10 builders and their layouts with no errors. Not tested: a real low-resolution screenshot of a full conditions grid (OCR on small text may miss rows - pasting the copied rows is the reliable route), and the mail link opening a real email program.
 
+## Release 57.0 - the Loan Suite runs the v57 calculation; spreadsheet pastes, better OCR, a Simple Income Calculator
+
+- **The v57 calculation is live in the Loan Suite** (every page, Simple and Advanced):
+  - **Cash to close** now includes any amount the loan cannot cover, with the reasons, instead of leaving it out.
+  - **Seller credit** is applied only up to the closing costs; the rest is shown as unused, not used toward the down payment.
+  - **Draws** add up to the cent.
+  - **Missing assets** read "not entered", not "PASS by $0".
+  - **Blank means "calculate"** in override fields, and a deliberate $0 can be entered in Simple. FHA MIP 0 is rejected with the reason.
+  - **Saved scenarios** are converted once when the page opens, and the original is kept in the browser as a rollback copy.
+- **Spreadsheets:**
+  - **Rows into lists:** rows copied from Excel or Google Sheets and pasted into a line of a builder list (contractor estimate, Loan Estimate lines, profit and loss, pay statement, draws) become one line each. A header row is skipped and dollar amounts are read.
+  - **Text, not the picture:** Excel also puts a picture of the cells on the clipboard; the text is used now, not the picture.
+  - **Any length:** text pastes of any length work, and the document library keeps up to 1,000,000 characters of text per document.
+- **Better OCR for screenshots and photos:**
+  - **How:** images are enlarged, given more contrast, and dark screens are flipped before reading. Columns keep their spacing, and an unsure reading is read again as one block.
+  - **Result:** on a small, dark, compressed screenshot of a condition grid, 8 of 18 words were read, up from 0 before; on a blue grid, 14 of 18, up from 3.
+  - **Where:** the Income Calculator and the document library use the same reader.
+- **Commitment letter layouts:** conditional approval letter (one page), conditions checklist (status table with received items checked off), and modern commitment (key terms, conditions by category, acceptance), alongside the full agreement.
+- **Income report pages:** an income calculation worksheet (one page, in the format of the mortgage-insurer calculators) and a transmittal summary (stable monthly income, proposed payments and ratios, 1008 style).
+- **Income Calculator, Simple | Advanced:**
+  - **Simple** keeps everything except Other Income, VA Income and Assets; every fresh visit opens Simple.
+  - **Hidden income:** amounts in those sections still count, and a note says so.
+  - **Faster start:** the PDF libraries (550 KB) load only when a report or PDF is made, so the page is ready in about half the time (74 ms against 144 ms in the same browser).
+
 ## Release 56.9 - a tighter Advanced view, with the way back to Simple always in reach
 
 - **← Simple** is now the first item in the full suite's section tabs. The tabs stay under the top bar while you scroll, so the switch back is always one click away (the top-bar Simple | Advanced switch stays too). Switching either way opens at the top of the page.

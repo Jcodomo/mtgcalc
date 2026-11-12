@@ -6,8 +6,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mortgage Income Calculator &amp; Guideline Engine</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script defer src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<!-- v57: the PDF writer and reader load when a report or PDF needs them (mt-libs.js), not with the page -->
+<script src="assets/mt-libs.js?v=57.0"></script>
 <style>
 /* ============================================================
    NMB / UW ENGINE STYLE SYSTEM  —  light + dark themes
@@ -3644,7 +3644,7 @@ function rptTotalBox(label, amount, sub){
 }
 
 /* ---------------- SELECTION + ASSEMBLE ---------------- */
-const RPT = { pick:null, summary:false, detail:false, worksheets:true, encompass:false };
+const RPT = { pick:null, summary:false, detail:false, worksheets:true, encompass:false, miws:false, t1008:false };
 function reportItems(){
   const it = [];
   S.w2.forEach((j,i)=>   it.push({k:'w2:'+j.id,   g:'W-2 / Salary Employment', n:esc(j.employer)||`Job #${i+1}`,             a:calcW2(j).total}));
@@ -3698,8 +3698,58 @@ function reportSummaryRows(){
     `${(ASSET_GUIDES[S.assets.guideline]||ASSET_GUIDES.custom).t}: ${calcAssets().div}-month divisor`, calcAssets().monthly]);
   return out;
 }
+/* v57: report pages laid out the way other income calculators present their results */
+const RPT_TBL = 'width:100%;border-collapse:collapse;font-size:10pt';
+const RPT_TH = 'text-align:left;padding:6px 8px;background:#1f3a5f;color:#fff;font-weight:700;border:1px solid #1f3a5f';
+const RPT_TD = 'padding:6px 8px;border:1px solid #c5d3e4;vertical-align:top';
+const RPT_N = RPT_TD + ';text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums';
+function rptRatioBox(t){
+  const pct = v => t.income ? (v*100).toFixed(2)+'%' : 'Income not entered';
+  return `<table style="${RPT_TBL};margin-top:12px"><tr><th style="${RPT_TH}" colspan="2">Qualifying ratios</th></tr>
+    <tr><td style="${RPT_TD}">Total qualifying income</td><td style="${RPT_N}">${money(t.income)}</td></tr>
+    <tr><td style="${RPT_TD}">Proposed housing payment (PITIA)</td><td style="${RPT_N}">${money(t.pitia)}</td></tr>
+    <tr><td style="${RPT_TD}">Other monthly debts${t.rentNeg?' (incl. net rental loss '+money(t.rentNeg)+')':''}</td><td style="${RPT_N}">${money(t.debts)}</td></tr>
+    <tr><td style="${RPT_TD}"><b>Housing ratio (front-end)</b></td><td style="${RPT_N}"><b>${pct(t.front)}</b></td></tr>
+    <tr><td style="${RPT_TD}"><b>Total debt ratio (back-end)</b></td><td style="${RPT_N}"><b>${pct(t.back)}</b></td></tr></table>`;
+}
+/* one page: every source, its method, monthly and annual - the format of the mortgage-insurer income calculators */
+function rptMIWorksheetPage(){
+  const rows = reportSummaryRows(), t = reportTotals();
+  const body = rows.length ? rows.map(r=>`<tr><td style="${RPT_TD}">${esc(r[0])}</td><td style="${RPT_TD}">${esc(r[1]||'')}</td><td style="${RPT_TD};font-size:9pt">${esc(r[2]||'')}</td><td style="${RPT_N}">${money(r[3])}</td><td style="${RPT_N}">${money(r[3]*12)}</td></tr>`).join('')
+    : `<tr><td style="${RPT_TD}" colspan="5">No income selected.</td></tr>`;
+  return `${rptHead('Income Calculation Worksheet','Every income source, the method used and the qualifying amount')}${rptIdBar()}
+    <table style="${RPT_TBL};margin-top:10px"><thead><tr><th style="${RPT_TH}">Income type</th><th style="${RPT_TH}">Employer / source</th><th style="${RPT_TH}">Calculation method</th><th style="${RPT_TH};text-align:right">Monthly</th><th style="${RPT_TH};text-align:right">Annual</th></tr></thead>
+    <tbody>${body}<tr><td style="${RPT_TD}" colspan="3"><b>Total qualifying income</b></td><td style="${RPT_N}"><b>${money(t.income)}</b></td><td style="${RPT_N}"><b>${money(t.income*12)}</b></td></tr></tbody></table>
+    ${rptRatioBox(t)}
+    <div style="margin-top:18px;font-size:9pt;color:#333">I have reviewed the documentation for each source above and calculated the income according to the ${esc(AG_NAME[S.agency]||S.agency||'applicable')} guidelines.</div>
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:24px;margin-top:26px;font-size:9pt"><div style="border-top:1px solid #000;padding-top:3px">Prepared by</div><div style="border-top:1px solid #000;padding-top:3px">Date</div></div>`;
+}
+/* the income and ratio part of a transmittal summary (Form 1008 style) */
+function rpt1008Page(){
+  const t = reportTotals(), sum = (list, f) => list.reduce((a, x) => a + f(x), 0);
+  const base = sum(S.w2.filter(j=>rptOn('w2:'+j.id) && ON(j)), j=>calcW2(j).total);
+  const self = sum(S.schc.filter(b=>rptOn('schc:'+b.id) && ON(b)), b=>calcSchC(b).monthly) + sum(S.corp.filter(e=>rptOn('corp:'+e.id) && ON(e)), e=>calcCorp(e).monthly);
+  const rent = sum(S.sche.filter(p=>rptOn('sche:'+p.id) && ON(p)), p=>Math.max(0, calcSchE(p).monthly));
+  const other = sum(S.other.filter(o=>rptOn('other:'+o.id) && ON(o)), o=>calcOther(o).total) + (rptOn('assets') && S.assets.use ? calcAssets().monthly : 0);
+  const line = (l, v) => `<tr><td style="${RPT_TD}">${l}</td><td style="${RPT_N}">${money(v)}</td></tr>`;
+  const D = S.dti || {};
+  return `${rptHead('Transmittal Summary - Income and Ratios','Stable monthly income and qualifying ratios, in the order of a transmittal summary')}${rptIdBar()}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:10px">
+      <table style="${RPT_TBL}"><tr><th style="${RPT_TH}" colspan="2">Stable monthly income</th></tr>
+        ${line('Base employment income (W-2)', base)}${line('Self-employment income', self)}${line('Positive cash flow (rental)', rent)}${line('Other income', other)}
+        <tr><td style="${RPT_TD}"><b>Total income</b></td><td style="${RPT_N}"><b>${money(t.income)}</b></td></tr></table>
+      <table style="${RPT_TBL}"><tr><th style="${RPT_TH}" colspan="2">Proposed monthly payments</th></tr>
+        ${line('First mortgage P&amp;I', N(D.pi))}${line('Hazard insurance', N(D.ins))}${line('Taxes', N(D.taxes))}${line('Mortgage insurance', N(D.mi))}${line('HOA fees', N(D.hoa))}${line('Other housing', N(D.otherHousing))}
+        <tr><td style="${RPT_TD}"><b>Total primary housing expense</b></td><td style="${RPT_N}"><b>${money(t.pitia)}</b></td></tr>
+        ${line('Other obligations', t.debts)}
+        <tr><td style="${RPT_TD}"><b>Total all monthly payments</b></td><td style="${RPT_N}"><b>${money(t.pitia + t.debts)}</b></td></tr></table>
+    </div>${rptRatioBox(t)}
+    <div style="margin-top:10px;font-size:8.5pt;color:#555">Prepared from this calculator for the file. It is not the lender's Form 1008; transfer the figures into the loan origination system.</div>`;
+}
 function buildReportPages(){
   const pages = [];
+  if (RPT.miws) pages.push(rptMIWorksheetPage());
+  if (RPT.t1008) pages.push(rpt1008Page());
   if (RPT.summary) pages.push(rptSummaryPage());
   /* worksheet page followed immediately by its own line-by-line calculation page */
   const detailPage = d => `${rptHead(d.pageTitle,
@@ -3761,6 +3811,8 @@ function renderPicker(){
       <label><input type="checkbox" ${RPT.worksheets?'checked':''} onchange="RPT.worksheets=this.checked;refreshReport()"> Worksheet pages</label>
       <label><input type="checkbox" ${RPT.detail?'checked':''} onchange="RPT.detail=this.checked;refreshReport()"> Calculation detail pages</label>
       <label title="Section 1a personal information, 1b employment with the Gross Monthly Income grid, and 1e other income — laid out the way Encompass takes it"><input type="checkbox" ${RPT.encompass?'checked':''} onchange="RPT.encompass=this.checked;refreshReport()"> Encompass / URLA 1003 pages</label>
+      <label title="One page: each source, its method, monthly and annual amounts, totals and ratios - the format of the mortgage-insurer income calculators"><input type="checkbox" ${RPT.miws?'checked':''} onchange="RPT.miws=this.checked;refreshReport()"> Income calculation worksheet (one page)</label>
+      <label title="Stable monthly income by type, proposed housing payment and ratios, in the order of a transmittal summary (Form 1008)"><input type="checkbox" ${RPT.t1008?'checked':''} onchange="RPT.t1008=this.checked;refreshReport()"> Transmittal summary (1008 style)</label>
       <span class="rpt-count">${onCount} of ${items.length} sources &nbsp;|&nbsp; selected income <b>${money(t.income)}</b> / mo</span>
     </div>`;
 }
@@ -3782,6 +3834,7 @@ function openReport(){
   document.body.style.overflow='hidden';
   const warn = $('rptLibWarn');
   if (warn) warn.style.display = reportLibsReady() ? 'none' : 'block';
+  if (!reportLibsReady() && window.LOS_LIBS) LOS_LIBS.need('pdfout').then(() => { if (warn) warn.style.display = reportLibsReady() ? 'none' : 'block'; });
 }
 function closeReport(){ $('rptModal').classList.remove('on'); document.body.style.overflow=''; }
 function pickAll(v){ reportItems().forEach(i=>RPT.pick[i.k]=v); refreshReport(); }
@@ -3809,6 +3862,7 @@ async function shotPages(scale){
   return out;
 }
 async function reportPDF(){
+  if (window.LOS_LIBS) await LOS_LIBS.need("pdfout");
   const jsPDFctor = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
   if (typeof html2canvas === 'undefined' || !jsPDFctor){
     toast('Rendering library unavailable — opening the print dialog instead'); reportPrintWindow(); return;
@@ -3828,6 +3882,7 @@ async function reportPDF(){
   }catch(err){ toast('PDF failed — opening print dialog'); reportPrintWindow(); }
 }
 async function reportJPEG(){
+  if (window.LOS_LIBS) await LOS_LIBS.need("pdfout");
   if (typeof html2canvas === 'undefined'){ toast('Image library unavailable — use Print → Save as PDF'); return; }
   toast('Rendering image…');
   try{
@@ -6994,6 +7049,7 @@ function psName(ext){
   return `${who} Pay Stub ${stamp}.${ext}`;
 }
 async function psPDF(){
+  if (window.LOS_LIBS) await LOS_LIBS.need("pdfout");
   const ctor = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
   if (typeof html2canvas === 'undefined' || !ctor){ toast('Rendering library unavailable — using print'); psPrint(); return; }
   try{
@@ -7006,6 +7062,7 @@ async function psPDF(){
   }catch(e){ toast('PDF failed — using print'); psPrint(); }
 }
 async function psJPEG(){
+  if (window.LOS_LIBS) await LOS_LIBS.need("pdfout");
   if (typeof html2canvas === 'undefined'){ toast('Image library unavailable — use Print'); return; }
   try{
     const c = await psShot(2);
@@ -8183,5 +8240,6 @@ window.__mtgcalcBridge = {
 <script src="assets/doc-center.js?v=56.8"></script>
 <script src="assets/mt-data.js?v=56.1"></script>
 <script src="assets/mt-build-lazy.js?v=57.0"></script>
+<script src="assets/ic-simple.js?v=57.1"></script>
 </body>
 </html>

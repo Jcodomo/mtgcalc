@@ -992,11 +992,13 @@
     ['closing', 'Closing', 'Contract of Sale - All parties to sign contract and any riders/addendums; any changes to the contract, rider or addendum to be initialed by all parties.'],
     ['closing', 'Closing', 'Sales Price/Loan Amount - Closing Disclosure to reflect sales price of {price} and final loan amount of {loan}.']
   ];
+  /* v57: commitment letter layouts */
+  var COMMIT_STYLES = [['full', 'Commitment agreement - full terms and disclosures'], ['approval', 'Conditional approval letter - one page, terms and conditions'], ['checklist', 'Conditions checklist - status table for the borrower'], ['modern', 'Modern commitment - terms table, conditions by category']];
   B.commit = {
     label: 'Commitment letter', sub: 'From a conditional approval',
     init: function () {
       var f = file();
-      var d = {stateCode: stateAbbr(f.state) || 'NY', date: iso(), company: '', short: '', companyAddr1: '', companyAddr2: '', phone: '', nmls: '', mortgagee: '', loanNumber: '',
+      var d = {style: 'full', stateCode: stateAbbr(f.state) || 'NY', date: iso(), company: '', short: '', companyAddr1: '', companyAddr2: '', phone: '', nmls: '', mortgagee: '', loanNumber: '',
         borrowers: f.borrowers.length ? f.borrowers.map(function (n) { return {name: n}; }) : [{name: ''}], mail1: '', mail2: '',
         address: f.address, city: f.city, state: stateName(f.state), zip: f.zip, county: f.county,
         loanType: 'Fixed Rate', lien: 'first mortgage', amount: f.loan ? f.loan.toFixed(2) : '', rate: f.rate ? f.rate.toFixed(3) : '', apr: '', term: String(Math.round((f.term || 30) * 12)), balloon: 'N', negAm: 'N', payment: f.pi ? f.pi.toFixed(2) : '', purpose: 'Purchase', occupancy: f.occupancy || 'Primary Residence',
@@ -1016,7 +1018,7 @@
             '<div style="display:grid;gap:4px"><select data-cond="' + c.id + '" data-f="group" aria-label="When"><option value="prior"' + (c.group === 'prior' ? ' selected' : '') + '>Prior to closing</option><option value="closing"' + (c.group === 'closing' ? ' selected' : '') + '>At closing</option></select><button type="button" class="x" data-a="condDel" data-id="' + c.id + '">Delete</button></div></div>';
         }).join('') + '<div class="row" style="margin-top:6px"><button type="button" class="btn" data-a="condAdd" data-g="' + g + '">+ Add condition</button></div></fieldset>';
       };
-      return dropZone('approval', 'Drop the lender\'s conditional approval', 'PDF or image. Fills the loan terms, borrowers and property, and lists every condition so you choose which stay.') +
+      return '<fieldset><legend>Layout</legend><div class="g">' + field(b, 'style', 'Layout', {type: 'select', options: COMMIT_STYLES, wide: 1}) + '</div></fieldset>' + dropZone('approval', 'Drop the lender\'s conditional approval', 'PDF or image. Fills the loan terms, borrowers and property, and lists every condition so you choose which stay.') +
         '<fieldset><legend>Issued by (your company)</legend><div class="g">' + field(b, 'company', 'Company name', {wide: 1}) + field(b, 'short', 'Short name used in the text', {ph: 'e.g. the Lender'}) + field(b, 'nmls', 'Company NMLS #') +
         field(b, 'companyAddr1', 'Street address', {addrPair: 'companyAddr2'}) + field(b, 'companyAddr2', 'City, state ZIP') + field(b, 'phone', 'Toll-free / main phone') + field(b, 'stateCode', 'Title prefix (state)', {ph: 'NY'}) + field(b, 'mortgagee', 'Mortgagee clause (blank = company, ISAOA/ATIMA and address)', {type: 'textarea', wide: 1, rows: 2}) + '</div></fieldset>' +
         people(b, 'borrowers', 'Borrowers', 4) + '<fieldset><legend>Borrower mailing address</legend><div class="g">' + field(b, 'mail1', 'Street', {addrPair: 'mail2'}) + field(b, 'mail2', 'City, state ZIP') + '</div></fieldset>' + propertyBlock(b) +
@@ -1043,6 +1045,7 @@
         .replace(/\{short\}/g, s.short || s.company || 'the Lender').replace(/\{mortgagee\}/g, (s.company || 'the Lender') + ' ISAOA ATIMA' + (s.companyAddr1 ? ', ' + s.companyAddr1 + ', ' + s.companyAddr2 : ''));
     },
     doc: function (s) {
+      if (s.style && s.style !== 'full') return B.commit.docAlt(s);
       var co = s.company || 'Company Name', sh = s.short || s.company || 'the Lender', bor = names(s.borrowers), title = (s.stateCode ? s.stateCode.toUpperCase() + ' ' : '') + 'COMMITMENT AGREEMENT';
       var yn = function (on) { return on ? '<u>&nbsp;X&nbsp;</u>' : '<u>&nbsp;&nbsp;&nbsp;&nbsp;</u>'; }, F = function (t) { return esc(B.commit.fill(t)); };
       var head = '<div class="logo"><div class="mk"></div><div><div class="nm">' + esc(co) + '</div>' + (s.nmls ? '<div class="sb">NMLS # ' + esc(s.nmls) + '</div>' : '') + '</div></div><h1>' + esc(title) + '</h1>';
@@ -1083,6 +1086,47 @@
       return page('cmt', body, CSS_COMMIT);
     }
   };
+
+  B.commit.docAlt = function (s) {
+    var co = s.company || 'Company Name', bor = names(s.borrowers), F = function (t) { return esc(B.commit.fill(t)); }, st = s.style;
+    var addr = String(s.addrFree || '').trim() ? esc(s.addrFree).replace(/\n/g, ', ') : esc([s.address, s.city, [stateAbbr(s.state), s.zip].filter(Boolean).join(' ')].filter(Boolean).join(', '));
+    var keep = function (c) { return c.on && c.text.trim() && !(s.hideDone && c.done); }, L = s.conditions.filter(keep);
+    var prior = L.filter(function (c) { return c.group === 'prior'; }), at = L.filter(function (c) { return c.group === 'closing'; });
+    var terms = [['Loan amount', N(s.amount) ? usd(s.amount) : ''], ['Interest rate / APR', (s.rate ? N(s.rate).toFixed(3) + '%' : '') + (s.apr ? ' / ' + N(s.apr).toFixed(3) + '%' : '')], ['Loan type', s.loanType], ['Term', s.term ? s.term + ' months' : ''],
+      ['Monthly principal & interest', N(s.payment) ? usd(s.payment) : ''], ['Loan purpose', s.purpose], ['Occupancy', s.occupancy], ['Rate locked', s.locked ? when(s.locked, slashDate) + (s.lockExpires ? ' (expires ' + when(s.lockExpires, slashDate) + ')' : '') : 'Not locked'], ['Must close by', s.expires ? when(s.expires, slashDate) : '']];
+    var termsTbl = '<table class="ct">' + terms.filter(function (t) { return t[1]; }).map(function (t) { return '<tr><th>' + esc(t[0]) + '</th><td>' + esc(t[1]) + '</td></tr>'; }).join('') + '</table>';
+    var item = function (c, box) { return '<li>' + (box ? '<span class="bx">' + (c.done ? '&#9745;' : '&#9744;') + '</span>' : '') + (c.cat ? '<b>' + esc(c.cat) + ':</b> ' : '') + F(c.text) + (c.done ? ' <i class="rcv">(received)</i>' : '') + (s.showNotes !== false && c.note ? '<div class="nt">' + esc(c.note) + '</div>' : '') + '</li>'; };
+    var contact = '<p class="sm">Questions about the conditions: ' + esc([s.processor, s.procPhone, s.procEmail].filter(Boolean).join(' · ') || 'your loan processor') + '. Questions about your rate or terms: ' + esc([s.lo, s.loNmls ? 'NMLS ' + s.loNmls : '', s.loPhone, s.loEmail].filter(Boolean).join(' · ') || 'your loan officer') + '.</p>';
+    var lh = '<div class="lh2"><div><div class="co2">' + esc(co) + '</div><div class="sm">' + esc([s.nmls ? 'NMLS # ' + s.nmls : '', s.companyAddr1, s.companyAddr2, s.phone].filter(Boolean).join(' · ')) + '</div></div><div class="sm r">' + esc(when(s.date, slashDate)) + (s.loanNumber ? '<br>Loan # ' + esc(s.loanNumber) : '') + '</div></div>';
+    var who = '<p>' + bor.map(esc).join('<br>') + (s.mail1 ? '<br>' + esc(s.mail1) : '') + (s.mail2 ? '<br>' + esc(s.mail2) : '') + '</p>';
+    var sigs = function (n) { var h = '<div class="sg3">'; for (var k = 0; k < Math.max(1, Math.min(n, 4)); k++) h += '<div><div class="sl3"></div>' + esc(bor[k] || 'Borrower') + ' &nbsp; Date</div>'; return h + '</div>'; };
+    if (st === 'approval') {
+      return page('ari', lh + who + '<p><b>RE: Conditional loan approval' + (addr ? ' - ' + addr : '') + '</b></p><p>Dear ' + esc(bor.join(' and ') || 'Borrower') + ':</p><p>We are pleased to tell you that your loan has been conditionally approved on the terms below. Final approval depends on the conditions listed, which must be satisfied before or at closing.</p>' +
+        termsTbl + (prior.length ? '<h3 class="h3c">Before closing</h3><ol class="cl">' + prior.map(function (c) { return item(c, true); }).join('') + '</ol>' : '') + (at.length ? '<h3 class="h3c">At closing</h3><ol class="cl">' + at.map(function (c) { return item(c, true); }).join('') + '</ol>' : '') +
+        '<p>This approval expires if the loan does not close by ' + esc(s.expires ? when(s.expires, slashDate) : 'the date shown above') + '. Any change to your income, assets, credit or the property may change this approval.</p>' + contact +
+        '<p style="margin-top:20px">Sincerely,</p><div class="sl3" style="width:3in"></div><div class="sm">' + esc(s.underwriter ? s.underwriter + ', Underwriter' : 'Authorized signature') + ' - ' + esc(co) + '</div>', CSS_COMMIT2);
+    }
+    if (st === 'checklist') {
+      var need = L.filter(function (c) { return !c.done; }).length;
+      var rows = L.slice().sort(function (a, b) { return (a.done ? 1 : 0) - (b.done ? 1 : 0); }).map(function (c) { return '<tr class="' + (c.done ? 'dn' : '') + '"><td class="bx">' + (c.done ? '&#9745;' : '&#9744;') + '</td><td>' + esc(c.cat || '') + '</td><td>' + F(c.text) + (s.showNotes !== false && c.note ? '<div class="nt">' + esc(c.note) + '</div>' : '') + '</td><td>' + (c.group === 'closing' ? 'At closing' : 'Before closing') + '</td><td><b>' + (c.done ? 'Received' : 'Needed') + '</b></td></tr>'; }).join('');
+      return page('ari', lh + '<h1 class="h1c">Loan conditions</h1><p class="sm">' + esc(bor.join(' & ')) + (addr ? ' · ' + addr : '') + '</p><div class="cnt"><span><b>' + need + '</b> still needed</span><span><b>' + (L.length - need) + '</b> received</span><span><b>' + L.length + '</b> in all</span></div>' +
+        '<table class="ck2"><thead><tr><th></th><th>Category</th><th>Condition</th><th>When</th><th>Status</th></tr></thead><tbody>' + (rows || '<tr><td colspan="5">No conditions are listed.</td></tr>') + '</tbody></table>' + contact, CSS_COMMIT2);
+    }
+    /* modern */
+    var cats = {}; L.forEach(function (c) { var k = c.cat || 'General'; (cats[k] = cats[k] || []).push(c); });
+    return page('ari', '<div class="bar2"><div><div class="co3">' + esc(co) + '</div><div class="sm3">' + esc(s.nmls ? 'NMLS # ' + s.nmls : '') + '</div></div><div class="t3">Mortgage Commitment<div class="sm3">' + esc(when(s.date, slashDate)) + (s.loanNumber ? ' · Loan # ' + esc(s.loanNumber) : '') + '</div></div></div>' +
+      '<div class="two2"><div><div class="lab">Borrower' + (bor.length > 1 ? 's' : '') + '</div>' + bor.map(esc).join('<br>') + '</div><div><div class="lab">Property</div>' + (addr || '-') + '</div></div>' +
+      '<h3 class="h3c">Key terms</h3>' + termsTbl +
+      '<h3 class="h3c">Conditions</h3>' + Object.keys(cats).map(function (k) { return '<div class="cg"><div class="cgh">' + esc(k) + '</div><ul class="cl2">' + cats[k].map(function (c) { var x = Object.assign({}, c, {cat: ''}); return item(x, true).replace('<li>', '<li>' + (c.group === 'closing' ? '<span class="tag3">At closing</span> ' : '')); }).join('') + '</ul></div>'; }).join('') +
+      '<h3 class="h3c">Acceptance</h3><p class="sm">This commitment is subject to the conditions above and to no material change in your finances or the property. Sign and return within ' + esc(s.returnDays || '10') + ' days to accept.</p>' + sigs(bor.length) + contact, CSS_COMMIT2);
+  };
+  var CSS_COMMIT2 = '.pg{padding:.6in .7in}p{font-size:10.5pt;line-height:1.42;margin:0 0 .09in}.sm{font-size:9pt;color:#444}.r{text-align:right}.lh2{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #1f3a5f;padding-bottom:6px;margin-bottom:.2in}.co2{font-size:16pt;font-weight:700;color:#1f3a5f}' +
+    'table.ct{width:100%;border-collapse:collapse;font-size:10pt;margin:.06in 0 .12in}table.ct th{width:2.2in;text-align:left;background:#eef3fa;color:#1f3a5f;padding:5px 8px;border:1px solid #c5d3e4}table.ct td{padding:5px 8px;border:1px solid #c5d3e4}' +
+    'h3.h3c{font-size:11pt;color:#1f3a5f;margin:.16in 0 .06in;text-transform:uppercase;letter-spacing:.04em}ol.cl,ul.cl2{padding-left:.25in;margin:0 0 .1in}ol.cl li,ul.cl2 li{font-size:10pt;line-height:1.38;margin:0 0 .06in}ul.cl2{list-style:none;padding-left:0}.bx{display:inline-block;width:1.3em;font-size:11pt}.nt{font-size:8.5pt;color:#555;font-style:italic;margin:2px 0 0 1.3em}.rcv{color:#2d6a3e}' +
+    '.sl3{border-bottom:1px solid #000;height:30px;margin:.12in 0 3px}.sg3{display:grid;grid-template-columns:1fr 1fr;gap:.1in .4in;font-size:9.5pt}h1.h1c{font-size:17pt;color:#1f3a5f;margin:0 0 .04in}.cnt{display:flex;gap:18px;margin:.1in 0;font-size:10pt}.cnt span{background:#eef3fa;border:1px solid #c5d3e4;border-radius:4px;padding:4px 10px}' +
+    'table.ck2{width:100%;border-collapse:collapse;font-size:9.5pt;margin-top:.08in}table.ck2 th{background:#1f3a5f;color:#fff;text-align:left;padding:5px 6px}table.ck2 td{border-bottom:1px solid #d5dde8;padding:5px 6px;vertical-align:top}table.ck2 td.bx{width:.3in;font-size:12pt}table.ck2 tr.dn td{color:#666}' +
+    '.bar2{display:flex;justify-content:space-between;align-items:center;background:#1f3a5f;color:#fff;margin:-.6in -.7in .2in;padding:.35in .7in .25in}.co3{font-size:17pt;font-weight:700}.t3{text-align:right;font-size:15pt;font-weight:700;letter-spacing:.03em}.sm3{font-size:9pt;color:#d6e2f2;font-weight:400;letter-spacing:0}' +
+    '.two2{display:grid;grid-template-columns:1fr 1fr;gap:.3in;font-size:10pt}.lab{font-size:8pt;text-transform:uppercase;letter-spacing:.06em;color:#1f3a5f;font-weight:700;margin-bottom:2px}.cg{margin:0 0 .08in}.cgh{font-weight:700;font-size:10pt;color:#1f3a5f;border-bottom:1px solid #c5d3e4;margin-bottom:4px;padding-bottom:2px}.tag3{font-size:7.5pt;background:#f0b357;color:#2a1a00;border-radius:3px;padding:0 4px;font-weight:700}';
   var CSS_COMMIT = '.cmt{font-family:Calibri,Carlito,"Segoe UI",Arial,sans-serif;font-size:10.5pt}.pg.cmt{padding:.5in .75in .6in}.logo{display:flex;justify-content:center;align-items:center;gap:8px}.logo .mk{width:26px;height:30px;background:linear-gradient(135deg,#2f4f8f 50%,transparent 50%),#2f4f8f;clip-path:polygon(0 30%,55% 0,100% 30%,100% 100%,60% 100%,60% 45%,0 45%)}.logo .nm{font-family:Georgia,"Times New Roman",serif;font-size:19pt;font-weight:700;color:#2f4f8f;line-height:1}.logo .sb{font-family:Georgia,serif;font-size:8pt;color:#555;letter-spacing:.06em}' +
     'h1{text-align:center;font-weight:400;font-size:20pt;margin:4px 0 14px}p{margin:0 0 8px;line-height:1.32}.two{display:flex;justify-content:space-between}.two>div:last-child{width:3.1in}table.terms{width:100%;border-collapse:collapse;margin:6px 0 12px}table.terms td{padding:0 4px 0 0;vertical-align:top}table.terms td:nth-child(1){width:1.85in}table.terms td:nth-child(2){width:1.6in}table.terms td:nth-child(3){width:2.05in}' +
     'table.esc{margin:4px 0 10px 1.6in;border-collapse:collapse}table.esc td{padding:0 40px 0 0}ol{margin:4px 0 10px;padding-left:.45in}ol li{margin:0 0 3px;line-height:1.3;padding-left:4px}.lsig{border-bottom:1px solid #000;width:3in;height:30px}table.bs{width:100%;border-collapse:collapse;margin-top:26px}table.bs td{border-top:1px solid #000;padding:2px 6px 34px;vertical-align:top;width:25%}table.bs td:nth-child(2n){text-align:right;width:15%}table.bs span{font-size:10pt}';
@@ -2405,7 +2449,7 @@
   var hT = 0; setTimeout(hooks, 400); setTimeout(hooks, 1500); document.addEventListener('click', function () { clearTimeout(hT); hT = setTimeout(hooks, 300); }, true);
   /* what search can find without opening the builder: every document type, layout and sample scope */
   function catalog() {
-    var lists = {addendum: ADD_STYLES, lease: LEASE_STYLES, estimate: EST_STYLES, pl: PL_STYLES, pay: PAY_STYLES, gift: GIFT_TYPES, schc: [['analysis', 'Cash-flow analysis'], ['summary', 'One-page summary']]};
+    var lists = {commit: COMMIT_STYLES, addendum: ADD_STYLES, lease: LEASE_STYLES, estimate: EST_STYLES, pl: PL_STYLES, pay: PAY_STYLES, gift: GIFT_TYPES, schc: [['analysis', 'Cash-flow analysis'], ['summary', 'One-page summary']]};
     return ORDER.map(function (k) { return {type: k, label: B[k].label, sub: B[k].sub, styles: lists[k] || []}; }).concat([{type: 'estimate', label: 'Contractor estimate sample scopes', sub: '', styles: [], presets: Object.keys(EST_PRESETS).map(function (k) { return [k, EST_PRESETS[k][0]]; })}]);
   }
   window.MTBuild = {open: open, close: close, catalog: catalog, builders: B, drafts: function () { return drafts; }, parseApproval: parseApproval, parseContract: parseContract, file: file, transferTax: transferTax};
