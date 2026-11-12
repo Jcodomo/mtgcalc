@@ -5,7 +5,8 @@ import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export function loadEngine(file, opts = {}) {
-  const src = readFileSync(file || path.join(root, 'assets/js', readdirSync(path.join(root, 'assets/js')).find(f => f.startsWith('20-'))), 'utf8');
+  /* default: the 56.5 engine, frozen in tests/fixtures since the pages now run the v57 build (phase 5) */
+  const src = readFileSync(file || path.join(root, 'tests/fixtures/engine-56.5.js'), 'utf8');
   const defs = {}, cache = {};
   const stubEl = () => ({ addEventListener() {}, appendChild() {}, setAttribute() {}, style: {}, classList: { add() {}, remove() {}, toggle() {} } });
   const ctx = { console, Math, Date, JSON, Intl, Number, String, Object, Array, isFinite, parseFloat, parseInt, setTimeout, clearTimeout,

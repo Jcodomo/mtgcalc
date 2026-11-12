@@ -11,7 +11,7 @@ import { loadEngine } from './engine-loader.mjs';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const count = +process.argv[2] || 3000;
 const built = path.resolve(root, process.argv[3] || 'dist/engine.js');
-const orig = loadEngine(path.join(root, 'assets/js', fs.readdirSync(path.join(root, 'assets/js')).find(f => f.startsWith('20-'))));
+const orig = loadEngine(path.join(root, 'tests/fixtures/engine-56.5.js'));   /* the 56.5 engine as it shipped */
 const next = loadEngine(built);
 
 /* small seeded PRNG so every run checks the same scenarios */

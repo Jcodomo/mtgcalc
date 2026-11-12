@@ -25,7 +25,8 @@ function start(tries = 0) {
   if (!isQuotePage()) return;
   const w = window as any, store = w.mortgageSuite && w.mortgageSuite.store, suite = document.getElementById('suite-root'), bar = document.getElementById('shellbar');
   if (!store || !suite) { if (tries < 80) setTimeout(() => start(tries + 1), 100); return; }
-  MODE.classic = true;                                   /* the suite still runs the 56.5 calculation until phase 5 */
+  /* the v57 store (phase 5) reads blank as "calculate"; the 56.5 store (before) read 0 that way */
+  MODE.classic = !store.storageKey;
   css();
   const host = document.createElement('div'); host.id = 'quote57'; host.className = 'q-embedded';
   suite.parentNode!.insertBefore(host, suite);

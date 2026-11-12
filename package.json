@@ -6,11 +6,12 @@
   "scripts": {
     "test": "node test-static.mjs && npm run test:engine && npm run test:finance && npm run test:model && npm run test:ui",
     "build:engine": "node tools/engine/build.mjs",
-    "test:engine": "node tools/engine/build.mjs && node tests/engine-equivalence.mjs",
+    "test:engine": "node tools/engine/build.mjs && node tests/engine-equivalence.mjs && node tools/engine/install.mjs --check",
     "test:finance": "node tests/financial-regression.mjs && node tools/engine/build.mjs && node tests/financial-regression.mjs --engine=dist/engine.js",
     "test:model": "node tests/scenario-model.mjs",
     "build:ui": "node tools/engine/build-ui.mjs",
-    "test:ui": "node tools/engine/build-ui.mjs --check && node tests/quote-screen.mjs"
+    "test:ui": "node tools/engine/build-ui.mjs --check && node tests/quote-screen.mjs",
+    "install:engine": "node tools/engine/install.mjs"
   },
   "devDependencies": {
     "esbuild": "0.28.2",

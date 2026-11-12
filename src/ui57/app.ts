@@ -276,7 +276,7 @@ ${this.tabs.length ? `<nav class="q-nav" aria-label="Loan Suite sections">${this
     if (t.dataset.bp) { const p = t.dataset.bp, v = /\.name$/.test(p) ? t.value : (t.value.trim() === '' ? 0 : Number(t.value.replace(/[$,\s]/g, ''))); if (typeof v === 'number' && !isFinite(v)) return; this.store.setField(p, v, 'Borrowers'); return; }
     const f = t.dataset.f && byId[t.dataset.f]; if (!f || f.kind === 'select' || f.kind === 'check') return;
     const v = this.parse(f, t.value); if (v === undefined) { t.setAttribute('aria-invalid', 'true'); return; } t.removeAttribute('aria-invalid');
-    this.store.setField(f.path, v, f.label);
+    this.store.setField(f.path, v, f.label, { exact: true });
   }
   onBlur(e: FocusEvent) {
     /* tidy the text once the cursor leaves (12,500 -> 12500.00 style stays as typed until then) */
@@ -288,11 +288,11 @@ ${this.tabs.length ? `<nav class="q-nav" aria-label="Loan Suite sections">${this
     if (t.dataset.act === 'scn') { this.store.selectScenario(t.value); this.showNote(''); return; }
     if (t.dataset.act === 'importFile') { const fl = t.files && t.files[0]; t.value = ''; if (fl) fl.text().then(x => this.importText(x)); return; }
     const f = t.dataset.f && byId[t.dataset.f]; if (!f) return;
-    if (f.kind === 'check') { this.store.setField(f.path, t.checked, f.label); return; }
+    if (f.kind === 'check') { this.store.setField(f.path, t.checked, f.label, { exact: true }); return; }
     if (f.kind !== 'select') return;
     if (f.id === 'loanProgram') return this.switchProgram(t.value);
     const v = (f.options || []).some(o => typeof o[0] === 'string' && /^\d+$/.test(o[0])) ? +t.value : t.value;
-    this.store.setField(f.path, v, f.label);
+    this.store.setField(f.path, v, f.label, { exact: true });
   }
 
   /** a program change says what else changed and which deliberate overrides no longer apply (spec item 25) */
@@ -313,7 +313,7 @@ ${this.tabs.length ? `<nav class="q-nav" aria-label="Loan Suite sections">${this
     const a = b.dataset.act;
     if (a === 'mode') { this.mode = b.dataset.v === 'advanced' ? 'advanced' : 'simple'; this.opened.clear(); this.refresh(); return; }
     if (a === 'group') { const k = b.dataset.s + '|' + b.dataset.g; if (this.mode === 'advanced') return; this.opened.has(k) ? this.opened.delete(k) : this.opened.add(k); this.renderSection(b.dataset.s as SectionId); (this.root.querySelector(`[data-act="group"][data-g="${CSS.escape(b.dataset.g!)}"]`) as HTMLElement)?.focus(); return; }
-    if (a === 'useCalc') { const f = byId[b.dataset.f!]; this.store.setField(f.path, MODE.classic ? 0 : null, f.label + ' (use calculated)'); return; }
+    if (a === 'useCalc') { const f = byId[b.dataset.f!]; this.store.setField(f.path, MODE.classic ? 0 : null, f.label + ' (use calculated)', { exact: true }); return; }
     if (a === 'classic') { window.dispatchEvent(new CustomEvent('mt57:view', { detail: 'advanced' })); return; }
     if (a === 'tab') { const t = this.tabs[+b.dataset.i!]; if (t && t.open) t.open(); return; }
     if (a === 'open') { e.preventDefault(); this.reveal(b.dataset.f!); return; }

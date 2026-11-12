@@ -9,6 +9,10 @@ import * as dep3 from '../core/data/marketData';
 import * as dep4 from '../core/utils/num';
 import * as dep5 from '../core/importers/incomeCalculator';
 import { loadState, saveState, newId, MigrationResult, STORAGE_KEY } from '../core/model/scenario';
+import { OVERRIDE_FIELDS, ASSET_FIELDS } from '../core/model/overrides';
+/* fields where blank means "calculate" / "not entered" (v57). The classic screens cannot tell blank from 0 - both arrive as 0 -
+   so a 0 from them is read as blank; the Simple screen passes { exact: true } and can enter an intentional 0. */
+const BLANK_MEANS_CALCULATE = new Set<string>([...OVERRIDE_FIELDS.map(f => f.path), ...ASSET_FIELDS]);
 
 const moduleExports: Record<string, any> = {};
 const declared: Record<string, unknown> = { 'src/core/defaults': dep0, 'src/core/calc/engine': dep1, 'src/core/utils/dates': dep2, 'src/core/data/marketData': dep3, 'src/core/utils/num': dep4, 'src/core/importers/incomeCalculator': dep5 };
@@ -30,6 +34,10 @@ class ScenarioStore57 extends Store56 {
     if (res && res.migratedFrom !== null) this.emit();
   }
   emit() { this.saveError = saveState(this.state, this.storageKey); this.listeners.forEach((f: () => void) => f()); }
+  setField(path: string, value: any, label?: string, opts?: { exact?: boolean }) {
+    if (!(opts && opts.exact) && BLANK_MEANS_CALCULATE.has(path) && (value === 0 || value === '' || value === '0' || (typeof value === 'number' && isNaN(value)))) value = null;
+    return super.setField(path, value, label);
+  }
   /** move a scenario created by the 56.5 code to a unique id */
   rekey(oldId: string): string {
     const st = this.state, id = newId('scenario'), sc = st.scenarios[oldId]; if (!sc) return oldId;
