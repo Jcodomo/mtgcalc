@@ -46,13 +46,42 @@
     await loadScript(['https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.1.0/tesseract.min.js', 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.0/dist/tesseract.min.js']);
     return window.Tesseract || null;
   }
+  /* v57: better OCR for screenshots and photos.
+     1. The image is prepared first: small images are enlarged (screen text is often 11-13 px, too small for OCR), turned to
+        greyscale with the contrast stretched, and dark screens (light text on navy, as in this suite) are flipped to dark on white.
+     2. One OCR worker is kept and reused, with spacing between columns kept (tables, condition grids, statements).
+     3. If the first reading is unsure (confidence under 65), the page is read again as one block of text and the surer reading wins. */
+  var workerP = null, curProg = null;
+  function worker(T) {
+    if (!workerP) workerP = T.createWorker('eng', 1, {logger: function (m) { if (curProg && m.status === 'recognizing text') curProg(m.progress); }})
+      .then(function (w) { return w.setParameters({preserve_interword_spaces: '1'}).then(function () { return w; }); })
+      .catch(function (e) { workerP = null; throw e; });
+    return workerP;
+  }
+  function prep(src) {
+    var w = src.naturalWidth || src.width, h = src.naturalHeight || src.height; if (!w || !h) return src;
+    var scale = Math.min(4, Math.max(1, 2200 / w)); if (w * h * scale * scale > 24e6) scale = Math.max(1, Math.sqrt(24e6 / (w * h)));
+    var c = document.createElement('canvas'); c.width = Math.round(w * scale); c.height = Math.round(h * scale);
+    var g = c.getContext('2d', {willReadFrequently: true}); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high'; g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(src, 0, 0, c.width, c.height);
+    var d = g.getImageData(0, 0, c.width, c.height), p = d.data, n = p.length / 4, hist = new Uint32Array(256), sum = 0, k, y;
+    for (k = 0; k < p.length; k += 4) { y = (0.299 * p[k] + 0.587 * p[k + 1] + 0.114 * p[k + 2]) | 0; p[k] = y; hist[y]++; sum += y; }
+    var lo = 0, hi = 255, acc = 0; for (k = 0; k < 256; k++) { acc += hist[k]; if (acc > n * 0.01) { lo = k; break; } } acc = 0; for (k = 255; k >= 0; k--) { acc += hist[k]; if (acc > n * 0.01) { hi = k; break; } }
+    var inv = sum / n < 110, span = Math.max(1, hi - lo);
+    for (k = 0; k < p.length; k += 4) { y = Math.max(0, Math.min(255, (p[k] - lo) * 255 / span)); if (inv) y = 255 - y; p[k] = p[k + 1] = p[k + 2] = y; p[k + 3] = 255; }
+    g.putImageData(d, 0, 0);
+    return c;
+  }
   async function ocr(images, prog) {
     var T = await tess(); if (!T) throw new Error('The OCR engine could not be loaded - an internet connection is needed the first time OCR runs.');
-    var out = '';
+    var W = await worker(T), out = '';
     for (var i = 0; i < images.length; i++) {
-      var r = await T.recognize(images[i], 'eng', {logger: function (m) { if (prog && m.status === 'recognizing text') prog((i + m.progress) / images.length); }});
-      out += r.data.text + '\n';
+      var img = prep(images[i]); curProg = function (f) { if (prog) prog((i + f) / images.length); };
+      await W.setParameters({tessedit_pageseg_mode: '3'});
+      var r = await W.recognize(img), best = r.data;
+      if ((best.confidence || 0) < 65) { await W.setParameters({tessedit_pageseg_mode: '6'}); var r2 = await W.recognize(img); if ((r2.data.confidence || 0) > (best.confidence || 0)) best = r2.data; }
+      out += best.text + '\n';
     }
+    curProg = null;
     return out;
   }
   /* 56.1: a text layer counts only when it reads as text - scanned PDFs can carry encoded binary that is long but unreadable */
@@ -476,7 +505,7 @@
       var f = files[i], d = {id: uid(), name: f.name, mime: f.type, size: f.size, added: Date.now(), page: document.title.split('·')[0].trim().slice(0, 40), blob: f, docType: 'other', rows: [], text: ''};
       mem.unshift(d); progress[d.id] = 0; paint();
       try {
-        d.text = (await readText(f, function (p) { progress[d.id] = p; var bar = document.querySelector('[data-doc="' + d.id + '"] .mtd-prog i'); if (bar) bar.style.width = Math.round(p * 100) + '%'; })).slice(0, 60000);
+        d.text = (await readText(f, function (p) { progress[d.id] = p; var bar = document.querySelector('[data-doc="' + d.id + '"] .mtd-prog i'); if (bar) bar.style.width = Math.round(p * 100) + '%'; })).slice(0, 1000000);   /* v57: long statements and pasted spreadsheets are kept whole */
         d.docType = detect(d.text, d.name); extract(d);
       } catch (e) { d.error = 'Could not read this file: ' + (e && e.message || e); }
       delete progress[d.id];
@@ -575,6 +604,6 @@
     /* v57 phase 4: no polling - the inline library is placed when the page is ready and shortly after clicks, when the Documents panels appear */
     var it = 0; setTimeout(inline, 1500); document.addEventListener('click', function () { clearTimeout(it); it = setTimeout(inline, 300); }, true);
   }
-  window.MTDocs = {__v56: true, readText: readText, detect: detect, extract: extract, TYPES: TYPES, DEST: DEST, SECTIONS: SECTIONS, open: open, close: close, list: function () { return mem; }, add: add, send: send, queue: queue, EX: EX};
+  window.MTDocs = {__v56: true, readText: readText, ocr: ocr, detect: detect, extract: extract, TYPES: TYPES, DEST: DEST, SECTIONS: SECTIONS, open: open, close: close, list: function () { return mem; }, add: add, send: send, queue: queue, EX: EX};
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
 })();

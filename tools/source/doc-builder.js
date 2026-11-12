@@ -1999,7 +1999,33 @@
     if (RERENDER[k] && (t.tagName === 'SELECT' || t.type === 'checkbox')) renderForm(); else if (B[b].side) B[b].side();
     refresh();
   }
+  /* v57: rows copied from Excel or Google Sheets and pasted into a line of a list become one line each. Text cells fill the
+     label / trade and description, number cells fill the amounts; a header row (no numbers) is skipped. */
+  var ROW_LISTS = {items: 1, income: 1, cogs: 1, expenses: 1, earn: 1, post: 1, drawList: 1};
+  function isMoneyCell(c) { return /^\(?-?\$?\s?[\d,]*\.?\d+\)?%?$/.test(String(c).replace(/\s/g, '')) && /\d/.test(c); }
+  function moneyOf(c) { var neg = /^\(.*\)$|^-/.test(String(c).trim()); var n = N(String(c).replace(/[()$,%\s-]/g, '')); return neg ? -n : n; }
+  function pasteRows(e) {
+    var t = e.target; if (!t || !t.hasAttribute || !t.hasAttribute('data-list') || !t.hasAttribute('data-i')) return;
+    var L = t.getAttribute('data-list'), kind = /^lines\./.test(L) ? 'lines' : L; if (!ROW_LISTS[kind] && kind !== 'lines') return;
+    var txt = e.clipboardData && e.clipboardData.getData('text/plain'); if (!txt) return;
+    var rows = txt.replace(/\r/g, '').split('\n').map(function (r) { return r.split('\t').map(function (c) { return c.trim(); }); }).filter(function (r) { return r.some(Boolean); });
+    if (!rows.length || (rows.length === 1 && rows[0].length < 2)) return;              /* one plain value: paste as usual */
+    if (rows.length > 1 && !rows[0].some(isMoneyCell) && rows.slice(1).some(function (r) { return r.some(isMoneyCell); })) rows.shift();   /* header row */
+    var b = t.getAttribute('data-b'), arr = L.split('.').reduce(function (o, k) { return o && o[k]; }, drafts[b]), i = +t.getAttribute('data-i'); if (!Array.isArray(arr)) return;
+    e.preventDefault();
+    var made = rows.map(function (r) {
+      var text = r.filter(function (c) { return c && !isMoneyCell(c); }), nums = r.filter(isMoneyCell).map(moneyOf);
+      if (kind === 'items') return {trade: text[0] || '', desc: text.slice(1).join(' - '), qty: '', unit: '', labor: nums.length ? String(nums[0]) : '', materials: nums.length > 1 ? String(nums[1]) : ''};
+      if (kind === 'drawList') return {label: text.join(' - '), pct: nums.length ? String(nums[nums.length - 1]) : ''};
+      return {label: text.join(' - '), amt: nums.length ? String(nums[nums.length - 1]) : ''};
+    });
+    var cur = arr[i], empty = !cur || Object.keys(cur).every(function (k) { return !String(cur[k] == null ? '' : cur[k]).trim(); });
+    Array.prototype.splice.apply(arr, [empty ? i : i + 1, empty ? 1 : 0].concat(made));
+    persist(); scheduleVersion(b); renderForm(); refresh(); if (B[b].side) B[b].side();
+    say(made.length + ' line' + (made.length > 1 ? 's' : '') + ' pasted from the spreadsheet - check each one.');
+  }
   function wire(w) {
+    w.addEventListener('paste', pasteRows);
     w.addEventListener('input', function (e) { if (e.target.matches('input:not([type=checkbox]):not([type=file]):not(.pk):not(#mtBpreset),textarea')) setVal(e.target, e); });
     w.addEventListener('change', function (e) {
       var t = e.target, a = t.getAttribute('data-a');

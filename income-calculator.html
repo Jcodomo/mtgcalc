@@ -4484,6 +4484,8 @@ function loadTesseract(){
   return tessLoading;
 }
 async function ocrImages(imgs, onProg){
+  /* v57: the shared reader prepares screenshots and photos first (enlarge, contrast, dark screens flipped) */
+  if (window.MTDocs && MTDocs.ocr) return MTDocs.ocr(imgs, onProg);
   const ok = await loadTesseract();
   if (!ok) throw new Error('OCR engine could not be loaded — an internet connection is required the first time OCR runs.');
   let out = '';

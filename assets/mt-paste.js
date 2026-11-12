@@ -193,6 +193,10 @@
   }
   document.addEventListener('paste', function (e) {
     var cd = e.clipboardData, files = clipFiles(cd);
+    /* Excel, Word and web pages put a picture of the copied cells next to the text; the text is what was meant.
+       A real screenshot (Win+Shift+S, Cmd+Ctrl+Shift+4) carries no text, so it still goes to the reader as an image. */
+    var plain = cd && cd.getData('text/plain');
+    if (files.length && plain && plain.trim() && files.every(function (f) { return /^image\//.test(f.type); })) files = [];
     if (trayOpen()) {                                                              /* the tray gathers everything */
       if (files.length) { e.preventDefault(); trayAdd(files); return; }
       if (document.activeElement !== tray.ta) { var t0 = cd && cd.getData('text/plain'); if (t0) { e.preventDefault(); tray.ta.value += (tray.ta.value ? '\n\n' : '') + t0; } }
@@ -200,7 +204,7 @@
     }
     var ae = document.activeElement;
     if (!files.length) {                                                           /* text: fields paste normally */
-      var txt = cd && cd.getData('text/plain'); if (!txt || txt.trim().length < 8 || editable(ae)) return;
+      var txt = plain; if (!txt || !txt.trim() || editable(ae)) return;            /* any length of text */
       var ti = target(); if (!ti || !takesText(ti) || !readerInPlay(ti)) return;
       e.preventDefault(); openTray(ti, txt); return;                               /* show it before sending */
     }
