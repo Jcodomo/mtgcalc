@@ -222,5 +222,19 @@ a:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 """
     (OUT / 'pages.html').write_text(html, encoding='utf-8'); print('  pages.html  (every page)')
 
+def stamp_builder_versions():
+    """57.3: the document builder is fetched by mt-build-lazy.js, and the pages fetch that loader; both carried a fixed
+    ?v= (56.8 / 57.0), so a browser that had cached them kept an old builder. Stamp both with this release's VER."""
+    lazy = OUT / 'assets' / 'mt-build-lazy.js'
+    if lazy.exists():
+        t = lazy.read_text(encoding='utf-8'); lazy.write_text(re.sub(r"doc-builder\.js\?v=[0-9.]+", 'doc-builder.js?v=' + VER, t), encoding='utf-8')
+    n = 0
+    for f in OUT.glob('*.html'):
+        t = f.read_text(encoding='utf-8'); t2 = re.sub(r'mt-build-lazy\.js\?v=[0-9.]+', 'mt-build-lazy.js?v=' + VER, t)
+        t2 = re.sub(r"(doc-builder\.js\?v=)[0-9.]+", lambda m: m.group(1) + VER, t2)
+        if t2 != t: f.write_text(t2, encoding='utf-8'); n += 1
+    print(f'  builder cache key -> {VER} ({n} pages)')
+
 if __name__ == '__main__':
     main()
+    stamp_builder_versions()

@@ -362,7 +362,9 @@ ${this.tabs.length ? `<nav class="q-nav" aria-label="Loan Suite sections">${this
     const w = window as any; w.mortgageSuite = w.mortgageSuite || {}; w.mortgageSuite.store = this.store;
     if (w.MTBuild) return w.MTBuild.open();
     this.showNote('Loading the document builder…');
-    const s = document.createElement('script'); s.src = 'assets/doc-builder.js?v=56.8';
+    /* the cache key follows the page's own release (the ?v= its other scripts carry), so a new builder reaches cached browsers */
+    const ver = ((Array.from(document.scripts).map(x => x.src).find(x => /[?&]v=\d/.test(x)) || '').match(/[?&]v=([\w.]+)/) || [])[1] || String(Date.now());
+    const s = document.createElement('script'); s.src = 'assets/doc-builder.js?v=' + ver;
     s.onload = () => { this.showNote(''); w.MTBuild && w.MTBuild.open(); };
     s.onerror = () => this.showNote('The document builder could not be loaded - check the connection and try again.');
     document.head.appendChild(s);

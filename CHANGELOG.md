@@ -276,6 +276,7 @@ The release entries below have the details. In short:
   - **Ticking off:** a check box beside each condition marks it received, and the list and the letter update.
   - **Copying:** Copy the list (text, with a check-box version for Outlook and Gmail) and Copy as check-box table sit beside the existing Email the conditions and Copy as spreadsheet rows buttons.
 - The commitment letter has the logo upload the other builders have.
+- **Builder updates now reach every browser:** since 56.8 the pages loaded the document builder with a fixed cache key, so a browser that had cached it could keep showing an older builder (without the 57.0 and 57.3 layouts). The build now stamps the builder and its loader with each release number.
 - Asset version 57.3.
 
 ## Release 55.14b - self-employment, rental and more of the income worksheet; one look across the pages
