@@ -178,6 +178,15 @@
   - **Hidden income:** amounts in those sections still count, and a note says so.
   - **Faster start:** the PDF libraries (550 KB) load only when a report or PDF is made, so the page is ready in about half the time (74 ms against 144 ms in the same browser).
 
+## Release 57.2 - Union Worker, Freddie 1099 and Retirement Income pages in the NMB worksheet report
+
+- **Three more NMB Income Worksheet pages**, drawn from the workbook's own sheets like the others:
+  - **Union Worker W2:** when W-2 jobs are combined with the union-worker method. Each job's YTD, prior-year and two-years-prior totals go on one row (up to six), followed by the three income trends and the lowest one, which is used.
+  - **Freddie 1099:** one page for each 1099 / contract entry that uses the YTD + prior-year method. It shows the YTD trend, the YTD + prior-year trend and which one is used.
+  - **Retirement Income:** Social Security, pension and annuity / IRA rows, plus up to four other income entries a page, listed by name underneath. Each row shows its gross-up percentage and amount, and the grossed-up total matches the calculator.
+- Cells the workbook leaves unformatted, such as the 1099 sheet's "income to be used" line, take the style of the line above them.
+- Asset version 57.2.
+
 ## Release 57.1 - Income Calculator checked against the NMB Income Worksheet; NMB worksheet report layout
 
 - **Checked against the NMB Income Worksheet (01/29/2025)** - tests/nmb-parity.js writes the workbook's formulas out on their own and runs them against the calculator: 29 of 29 cases match to the cent.
@@ -191,7 +200,7 @@
   - **Mileage table choice.** The default is the IRS business-mileage depreciation rate for each tax year (2019-2025). The worksheet's own table, which runs one year behind the IRS rates, can be chosen instead.
 - **NMB Income Worksheet report layout:** a new option in the report picker. It draws the workbook's pages with their column widths, row heights, merges, fonts, fills, borders and number formats (tools/nmb/extract.py reads them from the .xlsm, and no macros are run), then fills them with the calculator's figures. The PDF and JPEG downloads include these pages.
   - **Pages:** Wage Earner (one per job), SE & Other Income (one per business), Conventional Rental (five properties a page), Rent - FHA Owner Occ., Rent - FHA NOO & VA, Rent - Purchase (lease / 75%) and the Quick Ratio Test.
-  - **Not drawn as their own pages:** the Union Worker W2, Freddie 1099 and Retirement sheets. Those amounts are still in the calculation and the other report pages.
+  - **Not drawn as their own pages yet:** the Union Worker W2, Freddie 1099 and Retirement sheets. They were added in 57.2.
   - **PITIA:** the Rental sheet's itemized PITIA rows are hidden in the workbook, and the calculator keeps one PITIA figure.
 
 ## Release 56.9 - a tighter Advanced view, with the way back to Simple always in reach

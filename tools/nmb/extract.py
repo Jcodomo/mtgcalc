@@ -98,7 +98,8 @@ if 'xl/sharedStrings.xml' in z.namelist():
 wb = ET.fromstring(z.read('xl/workbook.xml'))
 rels = {r.get('Id'): r.get('Target') for r in ET.fromstring(z.read('xl/_rels/workbook.xml.rels'))}
 WANT = {'Wage Earner': 'A1:L57', 'SE & Other Income': 'A1:S134', 'Rental': 'A1:S150', 'Quick Ratio Test': 'A1:L34',
-        'Rent - FHA Owner Occ.': 'A1:R140', 'Rent - FHA NOO & VA': 'A1:P75', 'Rent - Purchase': 'A1:G20'}
+        'Rent - FHA Owner Occ.': 'A1:R140', 'Rent - FHA NOO & VA': 'A1:P75', 'Rent - Purchase': 'A1:G20',
+        'Union Worker W2': 'A1:N32', 'Freddie 1099': 'A1:N32', 'Retirement Income': 'A1:J34'}
 
 def colnum(s):
     n = 0

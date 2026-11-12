@@ -4067,7 +4067,7 @@ function nmbLoad(){
   if (window.NMBReport && window.NMB_TEMPLATE) return Promise.resolve(true);
   if (nmbLoad.p) return nmbLoad.p;
   const add = src => new Promise(res => { const s=document.createElement('script'); s.src=src; s.onload=()=>res(true); s.onerror=()=>res(false); document.head.appendChild(s); });
-  return nmbLoad.p = add('assets/nmb-template.js?v=57.1').then(a => add('assets/nmb-report.js?v=57.1').then(b => a && b));
+  return nmbLoad.p = add('assets/nmb-template.js?v=57.2').then(a => add('assets/nmb-report.js?v=57.2').then(b => a && b));
 }
 function buildReportPages(){
   const pages = [];

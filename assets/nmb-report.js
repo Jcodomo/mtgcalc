@@ -2,7 +2,8 @@
    (nmb-template.js, extracted from the .xlsm by tools/nmb/extract.py - widths, heights, merges, fonts, fills, borders,
    number formats and the printed text) and filled with this calculator's figures, cell by cell:
    Wage Earner (one page per job), SE & Other Income (one page per business), Rental (Conventional, up to five properties
-   a page), Rent - FHA Owner Occ., Rent - FHA NOO & VA, Rent - Purchase (lease / 75%) and Quick Ratio Test.
+   a page), Rent - FHA Owner Occ., Rent - FHA NOO & VA, Rent - Purchase (lease / 75%), Quick Ratio Test, Union Worker W2 (combined union method),
+   Freddie 1099 (one page per 1099 entry) and Retirement Income (other income, four extra entries a page).
    Loaded only when the report asks for it. */
 (function () {
   'use strict';
@@ -63,7 +64,9 @@
     var used = {}, body = rows.map(function (r) {
       return '<tr style="height:' + rowH(r) + 'px">' + cols.map(function (c) {
         var k = r + ',' + c; if (covered[k]) return '';
-        var cell = sh.cells[k], ref = colName(c) + r, st = cell ? S[cell.s] : null, span = '';
+        var cell = sh.cells[k], ref = colName(c) + r, span = '';
+        if (opt.like && opt.like[ref]) { var src = sh.cells[cellRC(opt.like[ref]).join(',')]; if (src) cell = {s: src.s}; }   /* a cell the workbook leaves unformatted, drawn like another */
+        var st = cell ? S[cell.s] : null;
         if (merge[k]) { var m = merge[k], cs = 0, rs = 0; for (var x = m[1]; x <= m[3]; x++) if (colW(x)) cs++; for (var y = m[0]; y <= m[2]; y++) if (rowH(y)) rs++; if (cs > 1) span += ' colspan="' + cs + '"'; if (rs > 1) span += ' rowspan="' + rs + '"'; }
         var v = Object.prototype.hasOwnProperty.call(values, ref) ? values[ref] : (cell && cell.t && cell.v != null ? cell.v : '');
         var text = st && st.nf ? fmt(v, st.nf) : general(v);
@@ -223,6 +226,49 @@
     return pages;
   }
 
+  /* Union Worker W2: all pay stubs and W-2s together (the calculator's combined "union worker" method) */
+  function unionPage() {
+    var S = G('S'), J = (S.w2 || []).filter(function (j) { return j.use !== false; }), c = G('calcCombined')(J), u = c.union;
+    var pd = G('pDate'), ends = J.map(function (j) { return pd(j.ytdThru); }).filter(Boolean).sort(function (a, b) { return b - a; }), end = ends[0] || '';
+    var yr = end ? end.getFullYear() : c.yr, V = {H4: new Date(), C7: S.file || '', G7: who(1), C9: S.agency === 'FHA' || S.agency === 'VA' ? S.agency : 'Conventional', G9: J.map(function (j) { return j.employer; }).filter(Boolean).join(', '), C13: end, D15: yr, E15: yr - 1, F15: yr - 2};
+    var K = ['base', 'ot', 'comm', 'bonus', 'other'], tot = function (d) { return K.reduce(function (t, k) { return t + NUM(d[k]); }, 0); };
+    J.slice(0, 6).forEach(function (j, n) { V['B' + (16 + n)] = j.employer || ('W-2 #' + (n + 1)); V['D' + (16 + n)] = tot(j.y1); V['E' + (16 + n)] = tot(j.y2); V['F' + (16 + n)] = tot(j.y3); });
+    if (J.length > 6) V.B28 = (J.length - 6) + ' more W-2 entries are included in the totals.';
+    V.D22 = c.t1; V.E22 = c.t2; V.F22 = c.t3; V.D24 = u.ytd; V.G24 = u.days ? c.t1 / u.days * 360 : 0; V.D25 = u.y12; V.D26 = u.y24; V.D27 = u.used;
+    return render('Union Worker W2', V);
+  }
+  /* Freddie 1099: one page per 1099 / contract income entry that uses the YTD + prior-year method */
+  function f1099Page(o) {
+    var S = G('S'), r = G('calcOther')(o), f = r.f1099, end = G('pDate')(o.thru1099) || '', yr = end ? end.getFullYear() : new Date().getFullYear();
+    var V = {H4: new Date(), C7: S.file || '', G7: who(o.b), G9: o.desc || '', C13: end, D15: yr, E15: yr - 1, F15: yr - 2,
+      D16: NUM(o.ytd1099), E16: NUM(o.prior1099), D22: NUM(o.ytd1099), E22: NUM(o.prior1099), F22: 0, D24: f.ytd, D25: f.y12,
+      B27: 'Income to be used (' + (f.decreasing ? 'decreasing: YTD trend' : 'YTD + prior year') + ')', D27: f.used};
+    return render('Freddie 1099', V, {like: {B27: 'B24', D27: 'D25'}});
+  }
+  /* Retirement Income: Social Security, pension, annuity / defined contribution, then up to four other entries a page */
+  function retirementPages(list) {
+    var S = G('S'), calc = G('calcOther'), types = G('OTHER_TYPES') || [], pages = [];
+    var label = function (o) { var t = types.filter(function (x) { return x.v === o.type; })[0]; return ((t && t.t) || o.type || '').replace(/&amp;/g, '&') + (o.desc ? ' - ' + o.desc : ''); };
+    var row = {ssa: 12, ssdi: 12, pension: 13, ira: 14, annuity: 14};
+    var fixed = {12: [], 13: [], 14: []}, others = [];
+    list.forEach(function (o) { var k = row[o.type]; if (k) fixed[k].push(o); else others.push(o); });
+    var put = function (V, r, items) {
+      var m = 0, up = 0, gross = false, pct = 0;
+      items.forEach(function (o) { var c = calc(o); m += c.base; up += c.up; if (o.nonTax && c.up) { gross = true; pct = pct || NUM(o.grossUp) / 100 * (o.ntPct == null || o.ntPct === '' ? 1 : NUM(o.ntPct) / 100); } });
+      V['C' + r] = m; V['D' + r] = m * 12; V['E' + r] = m; V['F' + r] = gross ? 'Yes' : 'No'; V['G' + r] = gross ? (m ? up / m : pct) : 0; V['H' + r] = up; V['I' + r] = m + up; V['J' + r] = Math.max(m, m + up);
+      return {m: m, j: Math.max(m, m + up)};
+    };
+    for (var p = 0; p === 0 || p < others.length; p += 4) {
+      var V = {B2: [S.b1, S.b2].filter(Boolean).join(' & '), B3: S.file || '', J3: new Date()}, base = 0, fin = 0, chunk = others.slice(p, p + 4);
+      [12, 13, 14].forEach(function (r) { var t = p === 0 ? put(V, r, fixed[r]) : put(V, r, []); base += t.m; fin += t.j; });
+      for (var i = 0; i < 4; i++) { var t = put(V, 15 + i, chunk[i] ? [chunk[i]] : []); base += t.m; fin += t.j; if (chunk[i]) V['B' + (26 + 2 * i)] = label(chunk[i]); }
+      if (p === 0) [12, 13, 14].forEach(function (r) { if (fixed[r].length > 1) V['B' + r] = { 12: 'Social Security Income', 13: 'Pension', 14: 'Annuity / Defined Contribution Plan' }[r] + ' (' + fixed[r].length + ')'; });
+      V.F20 = base; V.J20 = fin;
+      pages.push(render('Retirement Income', V));
+    }
+    return pages;
+  }
+
   function quickPage(e) {
     var S = G('S'), V = {A9: [S.b1, S.b2].filter(Boolean).join(' & '), J9: S.file || '', A12: e.name || '', J19: new Date().getFullYear() - 2, K19: new Date().getFullYear() - 1};
     V.K29 = NUM(e.curAssets); V.K30 = NUM(e.curLiab); V.K31 = NUM(e.curLiab) ? NUM(e.curAssets) / NUM(e.curLiab) : '';
@@ -233,8 +279,15 @@
   function pages() {
     var S = G('S'), on = G('rptOn') || function () { return true; }, use = function (r) { return r.use !== false; }, out = [];
     (S.w2 || []).forEach(function (j, i) { if (use(j) && on('w2:' + j.id)) out.push(wagePage(j, i)); });
+    var ca = G('combineActive');
+    if (S.combine && S.combine.method === 'union' && (typeof ca !== 'function' || ca())) out.push(unionPage());
     (S.schc || []).forEach(function (b) { if (use(b) && on('schc:' + b.id)) out.push(sePage('schc', b)); });
     (S.corp || []).forEach(function (e) { if (use(e) && on('corp:' + e.id)) out.push(sePage('corp', e)); });
+    var oth = (S.other || []).filter(function (o) { return use(o) && on('other:' + o.id); }), calcO = G('calcOther');
+    var f99 = oth.filter(function (o) { return o.type === '1099' && calcO(o).f1099; });
+    f99.forEach(function (o) { out.push(f1099Page(o)); });
+    var ret = oth.filter(function (o) { return f99.indexOf(o) < 0; });
+    if (ret.length) out = out.concat(retirementPages(ret));
     out = out.concat(rentalPages());
     (S.corp || []).forEach(function (e) { if (use(e) && on('corp:' + e.id) && (NUM(e.curAssets) || NUM(e.curLiab))) out.push(quickPage(e)); });
     return out.map(function (h) { return BASE_CSS + '<div class="nmb-page" style="padding:6px 0">' + h + '</div>'; });
