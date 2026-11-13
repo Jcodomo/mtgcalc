@@ -132,7 +132,7 @@
 - **Address suggestions match known addresses instantly:** the loan file's property, the document builders' properties, addresses picked before and full addresses typed into an address box are matched on every keystroke without waiting for the network (tagged "Loan file", "Document builder", "Used before", "Typed before"); OpenStreetMap results join them, now after 0.2 seconds and from the third character.
 - The MI & renovation worksheet's program is a typeable box (FHA, FHA 203(k), Conventional, HomeStyle, VA, USDA or anything else). Choices that drive a calculation - pay frequency, filing status, the state tax table, lease type and each builder's style - stay as lists.
 
-## 2026-11-12 - everything released today (56.6 to 57.9)
+## 2026-11-12 - everything released today (56.6 to 57.10)
 
 The release entries below have the details. In short:
 
@@ -159,6 +159,7 @@ The release entries below have the details. In short:
 - **57.7 - navigation and tools:** "All pages" in the top bar instead of the bottom bar; Full Suite Simple opens Documents / Rates / Property / Max mortgage below on demand; property details (flood zone, census tract, building data); recent borrower names; letter formatting options; three more CPA styles; contractor labor / materials split.
 - **57.8 - hotfix:** the bottom-right page bar is back (the top-bar "All pages" is removed); faster condition ticking, 203(k) / HomeStyle / income / asset / credit / property check boxes and a borrower email pop-up; loan officer / company NMLS and underwriter read from approvals; property sites side by side with a map in the panel; more dates in words; bold / italic all or none, CPA fonts, sentence case and small caps, remove underlines; OCR and document timeouts.
 - **57.9 - property links:** Redfin goes to the property page; FEMA map opens the current flood viewer with the address copied.
+- **57.10 - Property page and signatures:** a Property page (on every page's bottom bar) with public records for New York, New Jersey, Florida and the big California counties beside Street View, satellite and flood maps; a signature maker (20 handwriting styles, drawn, PNG / SVG / photo, initials) and signatures with an e-signature frame option on every document builder's signature lines.
 - **Behind the scenes, with no change to the site on their own:**
   - The 56.5 calculation was recovered into readable TypeScript (src/) and gives identical results on 3,000 scenarios.
   - Engine fixes D1-D5 were written with tests.
