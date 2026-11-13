@@ -132,7 +132,7 @@
 - **Address suggestions match known addresses instantly:** the loan file's property, the document builders' properties, addresses picked before and full addresses typed into an address box are matched on every keystroke without waiting for the network (tagged "Loan file", "Document builder", "Used before", "Typed before"); OpenStreetMap results join them, now after 0.2 seconds and from the third character.
 - The MI & renovation worksheet's program is a typeable box (FHA, FHA 203(k), Conventional, HomeStyle, VA, USDA or anything else). Choices that drive a calculation - pay frequency, filing status, the state tax table, lease type and each builder's style - stay as lists.
 
-## 2026-11-12 - everything released today (56.6 to 57.8)
+## 2026-11-12 - everything released today (56.6 to 57.9)
 
 The release entries below have the details. In short:
 
@@ -401,6 +401,13 @@ The release entries below have the details. In short:
   - **OCR:** a page that stalls the engine is given up after 75 seconds; the engine restarts and the next page goes on.
   - **Documents:** a document that fails to draw shows a message instead of leaving Print / PDF waiting, and the preview stops waiting after 8 seconds.
 - Asset version 57.8.
+
+## Release 57.9 - property site links fixed
+
+- **Redfin:** the link opened Redfin's home page. It now goes straight to the property's Redfin page, through a DuckDuckGo first-result jump.
+- **FEMA map:** the old Flood Map Service Center link ignored the address. The button now opens FEMA's current National Flood Hazard Layer viewer and copies the address, so it can be pasted into "Find address or place". The flood zone is still shown in the panel itself.
+- **Checked on the live site:** Zillow and Google go to the property. Every site opens in the same window on the right half of the screen, and the details panel moves left. Realtor.com could not be checked from the test browser.
+- Asset version 57.9.
 
 ## Release 55.14b - self-employment, rental and more of the income worksheet; one look across the pages
 
