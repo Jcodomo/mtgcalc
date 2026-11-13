@@ -82,14 +82,23 @@
   async function ocr(images, prog, retried) {
     var T = await tess(); if (!T) throw new Error('The OCR engine could not be loaded - an internet connection is needed the first time OCR runs (cdnjs.cloudflare.com or cdn.jsdelivr.net may be blocked).');
     var W; try { W = await worker(T); } catch (e) { throw new Error('The OCR engine could not start (' + (e && e.message || e) + '). Reload the page and try again.'); }
-    var out = '';
+    var out = '', skipped = 0;
+    /* 57.8: a page that hangs the engine is given up after 75 seconds - the engine is restarted and the next page goes on */
+    var limit = function (pr, ms) { var t; return Promise.race([pr, new Promise(function (_, no) { t = setTimeout(function () { no(new Error('timeout')); }, ms); })]).then(function (v) { clearTimeout(t); return v; }, function (e) { clearTimeout(t); throw e; }); };
     for (var i = 0; i < images.length; i++) {
       var img = prep(images[i]); curProg = function (f) { if (prog) prog((i + f) / images.length); };
-      await W.setParameters({tessedit_pageseg_mode: '3'});
-      var r = await W.recognize(img), best = r.data;
-      if ((best.confidence || 0) < 65) { await W.setParameters({tessedit_pageseg_mode: '6'}); var r2 = await W.recognize(img); if ((r2.data.confidence || 0) > (best.confidence || 0)) best = r2.data; }
-      out += best.text + '\n';
+      try {
+        await W.setParameters({tessedit_pageseg_mode: '3'});
+        var r = await limit(W.recognize(img), 75000), best = r.data;
+        if ((best.confidence || 0) < 65) { await W.setParameters({tessedit_pageseg_mode: '6'}); try { var r2 = await limit(W.recognize(img), 45000); if ((r2.data.confidence || 0) > (best.confidence || 0)) best = r2.data; } catch (e2) { if (String(e2 && e2.message) === 'timeout') throw e2; } }
+        out += best.text + '\n';
+      } catch (e) {
+        if (String(e && e.message) !== 'timeout') throw e;
+        skipped++; try { var hung = W; workerP = null; if (hung && hung.terminate) hung.terminate(); } catch (e3) { workerP = null; }
+        W = await worker(T);
+      }
     }
+    lastOcr.skipped = skipped;
     curProg = null;
     /* 57.6: an engine left in a bad state by an earlier read returns nothing - start a fresh one and read once more */
     if (!out.replace(/\s/g, '') && !retried) { try { var old = await workerP; workerP = null; if (old && old.terminate) await old.terminate(); } catch (e) { workerP = null; } return ocr(images, prog, true); }

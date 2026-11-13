@@ -4067,7 +4067,7 @@ function nmbLoad(){
   if (window.NMBReport && window.NMB_TEMPLATE) return Promise.resolve(true);
   if (nmbLoad.p) return nmbLoad.p;
   const add = src => new Promise(res => { const s=document.createElement('script'); s.src=src; s.onload=()=>res(true); s.onerror=()=>res(false); document.head.appendChild(s); });
-  return nmbLoad.p = add('assets/nmb-template.js?v=57.7').then(a => add('assets/nmb-report.js?v=57.7').then(b => a && b));
+  return nmbLoad.p = add('assets/nmb-template.js?v=57.8').then(a => add('assets/nmb-report.js?v=57.8').then(b => a && b));
 }
 function buildReportPages(){
   const pages = [];
@@ -9172,6 +9172,7 @@ window.__mtgcalcBridge = {
     '#mtgcalcPageNav a{display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:20px;font:600 11px/1.2 system-ui,sans-serif;color:var(--text,#cddced);text-decoration:none;white-space:nowrap}' +
     '#mtgcalcPageNav a:hover{background:#ffffff1a}#mtgcalcPageNav a[aria-current]{background:#226ccc;color:#fff}' +
     '#mtgcalcPageNav svg{width:13px;height:13px;flex:none;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}' +
+    'body{padding-bottom:52px}' +
     '@media(max-width:760px){#mtgcalcPageNav{right:6px;left:6px;bottom:6px;justify-content:space-between}#mtgcalcPageNav a{padding:7px 8px;font-size:10px}#mtgcalcPageNav a span{display:none}#mtgcalcPageNav a[aria-current] span{display:inline}}' +
     '@media print{#mtgcalcPageNav{display:none!important}}' +
     /* suite: compact cards outside Full view (from 55.11) */
@@ -9191,41 +9192,27 @@ window.__mtgcalcBridge = {
     '#suite-root .rail .v39-rail>.body>.note,body .rail .v39-rail>.body>.note{display:none!important}';
   document.head.appendChild(css);
 
-  /* 57.6: no bar at the bottom of the page. "All pages" sits in the page's own top bar, next to its name, and slides out a
-     row of every page; on the home page it is beside "Mortgage Suite  Quick". */
-  const LINKS = [['Home', 'index.html'], ['Full Suite', 'full-suite.html'], ['Loan Suite', 'loan-suite.html'], ['Income Calculator', 'income-calculator.html'], ['Documents', 'doc-organizer.html'],
-    ['Renovation', 'renovation-suite.html'], ['Quick income', 'quick-income.html'], ['All-in-one', 'all-in-one.html'], ['Every page', 'pages.html']];
-  const navCss = document.createElement('style'); navCss.id = 'mtgcalc-pages-css';
-  navCss.textContent = '#mtgcalcPageNav{display:none!important}' +
-    '.mtp{position:relative;display:inline-flex;align-items:center;z-index:9500;flex:none}' +
-    '.mtp-btn{display:inline-flex;align-items:center;gap:6px;border:1px solid rgba(160,190,230,.45);background:rgba(255,255,255,.08);color:inherit;border-radius:999px;padding:4px 11px;font:600 12px/1.2 system-ui,sans-serif;cursor:pointer;white-space:nowrap}' +
-    '.mtp-btn:hover,.mtp.open .mtp-btn{background:#226ccc;border-color:#226ccc;color:#fff}.mtp-btn svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;transition:transform .3s}.mtp.open .mtp-btn svg{transform:rotate(90deg)}' +
-    '.mtp-row{position:absolute;left:0;top:calc(100% + 8px);display:flex;flex-wrap:wrap;gap:6px;width:max-content;max-width:min(92vw,980px);padding:8px;border-radius:12px;background:#0f2a4a;border:1px solid #2c4c74;box-shadow:0 12px 30px rgba(0,0,0,.35);clip-path:inset(0 100% 0 0 round 12px);opacity:0;pointer-events:none;transition:clip-path .38s cubic-bezier(.2,.8,.2,1),opacity .2s}' +
-    '.mtp.open .mtp-row{clip-path:inset(0 0 0 0 round 12px);opacity:1;pointer-events:auto}' +
-    '.mtp-row a{padding:6px 12px;border-radius:999px;background:#163a63;color:#e7f0fb;text-decoration:none;font:600 12.5px/1.2 system-ui,sans-serif;white-space:nowrap;transform:translateX(-10px);opacity:0;transition:transform .3s,opacity .3s,background .15s}' +
-    '.mtp.open .mtp-row a{transform:none;opacity:1}.mtp-row a:hover{background:#226ccc}.mtp-row a[aria-current]{background:#e7f0fb;color:#0f2a4a}' +
-    '.mtp-fixed{position:fixed;left:10px;top:8px}@media print{.mtp{display:none!important}}';
-  document.head.appendChild(navCss);
-  function hostBar() { return document.querySelector('#shellbar') || document.querySelector('header.appbar .topbar') || document.querySelector('header.q-head') || document.querySelector('#root > .topbar, body > .topbar') || document.querySelector('body > header') || document.querySelector('header.mtsh'); }
   function mount() {
-    if (document.getElementById('mtgcalcPages')) return;
-    const box = document.createElement('div'); box.id = 'mtgcalcPages'; box.className = 'mtp no-print';
-    box.innerHTML = '<button type="button" class="mtp-btn" aria-expanded="false" aria-controls="mtgcalcPagesRow"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>All pages</button>' +
-      '<nav id="mtgcalcPagesRow" class="mtp-row" aria-label="All pages">' + LINKS.map(([label, url], i) => `<a href="${url}" style="transition-delay:${40 + i * 35}ms"${/(^|\/)index\.html$/.test(url) ? (active === 'home' ? ' aria-current="page"' : '') : location.pathname.endsWith('/' + url) ? ' aria-current="page"' : ''}>${label}</a>`).join('') + '</nav>';
-    const bar = hostBar();
-    if (bar) { const brand = bar.querySelector(':scope > span, :scope > b, :scope > .brand, :scope > h1'); if (bar.tagName === 'HEADER' && brand) brand.parentNode.insertBefore(box, (bar.querySelector(':scope > span') || brand).nextSibling); else bar.appendChild(box); }
-    else { box.classList.add('mtp-fixed'); document.body.appendChild(box); }
-    const btn = box.querySelector('.mtp-btn'), row = box.querySelector('.mtp-row'), set = (on) => { if (on) { const vw = document.documentElement.clientWidth || innerWidth; row.style.left = '0px'; row.style.maxWidth = (vw - 16) + 'px'; const w = Math.min(row.scrollWidth, vw - 16), x = box.getBoundingClientRect().left; row.style.left = Math.max(8 - x, Math.min(0, vw - 8 - (x + w))) + 'px'; } box.classList.toggle('open', on); btn.setAttribute('aria-expanded', on ? 'true' : 'false'); };   /* kept on screen */
-    btn.addEventListener('click', (e) => { e.stopPropagation(); set(!box.classList.contains('open')); });
-    document.addEventListener('click', (e) => { if (!box.contains(e.target)) set(false); });
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') set(false); });
-    box.querySelector('nav').addEventListener('click', (event) => {
+    if (document.getElementById('mtgcalcPageNav')) return;
+    const nav = document.createElement('nav'); nav.id = 'mtgcalcPageNav'; nav.setAttribute('aria-label', 'Mortgage tools');
+    nav.innerHTML = pages.map(([id, label, url, icon]) => `<a href="${url}" title="${label}" ${id === active ? 'aria-current="page"' : ''}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${icon}"/></svg><span>${label}</span></a>`).join('');
+    nav.addEventListener('click', (event) => {
       const link = event.target.closest('a'); if (!link) return;
       try { window.MtgcalcSync && window.MtgcalcSync.syncNow(); } catch (_) {}
       try { const token = window.LOS55 && LOS55.Shared && LOS55.Shared.token(); if (token) link.href = link.getAttribute('href').split('#')[0] + '#los55=' + token; } catch (_) {}
     });
-    /* pages whose top bar is drawn after load: move the button in when it appears */
-    if (!bar) { let n = 0; const t = setInterval(() => { const b2 = hostBar(); if (b2 || ++n > 20) { clearInterval(t); if (b2) { box.classList.remove('mtp-fixed'); b2.appendChild(box); } } }, 300); }
+    document.body.appendChild(nav);
+    // Hide while scrolling down so it never sits over a field; show on scroll up or at the end.
+    let last = window.scrollY, ticking = false;
+    window.addEventListener('scroll', () => {
+      if (ticking) return; ticking = true;
+      requestAnimationFrame(() => {
+        const y = window.scrollY, atEnd = y + innerHeight >= document.documentElement.scrollHeight - 80;
+        if (Math.abs(y - last) > 6) { nav.classList.toggle('mtgcalc-away', y > last && y > 120 && !atEnd); last = y; }
+        ticking = false;
+      });
+    }, { passive: true });
+    nav.addEventListener('focusin', () => nav.classList.remove('mtgcalc-away'));
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mount, { once: true }); else mount();
 
@@ -10364,24 +10351,32 @@ window.__mtgcalcBridge = {
   function pstore() { try { return JSON.parse(localStorage.getItem(PKEY) || '{}') || {}; } catch (e) { return {}; } }
   function psave(k, d) { try { var all = pstore(); all[k] = d; var keys = Object.keys(all); if (keys.length > 30) delete all[keys[0]]; localStorage.setItem(PKEY, JSON.stringify(all)); } catch (e) {} }
   function geocode(line) { return search(line).then(function (l) { return (l || []).filter(function (a) { return isFinite(a.lat); })[0] || nominatim(line).then(function (n) { return n[0] || null; }); }); }
+  function tfetch(u, ms) { var c = window.AbortController ? new AbortController() : null, t = setTimeout(function () { if (c) c.abort(); }, ms || 12000); return fetch(u, c ? {signal: c.signal} : {}).finally(function () { clearTimeout(t); }); }
   function lookup(line) {
     line = String(line || '').trim(); if (!line) return;
     css(); if (!pbox) { pbox = document.createElement('div'); pbox.id = 'mtPropBox'; pbox.className = 'no-print'; pbox.setAttribute('role', 'dialog'); pbox.setAttribute('aria-label', 'Property details'); document.body.appendChild(pbox);
-      pbox.addEventListener('click', function (e) { var b = e.target.closest('[data-p]'); if (!b) return; var a = b.getAttribute('data-p');
+      pbox.addEventListener('click', function (e) {
+        /* 57.8: listing sites refuse to be shown inside another page, so they open in a window docked to the right half of the screen and
+           this panel moves to the left - side by side, type what you read straight into the fields */
+        var sv = e.target.closest('[data-v]'); if (sv) { var W = screen.availWidth || innerWidth, H = screen.availHeight || innerHeight, x = (screen.availLeft || 0) + Math.round(W / 2);
+          var win = window.open(sv.getAttribute('data-v'), 'mtPropView', 'popup=yes,width=' + Math.round(W / 2) + ',height=' + H + ',left=' + x + ',top=' + (screen.availTop || 0)); pbox.classList.add('mtP-left');
+          var nt = pbox.querySelector('.mtP-n'); if (nt) nt.textContent = win ? 'The listing opened beside this page - type the beds, baths and the rest into the fields here.' : 'The browser blocked the window - allow pop-ups for this site, then press the button again.'; return; }
+        var b = e.target.closest('[data-p]'); if (!b) return; var a = b.getAttribute('data-p');
+        if (a === 'map') { var mp = pbox.querySelector('.mtP-map'); mp.hidden = !mp.hidden; if (!mp.hidden && !mp.firstChild) mp.innerHTML = '<iframe title="Map of the property" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="https://maps.google.com/maps?q=' + encodeURIComponent(pbox.getAttribute('data-line') || '') + '&t=k&z=19&output=embed"></iframe>'; pbox.classList.toggle('mtP-wide', !mp.hidden); return; }
         if (a === 'x') pbox.hidden = true;
         if (a === 'copy') { var t = pbox.querySelector('.mtP-body').innerText + '\n' + [].map.call(pbox.querySelectorAll('[data-pf]'), function (i) { return i.getAttribute('data-pl') + ': ' + i.value; }).filter(function (x) { return !/:\s*$/.test(x); }).join('\n'); try { navigator.clipboard.writeText(t); b.textContent = 'Copied'; } catch (er) {} } });
       pbox.addEventListener('input', function (e) { var i = e.target.closest('[data-pf]'); if (!i) return; var k = pbox.getAttribute('data-key'), d = pstore()[k] || {}; d[i.getAttribute('data-pf')] = i.value; psave(k, d); });
       var st = document.createElement('style'); st.textContent = '#mtPropBox{position:fixed;z-index:' + (Z + 1) + ';right:16px;top:70px;width:min(420px,calc(100vw - 32px));max-height:calc(100vh - 100px);overflow:auto;background:#0a1b38;color:#e6eefb;border:1px solid #2b5590;border-radius:12px;box-shadow:0 18px 40px rgba(0,0,0,.5);font:13px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;animation:mtPin .25s ease}' +
         '@keyframes mtPin{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:none}}#mtPropBox h3{margin:0;font-size:14px}#mtPropBox .mtP-h{display:flex;justify-content:space-between;gap:8px;align-items:flex-start;padding:12px 14px;border-bottom:1px solid #142d52}#mtPropBox .mtP-body{padding:10px 14px}#mtPropBox dl{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:0}#mtPropBox dt{color:#9db0c8}#mtPropBox dd{margin:0}' +
-        '#mtPropBox .mtP-f{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:0 14px 10px}#mtPropBox label{font-size:11.5px;color:#9db0c8;display:grid;gap:2px}#mtPropBox input{background:#071630;border:1px solid #2b5590;border-radius:6px;color:#fff;padding:5px 7px}#mtPropBox .mtP-l{display:flex;flex-wrap:wrap;gap:6px;padding:0 14px 12px}#mtPropBox .mtP-l a,#mtPropBox button{border:1px solid #2b5590;border-radius:999px;padding:4px 10px;color:#9fc4ff;background:transparent;text-decoration:none;font:600 12px system-ui;cursor:pointer}#mtPropBox .mtP-l a:hover,#mtPropBox button:hover{background:#123a75}#mtPropBox .mtP-n{font-size:11px;color:#8ea3c0;padding:0 14px 12px}';
+        '#mtPropBox .mtP-f{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:0 14px 10px}#mtPropBox label{font-size:11.5px;color:#9db0c8;display:grid;gap:2px}#mtPropBox input{background:#071630;border:1px solid #2b5590;border-radius:6px;color:#fff;padding:5px 7px}#mtPropBox .mtP-l{display:flex;flex-wrap:wrap;gap:6px;padding:0 14px 12px}#mtPropBox .mtP-l a,#mtPropBox button{border:1px solid #2b5590;border-radius:999px;padding:4px 10px;color:#9fc4ff;background:transparent;text-decoration:none;font:600 12px system-ui;cursor:pointer}#mtPropBox .mtP-l a:hover,#mtPropBox button:hover{background:#123a75}#mtPropBox .mtP-n{font-size:11px;color:#8ea3c0;padding:0 14px 12px}#mtPropBox.mtP-left{right:auto;left:16px}#mtPropBox.mtP-wide{width:min(620px,calc(100vw - 32px))}#mtPropBox .mtP-map{padding:0 14px 12px}#mtPropBox .mtP-map iframe{width:100%;height:320px;border:0;border-radius:8px}';
       document.head.appendChild(st);
     }
     var key = line.toLowerCase().replace(/\s+/g, ' '), saved = pstore()[key] || {}, q = encodeURIComponent(line);
-    pbox.setAttribute('data-key', key); pbox.hidden = false;
+    pbox.setAttribute('data-key', key); pbox.setAttribute('data-line', line); pbox.hidden = false; pbox.classList.remove('mtP-wide');
     var fields = [['beds', 'Bedrooms'], ['baths', 'Bathrooms'], ['sqft', 'Living area (sq ft)'], ['year', 'Year built'], ['lot', 'Lot size'], ['taxes', 'Annual taxes'], ['hoa', 'HOA dues'], ['style', 'Style / type']];
     pbox.innerHTML = '<div class="mtP-h"><div><h3>Property details</h3><div style="color:#9db0c8;font-size:12px">' + esc(line) + '</div></div><button type="button" data-p="x" aria-label="Close">Close</button></div><div class="mtP-body">Looking up flood zone, census area and building data…</div>' +
       '<div class="mtP-f">' + fields.map(function (f) { return '<label>' + f[1] + '<input data-pf="' + f[0] + '" data-pl="' + f[1] + '" value="' + esc(saved[f[0]] || '') + '"></label>'; }).join('') + '</div>' +
-      '<div class="mtP-l"><a target="_blank" rel="noopener" href="https://www.zillow.com/homes/' + encodeURIComponent(line.replace(/,/g, '').replace(/\s+/g, '-')) + '_rb/">Zillow</a><a target="_blank" rel="noopener" href="https://www.redfin.com/search?q=' + q + '">Redfin</a><a target="_blank" rel="noopener" href="https://www.realtor.com/realestateandhomes-search/' + encodeURIComponent(line) + '">Realtor.com</a><a target="_blank" rel="noopener" href="https://www.google.com/search?q=' + encodeURIComponent(line + ' beds baths sqft') + '">Google</a><a target="_blank" rel="noopener" href="https://msc.fema.gov/portal/search?AddressQuery=' + q + '">FEMA map</a><button type="button" data-p="copy">Copy details</button></div>' +
+      '<div class="mtP-l"><button type="button" data-p="map">Map (here)</button><button type="button" data-v="https://www.zillow.com/homes/' + encodeURIComponent(line.replace(/,/g, '').replace(/\s+/g, '-')) + '_rb/">Zillow</button><button type="button" data-v="https://www.redfin.com/search?q=' + q + '">Redfin</button><button type="button" data-v="https://www.realtor.com/realestateandhomes-search/' + encodeURIComponent(line) + '">Realtor.com</button><button type="button" data-v="https://www.google.com/search?q=' + encodeURIComponent(line + ' beds baths sqft') + '">Google</button><button type="button" data-v="https://msc.fema.gov/portal/search?AddressQuery=' + q + '">FEMA map</button><button type="button" data-p="copy">Copy details</button></div><div class="mtP-map" hidden></div>' +
       '<div class="mtP-n">Beds, baths, living area and year built are not in free public records - check a listing or the appraisal and enter them above; they are kept for this address in this browser.</div>';
     var body = pbox.querySelector('.mtP-body'), rows = [];
     var show = function () { body.innerHTML = '<dl>' + rows.map(function (r) { return '<dt>' + esc(r[0]) + '</dt><dd>' + r[1] + '</dd>'; }).join('') + '</dl>'; };
@@ -10389,12 +10384,12 @@ window.__mtgcalcBridge = {
       if (!a) { body.textContent = 'This address was not found on the map - check the spelling, or use the links below.'; return; }
       rows.push(['Matched', esc(a.line || line)]); if (a.county) rows.push(['County', esc(a.county) + ' County']); show();
       var lat = a.lat, lon = a.lon, jobs = [];
-      jobs.push(fetch('https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28/query?geometry=' + lon + ',' + lat + '&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=FLD_ZONE,ZONE_SUBTY,SFHA_TF&returnGeometry=false&f=json').then(function (r) { return r.json(); }).then(function (j) {
+      jobs.push(tfetch('https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28/query?geometry=' + lon + ',' + lat + '&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=FLD_ZONE,ZONE_SUBTY,SFHA_TF&returnGeometry=false&f=json').then(function (r) { return r.json(); }).then(function (j) {
         var f = (j.features || [])[0], at = f && f.attributes; rows.push(['Flood zone', at ? '<b>' + esc(at.FLD_ZONE) + '</b>' + (at.ZONE_SUBTY ? ' - ' + esc(at.ZONE_SUBTY.toLowerCase()) : '') + (at.SFHA_TF === 'T' ? ' <b style="color:#ffb35c">(special flood hazard area - flood insurance required)</b>' : ' (not a special flood hazard area)') : 'Not mapped by FEMA here']); show(); }).catch(function () { rows.push(['Flood zone', 'FEMA did not answer - use the FEMA map link']); show(); }));
-      jobs.push(fetch('https://geo.fcc.gov/api/census/area?lat=' + lat + '&lon=' + lon + '&format=json').then(function (r) { return r.json(); }).then(function (j) {
+      jobs.push(tfetch('https://geo.fcc.gov/api/census/area?lat=' + lat + '&lon=' + lon + '&format=json').then(function (r) { return r.json(); }).then(function (j) {
         var r0 = (j.results || [])[0]; if (!r0) return; var tr = String(r0.block_fips || '').slice(5, 11);
         rows.push(['County / FIPS', esc(r0.county_name || '') + ' (' + esc(r0.county_fips || '') + ')']); rows.push(['Census tract', tr ? esc(tr.slice(0, 4) + '.' + tr.slice(4)) : '']); rows.push(['Census block', esc(r0.block_fips || '')]); show(); }).catch(function () {}));
-      jobs.push(fetch('https://overpass-api.de/api/interpreter?data=' + encodeURIComponent('[out:json][timeout:15];(way(around:25,' + lat + ',' + lon + ')[building];);out tags 3;')).then(function (r) { return r.json(); }).then(function (j) {
+      jobs.push(tfetch('https://overpass-api.de/api/interpreter?data=' + encodeURIComponent('[out:json][timeout:15];(way(around:25,' + lat + ',' + lon + ')[building];);out tags 3;')).then(function (r) { return r.json(); }).then(function (j) {
         var t = ((j.elements || [])[0] || {}).tags || {}; if (!Object.keys(t).length) { rows.push(['Building', 'Not mapped in OpenStreetMap']); show(); return; }
         var b = []; if (t.building && t.building !== 'yes') b.push(t.building.replace(/_/g, ' ')); if (t['building:levels']) b.push(t['building:levels'] + ' floor' + (t['building:levels'] === '1' ? '' : 's')); if (t['building:units']) b.push(t['building:units'] + ' unit(s)'); if (t.start_date) b.push('built ' + t.start_date); if (t['roof:shape']) b.push(t['roof:shape'] + ' roof');
         rows.push(['Building (OSM)', esc(b.join(', ') || 'building mapped, no details')]); show();
@@ -10973,14 +10968,23 @@ window.__mtgcalcBridge = {
   async function ocr(images, prog, retried) {
     var T = await tess(); if (!T) throw new Error('The OCR engine could not be loaded - an internet connection is needed the first time OCR runs (cdnjs.cloudflare.com or cdn.jsdelivr.net may be blocked).');
     var W; try { W = await worker(T); } catch (e) { throw new Error('The OCR engine could not start (' + (e && e.message || e) + '). Reload the page and try again.'); }
-    var out = '';
+    var out = '', skipped = 0;
+    /* 57.8: a page that hangs the engine is given up after 75 seconds - the engine is restarted and the next page goes on */
+    var limit = function (pr, ms) { var t; return Promise.race([pr, new Promise(function (_, no) { t = setTimeout(function () { no(new Error('timeout')); }, ms); })]).then(function (v) { clearTimeout(t); return v; }, function (e) { clearTimeout(t); throw e; }); };
     for (var i = 0; i < images.length; i++) {
       var img = prep(images[i]); curProg = function (f) { if (prog) prog((i + f) / images.length); };
-      await W.setParameters({tessedit_pageseg_mode: '3'});
-      var r = await W.recognize(img), best = r.data;
-      if ((best.confidence || 0) < 65) { await W.setParameters({tessedit_pageseg_mode: '6'}); var r2 = await W.recognize(img); if ((r2.data.confidence || 0) > (best.confidence || 0)) best = r2.data; }
-      out += best.text + '\n';
+      try {
+        await W.setParameters({tessedit_pageseg_mode: '3'});
+        var r = await limit(W.recognize(img), 75000), best = r.data;
+        if ((best.confidence || 0) < 65) { await W.setParameters({tessedit_pageseg_mode: '6'}); try { var r2 = await limit(W.recognize(img), 45000); if ((r2.data.confidence || 0) > (best.confidence || 0)) best = r2.data; } catch (e2) { if (String(e2 && e2.message) === 'timeout') throw e2; } }
+        out += best.text + '\n';
+      } catch (e) {
+        if (String(e && e.message) !== 'timeout') throw e;
+        skipped++; try { var hung = W; workerP = null; if (hung && hung.terminate) hung.terminate(); } catch (e3) { workerP = null; }
+        W = await worker(T);
+      }
     }
+    lastOcr.skipped = skipped;
     curProg = null;
     /* 57.6: an engine left in a bad state by an earlier read returns nothing - start a fresh one and read once more */
     if (!out.replace(/\s/g, '') && !retried) { try { var old = await workerP; workerP = null; if (old && old.terminate) await old.terminate(); } catch (e) { workerP = null; } return ocr(images, prog, true); }
@@ -11572,7 +11576,7 @@ window.MTData=M;})();
 (function () {
   'use strict';
   if (window.MTBuild) return;
-  var SRC = (document.currentScript && document.currentScript.src || '').replace(/mt-build-lazy\.js[^]*$/, '') + 'doc-builder.js?v=57.7';
+  var SRC = (document.currentScript && document.currentScript.src || '').replace(/mt-build-lazy\.js[^]*$/, '') + 'doc-builder.js?v=57.8';
   var ORDER = [['addendum', 'Addendum'], ['lease', 'Lease agreement'], ['estimate', 'Contractor estimate'], ['pl', 'Profit and loss'], ['schc', 'Schedule C analysis'], ['pay', 'Pay statement'], ['gift', 'Gift letter'], ['le', 'Loan Estimate draft'], ['commit', 'Commitment letter'], ['lox', 'Letter of explanation'], ['cpa', 'CPA / tax preparer letter'], ['mi', 'MI & renovation fees']];
   var loading = null, stub;
   function load() {

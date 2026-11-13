@@ -21,6 +21,7 @@
     '#mtgcalcPageNav a{display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:20px;font:600 11px/1.2 system-ui,sans-serif;color:var(--text,#cddced);text-decoration:none;white-space:nowrap}' +
     '#mtgcalcPageNav a:hover{background:#ffffff1a}#mtgcalcPageNav a[aria-current]{background:#226ccc;color:#fff}' +
     '#mtgcalcPageNav svg{width:13px;height:13px;flex:none;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}' +
+    'body{padding-bottom:52px}' +
     '@media(max-width:760px){#mtgcalcPageNav{right:6px;left:6px;bottom:6px;justify-content:space-between}#mtgcalcPageNav a{padding:7px 8px;font-size:10px}#mtgcalcPageNav a span{display:none}#mtgcalcPageNav a[aria-current] span{display:inline}}' +
     '@media print{#mtgcalcPageNav{display:none!important}}' +
     /* suite: compact cards outside Full view (from 55.11) */
@@ -40,41 +41,27 @@
     '#suite-root .rail .v39-rail>.body>.note,body .rail .v39-rail>.body>.note{display:none!important}';
   document.head.appendChild(css);
 
-  /* 57.6: no bar at the bottom of the page. "All pages" sits in the page's own top bar, next to its name, and slides out a
-     row of every page; on the home page it is beside "Mortgage Suite  Quick". */
-  const LINKS = [['Home', 'index.html'], ['Full Suite', 'full-suite.html'], ['Loan Suite', 'loan-suite.html'], ['Income Calculator', 'income-calculator.html'], ['Documents', 'doc-organizer.html'],
-    ['Renovation', 'renovation-suite.html'], ['Quick income', 'quick-income.html'], ['All-in-one', 'all-in-one.html'], ['Every page', 'pages.html']];
-  const navCss = document.createElement('style'); navCss.id = 'mtgcalc-pages-css';
-  navCss.textContent = '#mtgcalcPageNav{display:none!important}' +
-    '.mtp{position:relative;display:inline-flex;align-items:center;z-index:9500;flex:none}' +
-    '.mtp-btn{display:inline-flex;align-items:center;gap:6px;border:1px solid rgba(160,190,230,.45);background:rgba(255,255,255,.08);color:inherit;border-radius:999px;padding:4px 11px;font:600 12px/1.2 system-ui,sans-serif;cursor:pointer;white-space:nowrap}' +
-    '.mtp-btn:hover,.mtp.open .mtp-btn{background:#226ccc;border-color:#226ccc;color:#fff}.mtp-btn svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;transition:transform .3s}.mtp.open .mtp-btn svg{transform:rotate(90deg)}' +
-    '.mtp-row{position:absolute;left:0;top:calc(100% + 8px);display:flex;flex-wrap:wrap;gap:6px;width:max-content;max-width:min(92vw,980px);padding:8px;border-radius:12px;background:#0f2a4a;border:1px solid #2c4c74;box-shadow:0 12px 30px rgba(0,0,0,.35);clip-path:inset(0 100% 0 0 round 12px);opacity:0;pointer-events:none;transition:clip-path .38s cubic-bezier(.2,.8,.2,1),opacity .2s}' +
-    '.mtp.open .mtp-row{clip-path:inset(0 0 0 0 round 12px);opacity:1;pointer-events:auto}' +
-    '.mtp-row a{padding:6px 12px;border-radius:999px;background:#163a63;color:#e7f0fb;text-decoration:none;font:600 12.5px/1.2 system-ui,sans-serif;white-space:nowrap;transform:translateX(-10px);opacity:0;transition:transform .3s,opacity .3s,background .15s}' +
-    '.mtp.open .mtp-row a{transform:none;opacity:1}.mtp-row a:hover{background:#226ccc}.mtp-row a[aria-current]{background:#e7f0fb;color:#0f2a4a}' +
-    '.mtp-fixed{position:fixed;left:10px;top:8px}@media print{.mtp{display:none!important}}';
-  document.head.appendChild(navCss);
-  function hostBar() { return document.querySelector('#shellbar') || document.querySelector('header.appbar .topbar') || document.querySelector('header.q-head') || document.querySelector('#root > .topbar, body > .topbar') || document.querySelector('body > header') || document.querySelector('header.mtsh'); }
   function mount() {
-    if (document.getElementById('mtgcalcPages')) return;
-    const box = document.createElement('div'); box.id = 'mtgcalcPages'; box.className = 'mtp no-print';
-    box.innerHTML = '<button type="button" class="mtp-btn" aria-expanded="false" aria-controls="mtgcalcPagesRow"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>All pages</button>' +
-      '<nav id="mtgcalcPagesRow" class="mtp-row" aria-label="All pages">' + LINKS.map(([label, url], i) => `<a href="${url}" style="transition-delay:${40 + i * 35}ms"${/(^|\/)index\.html$/.test(url) ? (active === 'home' ? ' aria-current="page"' : '') : location.pathname.endsWith('/' + url) ? ' aria-current="page"' : ''}>${label}</a>`).join('') + '</nav>';
-    const bar = hostBar();
-    if (bar) { const brand = bar.querySelector(':scope > span, :scope > b, :scope > .brand, :scope > h1'); if (bar.tagName === 'HEADER' && brand) brand.parentNode.insertBefore(box, (bar.querySelector(':scope > span') || brand).nextSibling); else bar.appendChild(box); }
-    else { box.classList.add('mtp-fixed'); document.body.appendChild(box); }
-    const btn = box.querySelector('.mtp-btn'), row = box.querySelector('.mtp-row'), set = (on) => { if (on) { const vw = document.documentElement.clientWidth || innerWidth; row.style.left = '0px'; row.style.maxWidth = (vw - 16) + 'px'; const w = Math.min(row.scrollWidth, vw - 16), x = box.getBoundingClientRect().left; row.style.left = Math.max(8 - x, Math.min(0, vw - 8 - (x + w))) + 'px'; } box.classList.toggle('open', on); btn.setAttribute('aria-expanded', on ? 'true' : 'false'); };   /* kept on screen */
-    btn.addEventListener('click', (e) => { e.stopPropagation(); set(!box.classList.contains('open')); });
-    document.addEventListener('click', (e) => { if (!box.contains(e.target)) set(false); });
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') set(false); });
-    box.querySelector('nav').addEventListener('click', (event) => {
+    if (document.getElementById('mtgcalcPageNav')) return;
+    const nav = document.createElement('nav'); nav.id = 'mtgcalcPageNav'; nav.setAttribute('aria-label', 'Mortgage tools');
+    nav.innerHTML = pages.map(([id, label, url, icon]) => `<a href="${url}" title="${label}" ${id === active ? 'aria-current="page"' : ''}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${icon}"/></svg><span>${label}</span></a>`).join('');
+    nav.addEventListener('click', (event) => {
       const link = event.target.closest('a'); if (!link) return;
       try { window.MtgcalcSync && window.MtgcalcSync.syncNow(); } catch (_) {}
       try { const token = window.LOS55 && LOS55.Shared && LOS55.Shared.token(); if (token) link.href = link.getAttribute('href').split('#')[0] + '#los55=' + token; } catch (_) {}
     });
-    /* pages whose top bar is drawn after load: move the button in when it appears */
-    if (!bar) { let n = 0; const t = setInterval(() => { const b2 = hostBar(); if (b2 || ++n > 20) { clearInterval(t); if (b2) { box.classList.remove('mtp-fixed'); b2.appendChild(box); } } }, 300); }
+    document.body.appendChild(nav);
+    // Hide while scrolling down so it never sits over a field; show on scroll up or at the end.
+    let last = window.scrollY, ticking = false;
+    window.addEventListener('scroll', () => {
+      if (ticking) return; ticking = true;
+      requestAnimationFrame(() => {
+        const y = window.scrollY, atEnd = y + innerHeight >= document.documentElement.scrollHeight - 80;
+        if (Math.abs(y - last) > 6) { nav.classList.toggle('mtgcalc-away', y > last && y > 120 && !atEnd); last = y; }
+        ticking = false;
+      });
+    }, { passive: true });
+    nav.addEventListener('focusin', () => nav.classList.remove('mtgcalc-away'));
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mount, { once: true }); else mount();
 

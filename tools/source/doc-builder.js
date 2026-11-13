@@ -33,6 +33,7 @@
   }
   function relDate(text) {
     var t = String(text || '').trim().toLowerCase().replace(/\s+/g, ' '); if (!t) return null;
+    t = t.replace(/\b(?:the )?(\d{1,2})(?:st|nd|rd|th)? (?:of )?(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)([a-z]*\.?)/, '$2$3 $1').replace(/ the (jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/, ' $1');
     var today = new Date(); today = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     if (/^(today|now)$/.test(t)) return today;
     if (t === 'tomorrow') return shiftDate(today, 1, 'd');
@@ -43,6 +44,18 @@
     var toN = function (x) { return /^\d+$/.test(x) ? +x : NUMW[x]; }, unitOf = function (x) { return x.replace(/^mo.*/, 'm').replace(/^yr.*/, 'y'); };
     m = t.match(new RegExp('^' + n + ' ' + u + ' (ago|back|before( today)?|prior|earlier|previous)$')); if (m) return shiftDate(today, -toN(m[1]), unitOf(m[2]));
     m = t.match(new RegExp('^(?:in |plus )?' + n + ' ' + u + '(?: (from now|from today|later|ahead|out|after|hence))?$')); if (m && (/^in |^plus /.test(t) || m[3])) return shiftDate(today, toN(m[1]), unitOf(m[2]));
+    /* 57.8: "5 years ago today", "5 years" (= ago), "5 years ago on January 1st", "January 1st 5 years ago", "Jan 1 of last year", "January 1st" */
+    var MON = {jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, sept: 8, oct: 9, nov: 10, dec: 11}, md = '(jan|feb|mar|apr|may|jun|jul|aug|sept?|oct|nov|dec)[a-z]*\\.? (\\d{1,2})(?:st|nd|rd|th)?';
+    var onDay = function (d, mo, day) { var mm = MON[mo.slice(0, 4) === 'sept' ? 'sept' : mo.slice(0, 3)], last = new Date(d.getFullYear(), mm + 1, 0).getDate(); return new Date(d.getFullYear(), mm, Math.min(+day, last)); };
+    m = t.match(new RegExp('^' + n + ' ' + u + ' (?:ago|back|before|prior|earlier)(?: (?:as of |from )?today| today)?$')); if (m) return shiftDate(today, -toN(m[1]), unitOf(m[2]));
+    m = t.match(new RegExp('^' + n + ' ' + u + '$')); if (m) return shiftDate(today, -toN(m[1]), unitOf(m[2]));
+    m = t.match(new RegExp('^' + n + ' ' + u + ' (?:ago|back|before|prior)(?: on| as of)? (?:the )?' + md + '$')); if (m) return onDay(shiftDate(today, -toN(m[1]), unitOf(m[2])), m[3], m[4]);
+    m = t.match(new RegExp('^(?:on )?' + md + ',? ' + n + ' ' + u + ' (?:ago|back|before|prior)$')); if (m) return onDay(shiftDate(today, -toN(m[3]), unitOf(m[4])), m[1], m[2]);
+    m = t.match(new RegExp('^(?:on )?' + md + '(?:,? (?:of )?(this|next|last) year)?$')); if (m) return onDay(m[3] && m[3] !== 'this' ? shiftDate(today, m[3] === 'next' ? 1 : -1, 'y') : today, m[1], m[2]);
+    m = t.match(new RegExp('^(?:in |plus )?' + n + ' ' + u + ' (?:from now|from today|ahead|later)(?: on| as of)? (?:the )?' + md + '$')); if (m) return onDay(shiftDate(today, toN(m[1]), unitOf(m[2])), m[3], m[4]);
+    var WD = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+    m = t.match(/^(?:(next|last|this|coming|past) )?(sun|mon|tue|wed|thu|fri|sat)[a-z]*$/);
+    if (m) { var wd = WD.indexOf(m[2]), dd = wd - today.getDay(); if (m[1] === 'last' || m[1] === 'past') { if (dd >= 0) dd -= 7; } else if (m[1] === 'this') { if (dd < 0) dd += 7; } else if (dd <= 0) dd += 7; return shiftDate(today, dd, 'd'); }
     m = t.match(/^(next|last|this) (week|month|year)$/); if (m) return m[1] === 'this' ? today : shiftDate(today, m[1] === 'next' ? 1 : -1, m[2]);
     m = t.match(/^(end|first|start|beginning) of (?:the )?(this |next |last )?(month|year)$/);
     if (m) { var base = m[2] && m[2].trim() !== 'this' ? shiftDate(today, m[2].trim() === 'next' ? 1 : -1, m[3]) : today;
@@ -1057,9 +1070,9 @@
           field(b, 'docType', 'Documentation type', {list: ['Full Documentation', 'Bank Statement', 'DSCR', 'Asset Depletion', 'Streamline']}) + field(b, 'impoundType', 'Impound type', {list: ['Taxes and Insurance', 'Taxes Only', 'Insurance Only']}) + field(b, 'lenderPhone', 'Lender phone (grid)') + field(b, 'lenderFax', 'Lender fax') +
           field(b, 'broker', 'Broker') + field(b, 'brokerContact', 'Broker contact') + field(b, 'brokerPhone', 'Broker phone') + field(b, 'brokerFax', 'Broker fax') + field(b, 'refNo', 'Broker ref. #') +
           field(b, 'letterConds', 'List the kept conditions in the approval letter', {type: 'check', wide: 1}) + field(b, 'disclaimer', 'Approval letter footer (blank = standard equal housing notice)', {type: 'textarea', wide: 1, rows: 2}) + '</div></fieldset>' +
-        '<fieldset><legend>Conditions</legend><div class="note" style="margin:0 0 4px">Keep in the letter (' + s.conditions.filter(function (c) { return c.on; }).length + ' of ' + s.conditions.length + ' kept - ' + s.conditions.filter(condInternal).length + ' internal, ' + s.conditions.filter(function (c) { return !condInternal(c); }).length + ' external):</div>' +
+        '<fieldset><legend>Conditions</legend><div class="note" id="mtBcondCount" style="margin:0 0 4px">' + condCountText(s) + '</div>' +
         '<div class="row"><button type="button" class="btn" data-a="condAll">Check all</button><button type="button" class="btn" data-a="condNone">Uncheck all</button><button type="button" class="btn" data-a="condIntOff">Uncheck all internal</button><button type="button" class="btn" data-a="condExtOff">Uncheck all external</button><button type="button" class="btn" data-a="condIntOn">Check all internal</button><button type="button" class="btn" data-a="condExtOn">Check all external</button><button type="button" class="btn" data-a="condBorrower">Borrower items only</button><button type="button" class="btn" data-a="condLib">Add standard conditions</button></div>' +
-        '<div class="note" style="margin:8px 0 4px">Received / cleared:</div><div class="row"><button type="button" class="btn" data-a="condDoneAll">Mark all kept as received</button><button type="button" class="btn" data-a="condDoneNone">Uncheck all received</button></div>' +
+        catBoxes(s) + '<div class="note" style="margin:8px 0 4px">Received / cleared:</div><div class="row"><button type="button" class="btn" data-a="condDoneAll">Mark all kept as received</button><button type="button" class="btn" data-a="condDoneNone">Uncheck all received</button><button type="button" class="btn" data-a="condPop" style="font-weight:700">Borrower email (pop-up)</button></div>' +
         '<label class="f w" style="margin-top:10px">Paste conditions copied from your loan system or a spreadsheet<textarea id="mtBcondPaste" rows="3" placeholder="Copy the condition rows with the header row (Condition Name, Documents, External Description, Prior To, ... Latest Status, ... Internal Description) and paste here. A screenshot of the list can go in the drop box above."></textarea></label>' +
         '<div class="row" style="margin-top:6px"><button type="button" class="btn" data-a="condPasteRep">Replace the conditions with these</button><button type="button" class="btn" data-a="condPasteAdd">Add these to the list</button></div>' +
         '<div class="g" style="margin-top:10px">' + field(b, 'showNotes', 'Print the notes under each condition', {type: 'check', wide: 1}) + field(b, 'hideDone', 'Leave received conditions off the letter', {type: 'check', wide: 1}) + field(b, 'emailTo', 'Email to', {ph: 'borrower@example.com'}) + field(b, 'emailCc', 'Cc', {ph: 'processor, agent'}) + '</div>' +
@@ -1264,7 +1277,7 @@
   var COND_STAFF = /^(Funder|FUNDER|Post\s*Closer|Approval|Disclosures|Escrow|Closing\s*Agent|Title\s*Company)/i;
   /* v57.4: internal = the lender's own tasks (funder, post closer, approval, disclosures, escrow / closing agent, title,
      underwriter and processor items); external = what the borrower provides */
-  function condInternal(c) { return c.internal != null ? !!c.internal : /^(Funder|Post\s*Closer|Approval|Disclosures|Escrow|Title|Closing\s*Agent|QC\b)/i.test(c.cat || '') || /^(Underwriter|Funder|UW\b|Reno\s*Funder|Processor|QC\b)/i.test(c.text || ''); }
+  function condInternal(c) { return c.internal != null ? !!c.internal : /^(Funder|Post\s*Closer|Approval|Disclosures|Escrow|Title|Closing\s*Agent|QC\b)/i.test(c.cat || '') || /^(Underwriter|Funder|UW\b|Reno\s*Funder|Processor|QC\b|(File|Loan) (must|to) be (underwritten|reviewed) by)/i.test(c.text || ''); }
   function condNote(t) { t = String(t || '').replace(/\r/g, '').replace(/\n\s*-\s*$/, '').replace(/^\s*\*+\s*/, '').replace(/\s*\n\s*/g, ' ').replace(/\s{2,}/g, ' ').trim(); return /^(-|\*|n\/?a|if applicable)?$/i.test(t) ? '' : t; }
   function condFrom(name, ext, prior, status, internal) {
     name = String(name || '').replace(/\s+/g, ' ').trim(); ext = condNote(ext); internal = condNote(internal);
@@ -1340,6 +1353,30 @@
     a.href = url; a.download = name.replace(/[\\/:*?"<>|]/g, ''); document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
     say('Saved ' + O.count + ' conditions as ' + a.download + '.');
   }
+  /* 57.8: after a tick - counts, category boxes and the open list update in place (no form rebuild, fast with 100+ conditions) */
+  function condLive() {
+    var s = drafts.commit, el = document.getElementById('mtBcondCount'); if (el) el.innerHTML = condCountText(s);
+    var byId = {}; s.conditions.forEach(function (c) { byId[c.id] = c; });
+    [].forEach.call(document.querySelectorAll('#mtB input[data-cond][data-f="on"]'), function (b) { var c = byId[b.getAttribute('data-cond')]; if (c && b.checked !== !!c.on) b.checked = !!c.on; });
+    [].forEach.call(document.querySelectorAll('#mtB input[data-a="condCat"]'), function (b) { var st = catState(s, b.getAttribute('data-cat')); b.checked = st === 1; b.indeterminate = st === 0.5; });
+    var ta = document.getElementById('mtBcondList'); if (ta && s.listOpen) { ta.value = condListBuild(s).text || 'No conditions are kept.'; }
+  }
+  function condCountText(s) { return 'Keep in the letter (' + s.conditions.filter(function (c) { return c.on; }).length + ' of ' + s.conditions.length + ' kept - ' + s.conditions.filter(condInternal).length + ' internal, ' + s.conditions.filter(function (c) { return !condInternal(c); }).length + ' external; ' + s.conditions.filter(function (c) { return c.on && !c.done; }).length + ' still needed):'; }
+  /* 57.8: condition categories for check / uncheck all */
+  var COND_CATS = [['203k', '203(k)', function (c, t) { return /203\s*\(?k\)?/i.test(t); }], ['homestyle', 'HomeStyle', function (c, t) { return /home\s*style/i.test(t); }],
+    ['income', 'Income', function (c, t) { return /^income/i.test(c.cat || '') || /\b(pay\s*stub|w-?2|voe|vvoe|tax return|1040|transcript|schedule c|1099|employ)/i.test(c.text || ''); }],
+    ['assets', 'Assets', function (c, t) { return /^assets?/i.test(c.cat || '') || /\b(bank statement|gift|earnest money|emd|deposit|reserves|funds to close)/i.test(c.text || ''); }],
+    ['credit', 'Credit', function (c, t) { return /^credit/i.test(c.cat || '') || /\b(credit report|inquir|fraud|ssa-89|quick look)/i.test(c.text || ''); }],
+    ['property', 'Property', function (c, t) { return /^(property|appraisal|title|hazard|insurance|flood)/i.test(c.cat || '') || /\b(appraisal|survey|hoi|homeowners insurance|flood|title report)/i.test(c.text || ''); }]];
+  function inCat(c, k) { var d = COND_CATS.filter(function (x) { return x[0] === k; })[0]; return d ? d[2](c, (c.cat || '') + ' ' + (c.text || '')) : false; }
+  function catState(s, k) { var L = s.conditions.filter(function (c) { return inCat(c, k); }); if (!L.length) return -1; var on = L.filter(function (c) { return c.on; }).length; return on === L.length ? 1 : on ? 0.5 : 0; }
+  function catBoxes(s) {
+    return '<div class="note" style="margin:8px 0 4px">Check / uncheck by type:</div><div class="row" style="gap:14px;flex-wrap:wrap">' + COND_CATS.map(function (x) {
+      var n = s.conditions.filter(function (c) { return inCat(c, x[0]); }).length, st = catState(s, x[0]);
+      return '<label class="ck"' + (n ? '' : ' style="opacity:.45"') + '><input type="checkbox" data-a="condCat" data-cat="' + x[0] + '"' + (st === 1 ? ' checked' : '') + (n ? '' : ' disabled') + (st === 0.5 ? ' data-ind="1"' : '') + '><span>' + x[1] + ' (' + n + ')</span></label>';
+    }).join('') + '</div>';
+  }
+  function condInd() { [].forEach.call(document.querySelectorAll('#mtB input[data-ind]'), function (b) { b.indeterminate = true; }); }
   function condListPanel(s) {
     var o = condListBuild(s), kept = s.conditions.filter(function (c) { return c.on && String(c.text).trim(); });
     return '<label class="f w" style="margin-top:8px">The list (' + o.count + ' condition' + (o.count === 1 ? '' : 's') + ') - select and copy, or use Copy the list<textarea id="mtBcondList" rows="' + Math.min(16, Math.max(4, o.text.split('\n').length + 1)) + '" style="font-family:Consolas,monospace;font-size:12px">' + esc(o.text || 'No conditions are kept.') + '</textarea></label>' +
@@ -1347,8 +1384,34 @@
   }
   /* the condition list as an email or for pasting: kept conditions, still needed first, received ones checked off */
   function condLists() { var L = drafts.commit.conditions.filter(function (c) { return c.on && String(c.text).trim(); }); return {need: L.filter(function (c) { return !c.done; }), got: L.filter(function (c) { return c.done; })}; }
-  function condEmail() {
-    var s = drafts.commit, L = condLists(), first = (s.borrowers || []).map(function (b) { return String(b && typeof b === 'object' ? b.name || '' : b || '').trim().split(/\s+/)[0]; }).filter(Boolean);
+  /* 57.8: the borrower email in a pop-up - opens after conditions are dropped or pasted, and from its button. Still-needed
+     items by default; edit the text, then copy it (plain or with check boxes) or open it in your email program. */
+  function condPopup() {
+    var old = document.getElementById('mtBpop'); if (old) old.remove();
+    var s = drafts.commit, E = condEmail({needOnly: s.popAll !== true}); if (!E.count && s.popAll !== true) E = condEmail({});
+    var w = document.createElement('div'); w.id = 'mtBpop'; w.setAttribute('role', 'dialog'); w.setAttribute('aria-modal', 'true'); w.setAttribute('aria-label', 'Email to the borrower');
+    w.innerHTML = '<div class="mtBp-in"><div class="mtBp-h"><b>Email to the borrower</b><button type="button" class="x" data-p="x">Close</button></div>' +
+      '<div class="g"><label class="f">To<input id="mtBpTo" value="' + esc(E.to) + '" placeholder="borrower@example.com"></label><label class="f">Cc<input id="mtBpCc" value="' + esc(E.cc) + '"></label><label class="f w">Subject<input id="mtBpSub" value="' + esc(E.subject) + '"></label></div>' +
+      '<label class="ck" style="margin:6px 0"><input type="checkbox" id="mtBpAll"' + (s.popAll ? ' checked' : '') + '><span>Include received items (checked off)</span></label>' +
+      '<textarea id="mtBpText" rows="16" style="width:100%;font:12.5px/1.45 Consolas,Menlo,monospace">' + esc(E.text) + '</textarea>' +
+      '<div class="row" style="margin-top:8px;flex-wrap:wrap"><button type="button" class="btn" data-p="copy" style="font-weight:700">Copy email text</button><button type="button" class="btn" data-p="rich">Copy with check boxes (Outlook / Gmail)</button><button type="button" class="btn" data-p="mail">Open in email program</button><span class="note" id="mtBpMsg" style="margin-left:6px"></span></div></div>';
+    var css = document.getElementById('mtBpCss'); if (!css) { css = document.createElement('style'); css.id = 'mtBpCss'; css.textContent = '#mtBpop{position:fixed;inset:0;z-index:2147483200;background:rgba(3,10,24,.6);display:flex;align-items:flex-start;justify-content:center;padding:4vh 12px;overflow:auto}#mtBpop .mtBp-in{width:min(760px,100%);background:#0b1d3a;color:#e6eefb;border:1px solid #2b5590;border-radius:14px;padding:14px 16px;box-shadow:0 20px 50px rgba(0,0,0,.5);animation:mtBpIn .2s ease}#mtBpop .mtBp-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:15px}#mtBpop input,#mtBpop textarea{background:#071630;color:#fff;border:1px solid #2b5590;border-radius:8px;padding:6px 8px;box-sizing:border-box}@keyframes mtBpIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}'; document.head.appendChild(css); }
+    document.getElementById('mtB').appendChild(w);
+    var msg = function (t2) { var m = document.getElementById('mtBpMsg'); if (m) m.textContent = t2; };
+    w.addEventListener('click', function (e) {
+      if (e.target === w) { w.remove(); return; } var b = e.target.closest('[data-p]'); if (!b) return; var a = b.getAttribute('data-p'), txt = document.getElementById('mtBpText').value;
+      if (a === 'x') w.remove();
+      else if (a === 'copy') { var ta = document.getElementById('mtBpText'); (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(function () { msg('Copied - paste it into the email.'); }, function () { ta.focus(); ta.select(); var ok = false; try { ok = document.execCommand('copy'); } catch (er) {} msg(ok ? 'Copied - paste it into the email.' : 'Selected - press Ctrl+C.'); }); }
+      else if (a === 'rich') { var E2 = condEmail({needOnly: !document.getElementById('mtBpAll').checked}); copyRich(E2.html, txt).then(function () { msg('Copied with check boxes - paste into Outlook or Gmail.'); }, function () { msg('The browser did not allow copying - use Copy email text.'); }); }
+      else if (a === 'mail') { var to = document.getElementById('mtBpTo').value, cc = document.getElementById('mtBpCc').value, sub = document.getElementById('mtBpSub').value; var u = 'mailto:' + encodeURIComponent(to).replace(/%2C/g, ',') + '?' + (cc ? 'cc=' + encodeURIComponent(cc) + '&' : '') + 'subject=' + encodeURIComponent(sub) + '&body=' + encodeURIComponent(txt);
+        if (u.length > 1900) { (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(function () {}, function () {}); u = u.split('&body=')[0] + '&body=' + encodeURIComponent('(The condition list was copied - paste it here with Ctrl+V.)'); msg('The list is long, so it was copied - paste it into the email that opens.'); } window.location.href = u; }
+    });
+    w.addEventListener('change', function (e) { if (e.target.id === 'mtBpAll') { s.popAll = e.target.checked; persist(); var E3 = condEmail({needOnly: !s.popAll}); document.getElementById('mtBpText').value = E3.text; document.getElementById('mtBpSub').value = E3.subject; } if (e.target.id === 'mtBpTo') { s.emailTo = e.target.value; persist(); } });
+    document.addEventListener('keydown', function esc2(e) { if (e.key === 'Escape') { w.remove(); document.removeEventListener('keydown', esc2); } });
+  }
+  function condEmail(opts) {
+    opts = opts || {};
+    var s = drafts.commit, L = condLists(); if (opts.needOnly) L = {need: L.need.filter(function (c) { return !condInternal(c); }), got: []}; var first = (s.borrowers || []).map(function (b) { return String(b && typeof b === 'object' ? b.name || '' : b || '').trim().split(/\s+/)[0]; }).filter(Boolean);
     var line = function (c, mark) { return mark + ' ' + (c.cat ? c.cat + ' - ' : '') + B.commit.fill(c.text) + (s.showNotes !== false && c.note ? '\n      Note: ' + c.note : ''); };
     var where = s.address ? ' for ' + s.address + (s.city ? ', ' + s.city : '') : '';
     var subject = 'Loan conditions' + (s.loanNumber ? ' - loan ' + s.loanNumber : '') + where + (L.need.length ? ' (' + L.need.length + ' still needed)' : ' (all received)');
@@ -1386,7 +1449,7 @@
     var s = drafts.commit;
     if (replace) s.conditions = L.concat(s.conditions.filter(function (c) { return c.lib && c.on; }));
     else L.forEach(function (c) { if (!s.conditions.some(function (x) { return x.text === c.text && x.cat === c.cat; })) s.conditions.push(c); });
-    ta.value = ''; persist(); scheduleVersion('commit'); renderForm(); refresh();
+    ta.value = ''; persist(); scheduleVersion('commit'); renderForm(); refresh(); setTimeout(condPopup, 200);
     say(L.length + ' conditions ' + (replace ? 'in place' : 'added') + ' (' + L.filter(function (c) { return c.on; }).length + ' kept for the borrower, ' + L.filter(function (c) { return c.done; }).length + ' already received). Untick any you do not want in the letter.');
   }
   function parseApproval(text) {
@@ -1448,6 +1511,14 @@
     if (!o.impounds) o.impounds = line(/^(Not\s*Waived|Waived)$/i);
     if (!o.impoundType) o.impoundType = line(/^(Taxes\s*(?:and|&)\s*Insurance|Taxes\s*Only|Insurance\s*Only)$/i);
     if (o.lockExpires && !/\d/.test(o.lockExpires)) o.lockExpires = '';
+    /* 57.8: NMLS numbers - "Sal Rizzolo, NMLS ID 1489171" (the loan officer) and "New American Funding, LLC, NMLS #6606" (the company) - and the
+       underwriter's name when OCR puts it on the line after "Underwriter Name:" */
+    var nm2, NM = /([A-Z][A-Za-z.'-]+(?:[ \t]+[A-Z][A-Za-z.'-]+){0,4})[,\s]+NMLS[ \t]*(?:ID|#|No\.?)?[ \t]*:?[ \t]*#?[ \t]*(\d{3,10})/g;
+    while ((nm2 = NM.exec(T))) { var who = nm2[1].trim(), num = nm2[2];
+      if (/\b(LLC|L\.L\.C|Inc|Corp|Corporation|Company|Bank|Mortgage|Funding|Lending|Financial|Bankers|Group)\b\.?$/i.test(who)) { if (!o.nmls) o.nmls = num; }
+      else if (!o.loNmls && !/^(Telephone|Phone|Fax|Loan|Address)/i.test(who)) { o.loNmls = num; if (!o.loNmlsName && /^[A-Z][a-z]+ [A-Z]/.test(who)) o.loNmlsName = who.split(/\s+/).slice(-3).join(' '); } }
+    if (!o.nmls) o.nmls = g(/Company[ \t]*NMLS[ \t]*(?:ID|#)?[ \t]*:?[ \t]*#?[ \t]*(\d{3,10})/i); if (!o.loNmls) o.loNmls = g(/(?:Loan[ \t]*Officer|LO|Originator)[ \t]*NMLS[ \t]*(?:ID|#)?[ \t]*:?[ \t]*#?[ \t]*(\d{3,10})/i);
+    if (!o.underwriter) { var un = T.match(/Underwriter(?:\s*Name)?\s*:?\s*\n?\s*([A-Z][a-z'.-]+(?:\s[A-Z][a-z'.-]*\.?)?\s[A-Z][A-Za-z'.-]+)(?=\s*(?:\n|$|Date|Processor|Underwriter))/); if (un && !/^(Date|Processor|Signature|Approved)/.test(un[1])) o.underwriter = un[1].trim(); }
     var marks = [], m; COND_HEAD.lastIndex = 0; while ((m = COND_HEAD.exec(T))) marks.push({i: m.index, end: m.index + m[0].length, code: m[2].toUpperCase()});
     marks.forEach(function (k, n) {
       var chunk = T.slice(k.end, n + 1 < marks.length ? marks[n + 1].i : T.length)
@@ -1503,6 +1574,7 @@
     set('docType', o.docType && o.docType.replace(/FullDocumentation/i, 'Full Documentation')); set('impoundType', o.impoundType); if (o.lockExpires) s.lockExpires = iso(parseDate(o.lockExpires));
     if (o.program) s.program = o.program; if (o.lenderName) s.company = o.lenderName; if (o.companyAddr1) { s.companyAddr1 = o.companyAddr1; s.companyAddr2 = o.companyAddr2; }
     if (o.lenderContact) s.lo = o.lenderContact; if (o.lenderPhone && !s.loPhone) s.loPhone = o.lenderPhone; if (o.lenderPhone && !s.phone) s.phone = o.lenderPhone;
+    if (o.nmls) s.nmls = o.nmls; if (o.loNmls) s.loNmls = o.loNmls; if (o.loNmlsName && !o.lenderContact) s.lo = o.loNmlsName; if (o.underwriter) s.underwriter = o.underwriter;
     profileFill(s);
     if (o.street) { s.address = o.street; s.city = o.city || s.city; s.state = stateName(o.state || s.state); s.zip = o.zip || s.zip; }
     if (o.amount && o.rate && o.term) { var L = N(o.amount), r = N(o.rate) / 1200, n = N(o.term); if (L && r && n) s.payment = (L * r / (1 - Math.pow(1 + r, -n))).toFixed(2); }
@@ -2069,24 +2141,56 @@
      business-access letters. Drop the approval (or paste its conditions) to list every explanation it asks for; drop a
      bank statement or a credit report to fill the deposits or inquiries. */
   /* 57.6: formatting for the letter builders - font, size, spacing, no bold, letter case, justified text */
-  var FMT_FONTS = [['', 'Layout default'], ['Calibri, Carlito, "Segoe UI", Arial, sans-serif', 'Calibri'], ['Arial, Helvetica, sans-serif', 'Arial'], ['"Times New Roman", Times, serif', 'Times New Roman'], ['Georgia, serif', 'Georgia'], ['Garamond, "EB Garamond", Georgia, serif', 'Garamond'], ['Verdana, Geneva, sans-serif', 'Verdana'], ['"Courier New", Courier, monospace', 'Courier']];
+  /* 57.6 / 57.8: formatting for the letter builders - font, size, spacing, bold and italics (all / none), letter case, underlines, alignment */
+  var FMT_FONTS = [['', 'Layout default'], ['"Times New Roman", Times, serif', 'Times New Roman (classic CPA letter)'], ['Garamond, "EB Garamond", Georgia, serif', 'Garamond'], ['"Book Antiqua", "Palatino Linotype", Palatino, serif', 'Book Antiqua / Palatino'],
+    ['Cambria, Georgia, serif', 'Cambria'], ['Georgia, serif', 'Georgia'], ['Calibri, Carlito, "Segoe UI", Arial, sans-serif', 'Calibri'], ['Arial, Helvetica, sans-serif', 'Arial'], ['Verdana, Geneva, sans-serif', 'Verdana'], ['"Courier New", Courier, monospace', 'Courier']];
   function fmtFields(b) {
+    var s = drafts[b]; if (s.fNoBold && !s.fWeight) s.fWeight = 'none'; if (s.fNoItalic && !s.fItal) s.fItal = 'none';
     return '<fieldset><legend>Formatting</legend><div class="g">' + field(b, 'fFont', 'Font', {type: 'select', options: FMT_FONTS}) + field(b, 'fSize', 'Text size', {type: 'select', options: [['', 'Layout default'], ['9.5', '9.5 pt'], ['10', '10 pt'], ['10.5', '10.5 pt'], ['11', '11 pt'], ['11.5', '11.5 pt'], ['12', '12 pt'], ['13', '13 pt'], ['14', '14 pt']]}) +
       field(b, 'fLine', 'Line spacing', {type: 'select', options: [['', 'Layout default'], ['1.15', 'Tight (1.15)'], ['1.35', 'Normal (1.35)'], ['1.5', '1.5 lines'], ['1.8', 'Loose (1.8)'], ['2', 'Double']]}) +
-      field(b, 'fCase', 'Letter case', {type: 'select', options: [['', 'As typed'], ['lower', 'all lowercase'], ['upper', 'ALL UPPERCASE'], ['title', 'Title Case Every Word']]}) +
-      field(b, 'fAlign', 'Paragraphs', {type: 'select', options: [['', 'Left aligned'], ['justify', 'Justified'], ['center', 'Centered']]}) + field(b, 'fNoBold', 'Remove all bold', {type: 'check'}) + field(b, 'fNoItalic', 'Remove all italics', {type: 'check'}) + '</div></fieldset>';
+      field(b, 'fWeight', 'Bold', {type: 'select', options: [['', 'As designed'], ['none', 'None - remove all bold'], ['bold', 'All bold']]}) + field(b, 'fItal', 'Italics', {type: 'select', options: [['', 'As designed'], ['none', 'None - remove all italics'], ['italic', 'All italic']]}) +
+      field(b, 'fCase', 'Letter case', {type: 'select', options: [['', 'As typed'], ['sentence', 'Sentence case - proper grammar (names kept)'], ['lower', 'all lowercase'], ['upper', 'ALL UPPERCASE'], ['title', 'Title Case Every Word'], ['smallcaps', 'Small Caps']]}) +
+      field(b, 'fAlign', 'Paragraphs', {type: 'select', options: [['', 'Left aligned'], ['justify', 'Justified'], ['center', 'Centered']]}) + field(b, 'fNoUnder', 'Remove all underlines', {type: 'check'}) + '</div></fieldset>';
   }
   function fmtCss(s) {
-    var c = [];
+    var c = [], wt = s.fWeight || (s.fNoBold ? 'none' : ''), it = s.fItal || (s.fNoItalic ? 'none' : '');
     if (s.fFont) c.push('.pg,.pg *{font-family:' + s.fFont + '!important}');
     if (N(s.fSize)) c.push('.pg p,.pg li,.pg td,.pg div{font-size:' + N(s.fSize) + 'pt}');
     if (N(s.fLine)) c.push('.pg p,.pg li{line-height:' + N(s.fLine) + '!important}');
-    if (s.fNoBold) c.push('.pg *{font-weight:400!important}');
-    if (s.fNoItalic) c.push('.pg *{font-style:normal!important}');
-    if (s.fCase) c.push('.pg .fitw{text-transform:' + ({lower: 'lowercase', upper: 'uppercase', title: 'capitalize'}[s.fCase]) + '}');
+    if (wt) c.push('.pg *{font-weight:' + (wt === 'bold' ? 700 : 400) + '!important}');
+    if (it) c.push('.pg *{font-style:' + (it === 'italic' ? 'italic' : 'normal') + '!important}');
+    if (s.fNoUnder) c.push('.pg *{text-decoration:none!important}.pg u{text-decoration:none!important}');
+    if (s.fCase && s.fCase !== 'sentence') c.push('.pg .fitw{' + (s.fCase === 'smallcaps' ? 'font-variant:small-caps' : 'text-transform:' + ({lower: 'lowercase', upper: 'uppercase', title: 'capitalize'}[s.fCase])) + '}');
     if (s.fAlign) c.push('.pg p{text-align:' + s.fAlign + '}');
     return c.join('');
   }
+  /* 57.8: sentence case with proper grammar - every sentence starts with a capital, "I" stays capital, and the names, places,
+     months, days and acronyms in the letter keep their own capitals */
+  function sentenceCase(html, s) {
+    var keep = [];
+    var add = function (v) { String(v || '').split(/[,\n]| and | & /).forEach(function (x) { x = x.trim(); if (x.length > 1) keep.push(x); x.split(/\s+/).forEach(function (w) { if (/^[A-Z]/.test(w) && w.length > 1) keep.push(w.replace(/[.,;:]$/, '')); }); }); };
+    ['borrowers', 'clients'].forEach(function (k) { names(s[k]).forEach(add); });
+    ['signer', 'biz', 'biz2', 'firm', 'prepName', 'address', 'city', 'state', 'county', 'lender', 'company', 'bizAddr', 'employer', 'landlord', 'exName', 'grantee', 'business', 'currentAddr', 'firmAddr1', 'firmAddr2', 'clientAddr'].forEach(function (k) { if (typeof s[k] === 'string' && /[A-Z]/.test(s[k])) add(s[k]); });
+    keep = keep.concat(['January', 'February', 'March', 'April', 'June', 'July', 'August', 'September', 'October', 'November', 'December', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday', 'Schedule C', 'Schedule E', 'Form', 'LLC', 'CPA', 'EA', 'PTIN', 'NMLS', 'SSN', 'IRS', 'FHA', 'VA', 'USDA', 'HUD', 'EMD', 'HOA', 'RE', 'U.S.', 'Inc.', 'Corp.']);
+    keep = keep.filter(function (w, i) { return keep.indexOf(w) === i; }).sort(function (x, y) { return y.length - x.length; });
+    var res = keep.map(function (w) { return [new RegExp('(^|[^A-Za-z])' + w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?=[^A-Za-z]|$)', 'gi'), w]; });
+    var start = true;
+    return html.replace(/(<[^>]+>)|([^<]+)/g, function (all, tag, text) {
+      if (tag) { if (/^<\/?(p|li|h\d|div|td|br)\b/i.test(tag)) start = true; return tag; }
+      if (!/[A-Za-z]/.test(text)) return text;
+      var out = text.toLowerCase().replace(/(&[a-z]+;|&#\d+;)/g, function (e) { return e; });
+      out = out.replace(/([.!?]\s+)([a-z])/g, function (m0, p, ch) { return p + ch.toUpperCase(); });
+      if (start) out = out.replace(/^([^a-z]*?)([a-z])/, function (m0, p, ch) { return /&[a-z]*$/.test(p) ? m0 : p + ch.toUpperCase(); });
+      out = out.replace(/\bi\b/g, 'I');
+      res.forEach(function (r) { out = out.replace(r[0], function (m0, p) { return p + r[1]; }); });
+      var lower = (text.match(/[a-z]/g) || []).length, upper = (text.match(/[A-Z]/g) || []).length;
+      if (lower > upper) (text.match(/\b[A-Z][A-Z0-9&]{1,5}\b/g) || []).forEach(function (w) { out = out.replace(new RegExp('\\b' + w.toLowerCase().replace(/&/g, '\\&') + '\\b'), w); });
+      out = out.replace(/\bmay(?=,? \d)|(\d(?:st|nd|rd|th)?(?: of)? )may\b/g, function (m0, p) { return (p || '') + 'May'; });
+      start =/[.!?:]\s*$/.test(text);
+      return out;
+    });
+  }
+  function caseHtml(body, s) { return s.fCase === 'sentence' ? sentenceCase(body, s) : body; }
   var LOX_STYLES = [['plain', 'Plain letter - "To Whom It May Concern"'], ['re', 'Letter with RE: line - borrower, property, loan number'], ['formal', 'Formal - sender address, lender, signature lines'], ['table', 'Modern - details table and lists as tables']];
   var LOX_COLS = {
     deposits: [['date', 'Date'], ['amount', 'Amount'], ['account', 'Account (bank, last 4)'], ['source', 'Source of the funds']],
@@ -2206,7 +2310,7 @@
       else if (st === 'formal') { var sender = (s.borrowers || []).map(function (p) { return typeof p === 'object' ? p : {name: p}; }).filter(function (p) { return p.name; }); body = lg + '<div class="lxf">' + sender.map(function (p) { return '<div><b>' + esc(p.name) + '</b>' + (p.mail ? '<br>' + esc(p.mail) : '') + '</div>'; }).join('') + '</div>' + date + (s.lender ? '<p>' + esc(s.lender) + '<br>Underwriting Department</p>' : '') + re + hi + paras + sig; }
       else if (table) body = lg + '<h1 class="lxti">Letter of Explanation</h1><table class="lxk"><tr><th>Date</th><td>' + esc(when(s.date, slashDate)) + '</td></tr><tr><th>Subject</th><td>' + esc(subj) + '</td></tr>' + (bor.length ? '<tr><th>Borrower' + (bor.length > 1 ? 's' : '') + '</th><td>' + esc(bor.join(' & ')) + '</td></tr>' : '') + (pa ? '<tr><th>Property</th><td>' + pa + '</td></tr>' : '') + (s.loanNumber ? '<tr><th>Loan #</th><td>' + esc(s.loanNumber) + '</td></tr>' : '') + '</table>' + hi + paras + sig;
       else body = lg + date + hi + paras + sig;
-      return page(st === 'table' ? 'ari' : 'cal', body, CSS_LOX + fmtCss(s));
+      return page(st === 'table' ? 'ari' : 'cal', caseHtml(body, s), CSS_LOX + fmtCss(s));
     }
   };
   var CSS_LOX = 'p{margin:0 0 .16in;line-height:1.45}.lxh{margin-top:.18in}ul.lxl{margin:-.06in 0 .16in .3in;padding:0}ul.lxl li{margin:0 0 4px;line-height:1.4}table.lxr{border-collapse:collapse;margin:.12in 0 .1in}table.lxr td{padding:1px 10px 1px 0;vertical-align:top}table.lxr td:first-child{font-weight:700;white-space:nowrap}' +
@@ -2364,7 +2468,7 @@
         body = '<div class="cpbr">' + (lg || '') + '<div><b>' + esc(s.firm || '') + '</b><div class="cpm">' + [s.firmAddr1, s.firmAddr2, s.firmPhone].filter(Boolean).map(esc).join(' &middot; ') + '</div></div></div><p>' + esc(when(s.date)) + '</p>' + hello +
           '<p>' + L.map(esc).join(' ') + '</p>' + disc + bye + sig;
       }
-      return page(st === 'certify' || st === 'transmittal' || st === 'split' ? 'tnr' : st === 'sideband' ? 'geo' : 'cal', body, CSS_CPA + fmtCss(s));
+      return page(st === 'certify' || st === 'transmittal' || st === 'split' ? 'tnr' : st === 'sideband' ? 'geo' : 'cal', caseHtml(body, s), CSS_CPA + fmtCss(s));
     }
   };
   var CSS_CPA = 'p{margin:0 0 .14in;line-height:1.42}.cph{font-weight:700;margin-top:.15in}.cps{border-bottom:1px solid #000;width:2.8in;height:34px;margin:.06in 0 3px}.cpm{font-size:9pt;color:#444}.cpd{font-size:9.5pt;color:#333}' +
@@ -2391,7 +2495,7 @@
   }
 
   var ORDER = ['addendum', 'lease', 'estimate', 'pl', 'schc', 'pay', 'gift', 'le', 'commit', 'lox', 'cpa', 'mi'];
-  var RERENDER = {fFont: 0, listSet: 1, listFmt: 1, listGroup: 1, listDone: 1, showPay: 1, drawCustom: 1, style: 1, leaseType: 1, program: 1, concOnTop: 1, ttOn: 1, renoOn: 0, payType: 1, state: 1, locality: 1, ytdMode: 1, logoSize: 0, type: 1, oSource: 0, oPrice: 1};
+  var RERENDER = {fFont: 0, fWeight: 0, fItal: 0, listSet: 1, listFmt: 1, listGroup: 1, listDone: 1, showPay: 1, drawCustom: 1, style: 1, leaseType: 1, program: 1, concOnTop: 1, ttOn: 1, renoOn: 0, payType: 1, state: 1, locality: 1, ytdMode: 1, logoSize: 0, type: 1, oSource: 0, oPrice: 1};
   function mount() {
     if ($('mtB')) return;
     if (!$('mtBcss')) { var st = document.createElement('style'); st.id = 'mtBcss'; st.textContent = CSS; document.head.appendChild(st); }
@@ -2409,6 +2513,7 @@
     f.scrollTop = st;
     if (key) { var el = Array.prototype.filter.call(f.querySelectorAll('input,select,textarea'), function (x) { return ['b', 'k', 'list', 'i', 'f', 'cond'].map(function (a) { return x.getAttribute('data-' + a) || ''; }).join('|') === key; })[0]; if (el) { el.focus(); try { if (el.setSelectionRange && el.type === 'text') el.setSelectionRange(el.value.length, el.value.length); } catch (e) {} } }
     if (B[cur].side) B[cur].side();
+    if (cur === 'commit') condInd();
     restoreStatus();
     if (window.MTAddr) [].forEach.call(f.querySelectorAll('[data-addr],[data-addr-line],[data-addr-pair],[data-addr-item]'), function (el) { MTAddr.attach(el, {onPick: function (a) { addrPick(el, a); }}); });
   }
@@ -2431,10 +2536,13 @@
     rT = 0; var fr = $('mtBframe'); if (!fr) return settle();
     if (editing) { editDirty = true; if (B[cur].side) B[cur].side(); return settle(); }
     var y = 0; try { y = fr.contentWindow.scrollY; } catch (e) {}
-    rendering = true;
-    fr.onload = function () { fit(true); try { fr.contentWindow.scrollTo(0, y); } catch (e) {} rendering = false; settle(); };
-    fr.srcdoc = B[cur].doc(drafts[cur]);
-    if (B[cur].side) B[cur].side();
+    /* 57.8: a layout that throws, or a preview that never finishes loading, no longer leaves Print / PDF waiting forever */
+    var html; try { html = B[cur].doc(drafts[cur]); } catch (e) { html = '<!doctype html><body style="font:14px system-ui;padding:30px;color:#a00">This document could not be drawn (' + esc(e && e.message || e) + '). Check the last field you changed.</body>'; try { console.error(e); } catch (e2) {} }
+    rendering = true; clearTimeout(render.guard);
+    render.guard = setTimeout(function () { if (rendering) { rendering = false; settle(); } }, 8000);
+    fr.onload = function () { clearTimeout(render.guard); try { fit(true); fr.contentWindow.scrollTo(0, y); } catch (e) {} rendering = false; settle(); };
+    fr.srcdoc = html;
+    try { if (B[cur].side) B[cur].side(); } catch (e) { try { console.error(e); } catch (e2) {} }
   }
   function refresh(now) { clearTimeout(rT); rT = setTimeout(render, now ? 0 : 180); }
   function ready() { return new Promise(function (res) { waiters.push(res); if (rT) { clearTimeout(rT); render(); } else settle(); }); }
@@ -2570,7 +2678,7 @@
   window.addEventListener('resize', function () { if ($('mtB') && $('mtB').classList.contains('open')) fit(false); });
   function setVal(t, ev) {
     var b = t.getAttribute('data-b'), v = t.type === 'checkbox' ? t.checked : t.value;
-    if (t.hasAttribute('data-cond')) { var c = drafts.commit.conditions.filter(function (x) { return x.id === t.getAttribute('data-cond'); })[0]; if (c) { c[t.getAttribute('data-f')] = v; if (t.getAttribute('data-f') === 'stage') c.group = stageGroup(v); if (t.getAttribute('data-f') === 'group' || t.getAttribute('data-f') === 'on' || t.getAttribute('data-f') === 'stage' || t.getAttribute('data-f') === 'internal' || (t.getAttribute('data-f') === 'done' && drafts.commit.listOpen)) { persist(); renderForm(); } } persist(); refresh(); return; }
+    if (t.hasAttribute('data-cond')) { var c = drafts.commit.conditions.filter(function (x) { return x.id === t.getAttribute('data-cond'); })[0]; if (c) { c[t.getAttribute('data-f')] = v; if (t.getAttribute('data-f') === 'stage') c.group = stageGroup(v); var cf = t.getAttribute('data-f'); if (cf === 'group' || cf === 'stage') { persist(); renderForm(); } else if (cf === 'on' || cf === 'done' || cf === 'internal') condLive(); } persist(); refresh(); return; }
     if (!b || !drafts[b]) return;
     /* lease sections: included or not, a new heading, new wording */
     if (t.hasAttribute('data-sec')) {
@@ -2639,6 +2747,7 @@
       /* the calendar fills the typed date box next to it */
       if (t.classList.contains('pk')) { var box = t.parentNode.querySelector('input[data-fdate]'); if (box && t.value) { box.value = dateFromPicker(t.value); setVal(box); } return; }
       if (t.id === 'mtBpreset') return;
+      if (a === 'condCat') return condAct(a, t);
       if (t.hasAttribute('data-fdate')) { var rd = relDate(t.value); if (rd) { t.value = dateFromPicker(iso(rd)); setVal(t); } return; }
       if (a === 'fillFrom') { var fv = t.value; t.value = ''; refillFrom(fv); fillFromMenu(); return; }
       if (a === 'layoutSel' || a === 'marginSel') { savePref(a === 'layoutSel' ? LAYOUT_KEY : MARGIN_KEY, t.value); if (a === 'layoutSel' && t.value === 'pages') savePref('mt.builder.fit', '0'); pageEdit(false); refresh(true); return; }
@@ -2793,6 +2902,8 @@
     else if (a === 'condBorrower') L.forEach(function (c) { c.on = !/^(Funder|Post\s*Closer|Approval|Disclosures|Escrow|Title|Closing\s*Agent)/i.test(c.cat) && !/^(Underwriter|Funder|UW\b|Reno\s*Funder|Processor)/i.test(c.text); });
     else if (a === 'condLib') COND_LIB.forEach(function (c) { if (!L.some(function (x) { return x.text === c[2]; })) L.push({id: uid(), group: c[0], cat: c[1], text: c[2], on: true, lib: true}); });
     else if (a === 'condList') { s.listOpen = true; }
+    else if (a === 'condCat') { var ck = t.checked, kk = t.getAttribute('data-cat'); L.forEach(function (c) { if (inCat(c, kk)) c.on = ck; }); persist(); refresh(); condLive(); return; }
+    else if (a === 'condPop') { condPopup(); return; }
     else if (a === 'condIntOff' || a === 'condExtOff' || a === 'condIntOn' || a === 'condExtOn') { var wantInt = /Int/.test(a), on = /On$/.test(a); L.forEach(function (c) { if (condInternal(c) === wantInt) c.on = on; }); }
     else if (a === 'condDoneAll') L.forEach(function (c) { if (c.on) c.done = true; });
     else if (a === 'condDoneNone') L.forEach(function (c) { c.done = false; });
@@ -3009,7 +3120,7 @@
         if (M.renoCost) s5.renoOn = true;
         done(g5, 'document');
       } else {
-        var o2 = applyApproval(parseApproval(text)); persist(); pageEdit(false); renderForm(); refresh(true);
+        var o2 = applyApproval(parseApproval(text)); persist(); pageEdit(false); renderForm(); refresh(true); if (o2.conds.length) setTimeout(condPopup, 300);
         var on = o2.conds.filter(function (c) { return c.on; }).length;
         status(sid, o2.conds.length || o2.amount ? 'Read from ' + esc(fl.name) + ': ' + (o2.amount ? 'loan ' + usd(o2.amount) + ', ' : '') + (o2.b1 ? esc(joinNames([o2.b1, o2.b2])) + ', ' : '') + o2.conds.length + ' conditions (' + on + ' kept; lender-internal items such as funder and disclosure tasks are unticked). Review each before printing.' : 'No approval terms were recognised in ' + esc(fl.name) + '.', o2.conds.length ? 'ok' : 'warn');
       }

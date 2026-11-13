@@ -132,7 +132,7 @@
 - **Address suggestions match known addresses instantly:** the loan file's property, the document builders' properties, addresses picked before and full addresses typed into an address box are matched on every keystroke without waiting for the network (tagged "Loan file", "Document builder", "Used before", "Typed before"); OpenStreetMap results join them, now after 0.2 seconds and from the third character.
 - The MI & renovation worksheet's program is a typeable box (FHA, FHA 203(k), Conventional, HomeStyle, VA, USDA or anything else). Choices that drive a calculation - pay frequency, filing status, the state tax table, lease type and each builder's style - stay as lists.
 
-## 2026-11-12 - everything released today (56.6 to 57.7)
+## 2026-11-12 - everything released today (56.6 to 57.8)
 
 The release entries below have the details. In short:
 
@@ -157,6 +157,7 @@ The release entries below have the details. In short:
 - **57.5 - scanned approvals and two new builders:** multi-page scanned approvals read in full (OCR headings and grid); company, NMLS and contact details remembered and suggested; letter of explanation builder (21 kinds, approval / bank statement / credit report drops); CPA / tax preparer letter builder (5 styles with logo).
 - **57.6 - hotfix:** scanned PDFs read on every page. Choosing a PDF no longer swaps the real reader for a text-only one, and the original scanned pictures are OCR'd directly.
 - **57.7 - navigation and tools:** "All pages" in the top bar instead of the bottom bar; Full Suite Simple opens Documents / Rates / Property / Max mortgage below on demand; property details (flood zone, census tract, building data); recent borrower names; letter formatting options; three more CPA styles; contractor labor / materials split.
+- **57.8 - hotfix:** the bottom-right page bar is back (the top-bar "All pages" is removed); faster condition ticking, 203(k) / HomeStyle / income / asset / credit / property check boxes and a borrower email pop-up; loan officer / company NMLS and underwriter read from approvals; property sites side by side with a map in the panel; more dates in words; bold / italic all or none, CPA fonts, sentence case and small caps, remove underlines; OCR and document timeouts.
 - **Behind the scenes, with no change to the site on their own:**
   - The 56.5 calculation was recovered into readable TypeScript (src/) and gives identical results on 3,000 scenarios.
   - Engine fixes D1-D5 were written with tests.
@@ -372,6 +373,34 @@ The release entries below have the details. In short:
 - **Contractor estimate, labor / materials split:** re-split every line by a labor % (labor typically 60-75%, materials 25-40%), or add a lump-sum total as a split line. The current labor / materials share is shown.
 - **Cache keys:** the Simple-screen bundles' cache keys now include a hash of their content, since quote-embed.js had a fixed ?v=57.9.
 - Asset version 57.7.
+
+## Release 57.8 - bottom navigation back, faster conditions with a borrower email, side-by-side property sites, letter formatting (hotfix)
+
+- **Navigation:** the bottom-right bar is back on every page (Home, All pages, Doc Organizer, Income, Full Suite). The "All pages" button and slide-out row in the top bar (57.7) are removed. The Documents page keeps its 57.7 header.
+- **Commitment conditions:**
+  - **Faster ticking:** ticking a condition kept, received or internal updates the count, the category boxes and the list in place, without redrawing every row.
+  - **Category boxes:** check or uncheck all 203(k), HomeStyle, Income, Assets, Credit or Property conditions at once. Each box shows how many conditions it covers and a partial state when only some are kept.
+  - **Borrower email pop-up:** a "Borrower email (pop-up)" button, which also opens on its own after an approval is dropped or a conditions list or spreadsheet is pasted. It has To / Cc / Subject, an "Include received items" choice and editable text. Its buttons are "Copy email text", "Copy with check boxes (Outlook / Gmail)" and "Open in email program".
+  - **Kept out of the borrower email:** conditions such as "File must be underwritten by…" now count as internal.
+- **Approval OCR:** the loan officer's name and NMLS ID, the company NMLS #, and the underwriter's name (also when it is on the line after "Underwriter Name:") are read and filled in.
+- **Property details, side by side:**
+  - Zillow, Redfin, Realtor.com, Google and the FEMA map open in a window docked to the right half of the screen, and the details panel moves left so data can be typed in beside the listing. Those sites refuse to be shown inside another page.
+  - "Map (here)" shows a satellite map inside the panel.
+  - Flood, census and building lookups give up after 12 seconds instead of hanging.
+- **Dates in words, in every date box:**
+  - Counting back from today: "5 years ago today", "5 years" (= 5 years ago).
+  - A day in a counted year: "5 years ago on January 1st", "January 1st, 5 years ago", "five years ago on the 1st of January".
+  - A day this, next or last year: "March 3 of last year", "the 4th of July next year", "in 2 years from now on July 4".
+  - Weekdays: "next Friday", "last Monday".
+- **Letters of explanation and CPA letters, formatting:**
+  - **Bold and italics:** each is As designed, None, or All.
+  - **Fonts a CPA would use:** Times New Roman, Garamond, Book Antiqua / Palatino, Cambria, Georgia, Calibri, Arial, Verdana and Courier.
+  - **Two more letter cases:** Sentence case (proper grammar: sentences start with a capital, and names, places, months, "I" and abbreviations such as NY, LLC and CPA keep their capitals) and Small Caps.
+  - **Remove all underlines.**
+- **Hang protection:**
+  - **OCR:** a page that stalls the engine is given up after 75 seconds; the engine restarts and the next page goes on.
+  - **Documents:** a document that fails to draw shows a message instead of leaving Print / PDF waiting, and the preview stops waiting after 8 seconds.
+- Asset version 57.8.
 
 ## Release 55.14b - self-employment, rental and more of the income worksheet; one look across the pages
 
