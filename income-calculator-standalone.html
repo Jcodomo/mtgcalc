@@ -4067,7 +4067,7 @@ function nmbLoad(){
   if (window.NMBReport && window.NMB_TEMPLATE) return Promise.resolve(true);
   if (nmbLoad.p) return nmbLoad.p;
   const add = src => new Promise(res => { const s=document.createElement('script'); s.src=src; s.onload=()=>res(true); s.onerror=()=>res(false); document.head.appendChild(s); });
-  return nmbLoad.p = add('assets/nmb-template.js?v=57.11').then(a => add('assets/nmb-report.js?v=57.11').then(b => a && b));
+  return nmbLoad.p = add('assets/nmb-template.js?v=57.12').then(a => add('assets/nmb-report.js?v=57.12').then(b => a && b));
 }
 function buildReportPages(){
   const pages = [];
@@ -11767,7 +11767,7 @@ window.MTData=M;})();
 (function () {
   'use strict';
   if (window.MTBuild) return;
-  var SRC = (document.currentScript && document.currentScript.src || '').replace(/mt-build-lazy\.js[^]*$/, '') + 'doc-builder.js?v=57.11';
+  var SRC = (document.currentScript && document.currentScript.src || '').replace(/mt-build-lazy\.js[^]*$/, '') + 'doc-builder.js?v=57.12';
   var ORDER = [['addendum', 'Addendum'], ['lease', 'Lease agreement'], ['estimate', 'Contractor estimate'], ['pl', 'Profit and loss'], ['schc', 'Schedule C analysis'], ['pay', 'Pay statement'], ['gift', 'Gift letter'], ['le', 'Loan Estimate draft'], ['commit', 'Commitment letter'], ['lox', 'Letter of explanation'], ['cpa', 'CPA / tax preparer letter'], ['mi', 'MI & renovation fees']];
   var loading = null, stub;
   function load() {

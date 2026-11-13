@@ -132,7 +132,7 @@
 - **Address suggestions match known addresses instantly:** the loan file's property, the document builders' properties, addresses picked before and full addresses typed into an address box are matched on every keystroke without waiting for the network (tagged "Loan file", "Document builder", "Used before", "Typed before"); OpenStreetMap results join them, now after 0.2 seconds and from the third character.
 - The MI & renovation worksheet's program is a typeable box (FHA, FHA 203(k), Conventional, HomeStyle, VA, USDA or anything else). Choices that drive a calculation - pay frequency, filing status, the state tax table, lease type and each builder's style - stay as lists.
 
-## 2026-11-12 - everything released today (56.6 to 57.11)
+## 2026-11-12 - everything released today (56.6 to 57.12)
 
 The release entries below have the details. In short:
 
@@ -161,6 +161,7 @@ The release entries below have the details. In short:
 - **57.9 - property links:** Redfin goes to the property page; FEMA map opens the current flood viewer with the address copied.
 - **57.10 - Property page and signatures:** a Property page (on every page's bottom bar) with public records for New York, New Jersey, Florida and the big California counties beside Street View, satellite and flood maps; a signature maker (20 handwriting styles, drawn, PNG / SVG / photo, initials) and signatures with an e-signature frame option on every document builder's signature lines.
 - **57.11 - handwriting pen:** our own pen engine writes typed text by hand (20 styles traced to single pen strokes) with speed, legibility, stroke width, opacity, sloppiness, fade and uneven-ink controls; PNG or vector SVG; a Handwriting page.
+- **57.12 - PNG / SVG to signature:** any PNG, SVG, JPG or photo becomes a signature with no background (background colour found automatically, specks cleaned, ink recolourable), from the builder's Signatures section.
 - **Behind the scenes, with no change to the site on their own:**
   - The 56.5 calculation was recovered into readable TypeScript (src/) and gives identical results on 3,000 scenarios.
   - Engine fixes D1-D5 were written with tests.
@@ -461,6 +462,18 @@ The release entries below have the details. In short:
 - **Type tab:** the same ink controls (opacity, faded, uneven ink) on all 20 typed styles.
 - **The calligrapher-ai DLL:** not decompiled or used. It holds Sean Vasquez's handwriting model, which is published without a licence.
 - Asset version 57.11.
+
+## Release 57.12 - PNG and SVG files to signatures with no background
+
+- **From a file, rebuilt:** any PNG, SVG, JPG or photo becomes a signature with a transparent background, cropped close.
+  - **Background found automatically:** the colour is read from the picture's edges - white paper, cream or grey scans, a coloured fill, an SVG's background rectangle - and removed with soft edges. A picture that is already transparent is kept as it is.
+  - **Background choices:** remove the background (automatic), keep only the dark ink, or keep the picture as it is.
+  - **Controls:** a removal-strength slider; "Clean up specks" removes dust and scanner noise while keeping the dots of i and j; an ink choice (as in the file, black, blue or navy). Light ink on a dark background is pointed out, so an ink colour can be chosen.
+  - **Loading a file:** choose one, drop it on the preview, or paste an image or SVG code (Ctrl+V). An SVG without a set size keeps its proportions.
+  - **Preview:** on a checkerboard so the transparency shows, with the background colour found and the signature's size.
+- **Document Builder:** every Signatures section has an "Add a PNG / SVG signature…" button that opens straight into this.
+- **Tested** with a cream scan with specks, an SVG with a white background rectangle, an already-transparent PNG, and white ink on black: each came out with a transparent background and the ink kept.
+- Asset version 57.12.
 
 ## Release 55.14b - self-employment, rental and more of the income worksheet; one look across the pages
 

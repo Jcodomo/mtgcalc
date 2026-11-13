@@ -223,7 +223,7 @@
   /* ------------------------------------------------------------------ the dialog */
   var dlg = null, opts = {}, st = {tab: 'pen', penFont: 0, penText: '', speed: 6, legib: 7, width: 3, op: 92, sloppy: 3, fade: 3, uneven: 3, penSlant: 4, tOp: 100, tFade: 0, tUneven: 0, stype: 'signature', rmbg: true, font: 0, ink: INKS[0][0], slant: 6, weight: 0.6, vary: 4, size: 1, flourish: '', seed: 7, initials: false, pen: 3, thr: 190, upInk: 'keep'};
   try { var keep = JSON.parse(localStorage.getItem('mt.sign.prefs') || 'null'); if (keep) Object.keys(keep).forEach(function (k) { if (k in st && k !== 'tab') st[k] = keep[k]; }); } catch (e) {}
-  function prefs() { try { var p = {}; ['font', 'ink', 'slant', 'weight', 'vary', 'size', 'flourish', 'pen', 'thr', 'upInk', 'penFont', 'speed', 'legib', 'width', 'op', 'sloppy', 'fade', 'uneven', 'penSlant', 'tOp', 'tFade', 'tUneven'].forEach(function (k) { p[k] = st[k]; }); localStorage.setItem('mt.sign.prefs', JSON.stringify(p)); } catch (e) {} }
+  function prefs() { try { var p = {}; ['font', 'ink', 'slant', 'weight', 'vary', 'size', 'flourish', 'pen', 'thr', 'upInk', 'penFont', 'speed', 'legib', 'width', 'op', 'sloppy', 'fade', 'uneven', 'penSlant', 'tOp', 'tFade', 'tUneven', 'bgMode', 'tol', 'speck'].forEach(function (k) { p[k] = st[k]; }); localStorage.setItem('mt.sign.prefs', JSON.stringify(p)); } catch (e) {} }
   var CSS = '#mtSign{position:fixed;inset:0;z-index:' + Z + ';background:rgba(3,8,18,.62);display:flex;align-items:center;justify-content:center;padding:14px;font:13px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}' +
     '#mtSign .sd{background:#0b1a31;color:#e8eef8;border:1px solid #22406a;border-radius:14px;box-shadow:0 24px 60px rgba(0,0,0,.55);width:min(980px,100%);max-height:calc(100vh - 28px);display:flex;flex-direction:column}' +
     '#mtSign .sh{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid #16325a}#mtSign .sh h2{margin:0;font-size:16px;flex:1}' +
@@ -373,34 +373,78 @@
     setTimeout(size, 0); window.addEventListener('resize', function rs() { if (!cv.isConnected) { window.removeEventListener('resize', rs); return; } size(); });
   }
   /* ----- From a photo */
+  /* ----- From a file: any PNG, SVG, JPG or photo becomes a signature with no background.
+     The background colour is found from the picture's edges (white paper, cream or grey scans, a coloured fill, an SVG's
+     background rectangle) and removed with soft edges; a picture that is already transparent is kept as it is. Specks
+     are cleaned up, the ink can be recoloured, and the result is cropped close. */
   function tabUpload(bd) {
-    bd.innerHTML = '<div class="ctl"><label style="flex:1 1 260px">Signature file - PNG, SVG, JPG or a photo<input type="file" data-s="file" accept="image/png,image/svg+xml,.svg,image/jpeg,image/webp,image/*"></label>' +
-      '<label class="ck"><input type="checkbox" data-s="rmbg"' + (st.rmbg ? ' checked' : '') + '>Remove the paper / background</label>' +
-      '<label>Paper removal<input type="range" data-s="thr" min="120" max="250" step="5" value="' + st.thr + '"></label>' +
-      '<label>Ink<select data-s="upInk"><option value="keep"' + (st.upInk === 'keep' ? ' selected' : '') + '>As photographed</option>' + INKS.map(function (k) { return '<option value="' + k[0] + '"' + (st.upInk === k[0] ? ' selected' : '') + '>' + k[1] + '</option>'; }).join('') + '</select></label></div>' +
-      '<div class="prev">Choose a file. A PNG or SVG with a clear background is used as it is; for a photo, sign on plain white paper in good light and crop close.</div>' + footer(st.name || 'Signature from a file');
-    var img = null, out = null;
+    if (!st.bgMode) st.bgMode = 'auto'; if (st.tol == null) st.tol = 60; if (st.speck == null) st.speck = true;
+    bd.innerHTML = '<div class="ctl"><label style="flex:1 1 240px">PNG, SVG, JPG or a photo of a signature<input type="file" data-s="file" accept="image/png,image/svg+xml,.svg,image/jpeg,image/webp,image/*"></label>' +
+      '<label>Background<select data-s="bgMode"><option value="auto">Remove the background (found automatically)</option><option value="dark">Keep only the dark ink</option><option value="none">Keep the picture as it is</option></select></label>' +
+      '<label title="Higher removes more of the background, and lighter ink with it">Removal strength<input type="range" data-s="tol" min="10" max="160" step="5" value="' + st.tol + '"></label>' +
+      '<label class="ck"><input type="checkbox" data-s="speck"' + (st.speck ? ' checked' : '') + '>Clean up specks</label>' +
+      '<label>Ink<select data-s="upInk"><option value="keep">As in the file</option>' + INKS.map(function (k) { return '<option value="' + k[0] + '">' + k[1] + '</option>'; }).join('') + '</select></label></div>' +
+      '<div class="prev" data-s="drop" tabindex="0" style="background:repeating-conic-gradient(#e5e7eb 0 25%,#fff 0 50%) 0 0/18px 18px;color:#374151;text-align:center;min-height:150px">Drop a PNG or SVG here, paste one (Ctrl+V), or choose a file above.<br>The background is removed and the signature is cropped close - the checkerboard shows what is transparent.</div>' +
+      '<div class="note" data-s="bginfo" role="status"></div>' + footer(st.name || 'Signature from a file');
+    bd.querySelector('[data-s=bgMode]').value = st.bgMode; bd.querySelector('[data-s=upInk]').value = st.upInk || 'keep';
+    var img = null, out = null, fname = '';
     function build() {
-      if (!img) return; var k = Math.min(1, 1400 / img.naturalWidth), c = document.createElement('canvas'); c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
-      var g = c.getContext('2d', {willReadFrequently: true}); g.drawImage(img, 0, 0, c.width, c.height); var d = g.getImageData(0, 0, c.width, c.height), p = d.data, thr = +st.thr;
-      var rgb = st.upInk === 'keep' ? null : [parseInt(st.upInk.slice(1, 3), 16), parseInt(st.upInk.slice(3, 5), 16), parseInt(st.upInk.slice(5, 7), 16)];
-      for (var i = 0; i < p.length; i += 4) { if (p[i + 3] < 8) continue; var y = 0.299 * p[i] + 0.587 * p[i + 1] + 0.114 * p[i + 2];
-        if (st.rmbg) { if (y >= thr) { p[i + 3] = 0; continue; } p[i + 3] = Math.round(p[i + 3] * Math.min(1, (thr - y) / 60)); }
-        if (rgb) { p[i] = rgb[0]; p[i + 1] = rgb[1]; p[i + 2] = rgb[2]; } }
-      g.putImageData(d, 0, 0); out = trim(c, 10); var pv = bd.querySelector('.prev'); pv.innerHTML = out ? '<img alt="Signature with the paper removed" src="' + fit(out, 900, 260).toDataURL() + '">' : 'No ink was found - move the paper removal slider to the right.';
+      if (!img) return; var nw = img.naturalWidth || 1200, nh = img.naturalHeight || 400, k = Math.min(1, 1400 / nw, 900 / nh), c = document.createElement('canvas'); c.width = Math.max(1, Math.round(nw * k)); c.height = Math.max(1, Math.round(nh * k));
+      var g = c.getContext('2d', {willReadFrequently: true}); g.drawImage(img, 0, 0, c.width, c.height); var d, W = c.width, H = c.height;
+      try { d = g.getImageData(0, 0, W, H); } catch (er) { say('That picture cannot be read here.', true); return; }
+      var p = d.data, samp = [], stp = Math.max(1, Math.round((W + H) / 500));
+      var sm = function (x, y) { var i = (y * W + x) * 4; samp.push([p[i], p[i + 1], p[i + 2], p[i + 3]]); };
+      for (var x = 0; x < W; x += stp) { sm(x, 0); sm(x, H - 1); sm(x, Math.min(H - 1, 2)); sm(x, Math.max(0, H - 3)); }
+      for (var y = 0; y < H; y += stp) { sm(0, y); sm(W - 1, y); sm(Math.min(W - 1, 2), y); sm(Math.max(0, W - 3), y); }
+      var clear = samp.filter(function (q) { return q[3] < 40; }).length / samp.length, bg = null;
+      if (clear < 0.6) { var op = samp.filter(function (q) { return q[3] >= 40; }), med = function (ch) { var v = op.map(function (q) { return q[ch]; }).sort(function (m, n) { return m - n; }); return v[v.length >> 1]; }; bg = [med(0), med(1), med(2)]; }
+      var mode = st.bgMode, tol = +st.tol, rgb = st.upInk === 'keep' || !st.upInk ? null : hexRgb(st.upInk), thr = 255 - tol;
+      for (var i = 0; i < p.length; i += 4) {
+        if (p[i + 3] < 8) { p[i + 3] = 0; continue; }
+        if (mode === 'auto' && bg) { var dist = Math.sqrt((p[i] - bg[0]) * (p[i] - bg[0]) + (p[i + 1] - bg[1]) * (p[i + 1] - bg[1]) + (p[i + 2] - bg[2]) * (p[i + 2] - bg[2])); if (dist < tol) { p[i + 3] = 0; continue; } if (dist < tol + 45) p[i + 3] = Math.round(p[i + 3] * (dist - tol) / 45); }
+        else if (mode === 'dark') { var lum = 0.299 * p[i] + 0.587 * p[i + 1] + 0.114 * p[i + 2]; if (lum >= thr) { p[i + 3] = 0; continue; } p[i + 3] = Math.round(p[i + 3] * Math.min(1, (thr - lum) / 60)); }
+        if (rgb) { p[i] = rgb[0]; p[i + 1] = rgb[1]; p[i + 2] = rgb[2]; }
+      }
+      /* specks: small separate marks (dust, scanner noise, compression blocks) are removed; the dots of i and j are bigger and stay */
+      if (st.speck && mode !== 'none') {
+        var lab = new Int32Array(W * H), sizes = [0], ink = 0, stack = [], n2, comp;
+        for (i = 0; i < W * H; i++) if (p[i * 4 + 3] > 40) ink++;
+        for (i = 0; i < W * H; i++) { if (p[i * 4 + 3] <= 40 || lab[i]) continue; comp = sizes.length; sizes.push(0); stack.push(i); lab[i] = comp;
+          while (stack.length) { n2 = stack.pop(); sizes[comp]++; var cx = n2 % W, cy = (n2 - cx) / W;
+            for (var dy = -1; dy <= 1; dy++) for (var dx = -1; dx <= 1; dx++) { var xx = cx + dx, yy = cy + dy; if (xx < 0 || yy < 0 || xx >= W || yy >= H) continue; var j = yy * W + xx; if (!lab[j] && p[j * 4 + 3] > 40) { lab[j] = comp; stack.push(j); } } } }
+        var minA = Math.max(6, Math.round(ink * 0.0015));
+        for (i = 0; i < W * H; i++) { if (lab[i] && sizes[lab[i]] < minA) p[i * 4 + 3] = 0; else if (!lab[i] && p[i * 4 + 3] <= 40) { var nb = 0; /* faint edge pixels next to nothing */ if (p[i * 4 + 3] > 0) { var cx2 = i % W, cy2 = (i - cx2) / W; for (var e2 = 0; e2 < 8 && !nb; e2++) { var x3 = cx2 + NB[e2][0], y3 = cy2 + NB[e2][1]; if (x3 >= 0 && y3 >= 0 && x3 < W && y3 < H && lab[y3 * W + x3]) nb = 1; } if (!nb) p[i * 4 + 3] = 0; } } }
+      }
+      g.putImageData(d, 0, 0); out = trim(c, 10);
+      var info = bd.querySelector('[data-s=bginfo]'), hex = bg ? '#' + bg.map(function (v) { return ('0' + v.toString(16)).slice(-2); }).join('') : '';
+      info.innerHTML = mode === 'none' ? 'The picture is kept as it is.' : mode === 'dark' ? 'Everything lighter than the ink is removed.' : bg ? 'Background found: <span style="display:inline-block;width:12px;height:12px;border:1px solid #93a6c0;vertical-align:-2px;background:' + hex + '"></span> ' + hex + ' - removed.' + ((0.299 * bg[0] + 0.587 * bg[1] + 0.114 * bg[2]) < 110 ? ' The ink is lighter than the background - choose an ink colour so it shows on paper.' : '') : 'The picture already has a clear background - nothing to remove.';
+      if (out) info.innerHTML += ' Signature: ' + out.width + ' x ' + out.height + ' px.';
+      var pv = bd.querySelector('[data-s=drop]'); pv.innerHTML = out ? '<img alt="The signature with its background removed" src="' + fit(out, 900, 260).toDataURL() + '">' : 'No ink was left - lower the removal strength.';
     }
+    function loadFile(f) {
+      if (!f) return; var svg = /svg/i.test(f.type) || /\.svg$/i.test(f.name || ''); if (!svg && !/^image\//.test(f.type || '')) { say('Choose a PNG, SVG, JPG or photo.', true); return; }
+      fname = String(f.name || '').replace(/\.[a-z0-9]+$/i, ''); var r = new FileReader();
+      r.onload = function () { var src = r.result;
+        if (svg) { var t = String(src), vb = t.match(/viewBox\s*=\s*["']\s*[-\d.]+[\s,]+[-\d.]+[\s,]+([\d.]+)[\s,]+([\d.]+)/i), hasW = /<svg[^>]*\swidth\s*=\s*["'][\d.]+(px)?["']/i.test(t);
+          if (!hasW) { var vw = vb ? +vb[1] : 1200, vh = vb ? +vb[2] : 400, k2 = 1200 / (vw || 1200); t = t.replace(/<svg\b/i, '<svg width="' + Math.round(vw * k2) + '" height="' + Math.round(vh * k2) + '"'); }
+          src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(t); }
+        img = new Image(); img.onload = function () { var lb = bd.querySelector('[data-s=label]'); if (lb && (!lb.value || /^Signature from a file$/.test(lb.value)) && fname) lb.value = fname.slice(0, 60); build(); };
+        img.onerror = function () { say('That file could not be opened as a picture.', true); }; img.src = src; };
+      if (svg) r.readAsText(f); else r.readAsDataURL(f);
+    }
+    var drop = bd.querySelector('[data-s=drop]');
+    drop.addEventListener('dragover', function (e) { e.preventDefault(); drop.style.outline = '2px dashed #3d8bfd'; });
+    drop.addEventListener('dragleave', function () { drop.style.outline = ''; });
+    drop.addEventListener('drop', function (e) { e.preventDefault(); drop.style.outline = ''; loadFile(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]); });
+    var onPaste = function (e) { if (!bd.isConnected) { document.removeEventListener('paste', onPaste); return; } var items = [].slice.call((e.clipboardData && e.clipboardData.items) || []), it = items.filter(function (x) { return /^image\//.test(x.type); })[0];
+      if (it) { e.preventDefault(); loadFile(it.getAsFile()); return; } var txt = e.clipboardData && e.clipboardData.getData('text/plain'); if (txt && /^\s*<svg[\s>]/i.test(txt)) { e.preventDefault(); loadFile(new File([txt], 'pasted.svg', {type: 'image/svg+xml'})); } };
+    document.addEventListener('paste', onPaste);
     bd.addEventListener('change', function (e) { var k = e.target.getAttribute('data-s');
-      if (k === 'rmbg') { st.rmbg = e.target.checked; prefs(); build(); }
-      if (k === 'file') { var f = e.target.files && e.target.files[0]; if (!f) return; var svg = /svg/i.test(f.type) || /\.svg$/i.test(f.name), r = new FileReader();
-        r.onload = function () { var src = r.result;
-          if (svg) { var t = String(src), vb = t.match(/viewBox\s*=\s*["']\s*[-\d.]+[\s,]+[-\d.]+[\s,]+([\d.]+)[\s,]+([\d.]+)/i), hasW = /<svg[^>]*\swidth\s*=\s*["'][\d.]+(px)?["']/i.test(t);
-            if (vb && !hasW) { var k2 = 1200 / +vb[1]; t = t.replace(/<svg\b/i, '<svg width="' + Math.round(+vb[1] * k2) + '" height="' + Math.round(+vb[2] * k2) + '"'); } src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(t); }
-          img = new Image(); img.onload = function () { if (svg || /png|webp/i.test(f.type)) try { var cv = document.createElement('canvas'); cv.width = Math.min(64, img.naturalWidth || 64); cv.height = Math.min(64, img.naturalHeight || 64); var g3 = cv.getContext('2d'); g3.drawImage(img, 0, 0, cv.width, cv.height); var dd = g3.getImageData(0, 0, cv.width, cv.height).data, clear = 0; for (var q = 3; q < dd.length; q += 4) if (dd[q] < 20) clear++; st.rmbg = !(clear > dd.length / 4 * 0.2); } catch (er) {} else st.rmbg = true; var cb = bd.querySelector('[data-s=rmbg]'); if (cb) cb.checked = st.rmbg; build(); };
-          img.onerror = function () { say('That file could not be opened as a picture.', true); }; img.src = src; };
-        if (svg) r.readAsText(f); else r.readAsDataURL(f); }
-      if (k === 'upInk') { st.upInk = e.target.value; prefs(); build(); } });
-    bd.addEventListener('input', function (e) { if (e.target.getAttribute('data-s') === 'thr') { st.thr = +e.target.value; prefs(); clearTimeout(build.t); build.t = setTimeout(build, 80); } });
-    bd.addEventListener('click', function (e) { var b = e.target.closest('[data-s=save]'); if (b) saveCanvas(out, 'photo'); });
+      if (k === 'file') { loadFile(e.target.files && e.target.files[0]); e.target.value = ''; }
+      if (k === 'bgMode' || k === 'upInk') { st[k] = e.target.value; prefs(); build(); }
+      if (k === 'speck') { st.speck = e.target.checked; prefs(); build(); } });
+    bd.addEventListener('input', function (e) { if (e.target.getAttribute('data-s') === 'tol') { st.tol = +e.target.value; prefs(); clearTimeout(build.t); build.t = setTimeout(build, 90); } });
+    bd.addEventListener('click', function (e) { var b = e.target.closest('[data-s=save]'); if (b) saveCanvas(out, 'file'); });
   }
   /* ----- Saved */
   function tabSaved(bd) {
