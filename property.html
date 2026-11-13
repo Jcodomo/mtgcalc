@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html data-mt-page="property" lang="en"><head>
+<script>/* 55.15: OLED dark blue by default (once for everyone; afterwards the Look menu / theme switch decides) */(function(){try{var L=localStorage,k='mt.oledDefault.v1';if(!L.getItem(k)){L.setItem('los.v25.surface','oled');L.setItem('uwTheme','dark');['los.v251.appearanceSeeded','los.v35.appearanceSeeded','v15ThemeSeeded'].forEach(function(f){L.setItem(f,'1')});L.setItem(k,'1');}document.documentElement.setAttribute('data-mt-mode',L.getItem('los.v25.surface')==='light'&&L.getItem('uwTheme')!=='dark'?'light':'oled');}catch(e){}})();</script><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="dark light">
+<title>Property · Mortgage Suite</title>
+<style>
+:root{--bg:#06101f;--panel:#0b1a31;--panel2:#0f2240;--ink:#e8eef8;--mute:#93a6c0;--line:#22406a;--acc:#3d8bfd;--warn:#ffb35c;--nav:#0f2a4a}
+html[data-mt-mode=light]{--bg:#eef2f7;--panel:#fff;--panel2:#f5f8fc;--ink:#0f2a4a;--mute:#56677a;--line:#d5dee9;--acc:#1f6fd6;--warn:#b25a00}
+*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+.mtsh{background:var(--nav);color:#fff;padding:13px clamp(14px,3vw,32px);display:flex;align-items:center;gap:12px}.mtsh b{letter-spacing:.08em;text-transform:uppercase;font-size:13.5px}.mtsh span{color:#b9cbe2;font-size:13px}
+main{max-width:1600px;margin:0 auto;padding:16px clamp(12px,2.4vw,28px) 70px}
+h1{margin:0 0 4px;font-size:clamp(20px,2.6vw,26px);letter-spacing:-.01em}.lede{margin:0 0 12px;color:var(--mute);max-width:980px}
+.pv-search{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.pv-search input{flex:1 1 360px;min-width:0;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font:inherit;font-size:15px}
+button,.btn{border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:999px;padding:7px 13px;font:600 12.5px system-ui,sans-serif;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+button:hover,.btn:hover{border-color:var(--acc)}button.pri{background:var(--acc);border-color:var(--acc);color:#fff}
+.pv-recent{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 14px}.pv-recent button{font-weight:500;font-size:12px;padding:4px 10px;color:var(--mute)}
+.pv-grid{display:grid;grid-template-columns:minmax(340px,440px) 1fr;gap:14px;align-items:start}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:12px}
+.card h2{margin:0 0 8px;font-size:13px;letter-spacing:.05em;text-transform:uppercase;color:var(--mute)}
+dl{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:0}dt{color:var(--mute)}dd{margin:0;overflow-wrap:anywhere}
+.note{color:var(--mute);font-size:12px;margin-top:8px}.note a{color:var(--acc)}
+.fields{display:grid;grid-template-columns:1fr 1fr;gap:8px}.fields label{display:grid;gap:3px;font-size:12px;color:var(--mute)}
+.fields input{padding:7px 9px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);font:inherit}
+.fields input.auto{border-color:#2f7d4f}.links{display:flex;flex-wrap:wrap;gap:6px}
+.pv-right{position:sticky;top:10px}.tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px}.tabs button[aria-selected=true]{background:var(--acc);border-color:var(--acc);color:#fff}
+.frame{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;height:calc(100vh - 150px);min-height:420px}
+.frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0}.frame .empty{position:absolute;inset:0;display:grid;place-items:center;color:var(--mute);padding:24px;text-align:center}
+.skel{color:var(--mute)}.warn{color:var(--warn)}
+@media (max-width:900px){.pv-grid{grid-template-columns:1fr}.pv-right{position:static}.frame{height:60vh}}
+@media print{.mtsh,.pv-search,.pv-recent,.pv-right,.links,#mtgcalcPageNav{display:none!important}.pv-grid{display:block}}
+</style>
+<link rel="stylesheet" href="assets/mtgcalc-theme.css">
+</head><body>
+<header class="mtsh"><b>Mortgage Suite</b><span>Property</span></header>
+<main>
+  <h1>Property</h1>
+  <p class="lede">Public records and the property itself side by side: the flood zone, census area and the official property record on the left, Street View, the satellite and street maps and FEMA's flood map on the right. Listing sites open in a window on the right half of the screen, so the fields here stay in view. Link to any address with <code>property.html?a=</code> and the address.<br>Property records connected: New York (NYC lots and every county's assessment roll), New Jersey (statewide tax list), Florida (statewide tax roll), and Los Angeles, San Diego and San Bernardino counties in California. Elsewhere the county assessor's search opens.</p>
+  <form class="pv-search" id="pvForm" autocomplete="off">
+    <input id="pvAddr" type="text" aria-label="Property address" placeholder="Property address - street, city, state ZIP" data-mtaddr-skip>
+    <button class="pri" type="submit">Look up</button>
+    <button type="button" id="pvCopyLink">Copy link</button>
+  </form>
+  <div class="pv-recent" id="pvRecent" aria-label="Recent addresses"></div>
+  <div class="pv-grid">
+    <section class="pv-left" id="pvLeft" aria-live="polite">
+      <div class="card"><h2>Start</h2><div class="skel">Type an address above, pick one of the recent ones, or open this page from a Property details panel.</div></div>
+    </section>
+    <section class="pv-right" aria-label="Property views">
+      <div class="tabs" role="tablist" id="pvTabs">
+        <button type="button" role="tab" data-t="sv" aria-selected="true">Street View</button>
+        <button type="button" role="tab" data-t="sat" aria-selected="false">Satellite</button>
+        <button type="button" role="tab" data-t="map" aria-selected="false">Street map</button>
+        <button type="button" role="tab" data-t="flood" aria-selected="false">Flood map (FEMA)</button>
+      </div>
+      <div class="frame" id="pvFrame"><div class="empty">The property shows here once an address is looked up.</div></div>
+    </section>
+  </div>
+</main>
+<script src="assets/workflow-ui.js?v=57.10"></script>
+<script src="assets/mt-addr.js?v=57.10"></script>
+<script src="assets/mt-prop.js?v=57.10"></script>
+</body></html>

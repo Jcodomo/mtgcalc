@@ -410,6 +410,37 @@ The release entries below have the details. In short:
 - **Checked on the live site:** Zillow and Google go to the property. Every site opens in the same window on the right half of the screen, and the details panel moves left. Realtor.com could not be checked from the test browser.
 - Asset version 57.9.
 
+## Release 57.10 - a Property page with public records side by side; signatures on every document
+
+- **Property page (property.html):** an address on the left and the property itself on the right.
+  - **Left side:** the flood zone, census area and official property record. Detail boxes (year built, living area, lot, style, plus beds and baths where the record has them) fill in from the record and turn green; what you type is kept for that address.
+  - **Right side:** Street View, satellite, street map and FEMA's flood map, all shown inside the page. For the flood map the address is copied so it can be pasted into FEMA's search.
+  - **Listing sites:** Zillow, Redfin, Realtor.com and Google open in a window docked to the right half of the screen, since those sites refuse to be shown inside another page.
+  - **Links and the bottom bar:** link to any address with `property.html?a=` and the address. A new **Property** button in the bottom-right bar on every page opens the loan file's property, or the last address picked.
+  - **Elsewhere:** every Property details panel has a "Side-by-side view" button and shows the same public record.
+- **Public property records connected:**
+  - **New York City:** NYC Planning's PLUTO file. The tax lot is found from the map point, so buildings filed under another address (the Empire State Building is "338 5 Avenue") are still found. Shows building class, year built and altered, building and lot area, floors, units, basement, zoning, assessed value, owner, BBL and a ZoLa link.
+  - **Every other New York county:** the state assessment rolls (data.ny.gov). Parcels are ranked by exact street and suffix, the Census town the point lies in, a school district named like the city, and the owner's mailing ZIP. When several parcels match equally (Nassau has about 40 at "1 West St"), a parcel chooser lists them by town and school district.
+  - **New Jersey (statewide MOD-IV tax list):** class, building description, year built, assessed value, last year's taxes, last sale, owner.
+  - **Florida (statewide tax roll):** use, year built, living area, land, just value, homestead, last two sales, owner.
+  - **California:** Los Angeles County (including beds, baths, living area and year built for homes), San Diego County (beds, baths, living area, pool, garage) and San Bernardino County (values, use, zoning). Other counties and states open the county assessor's search.
+  - **Off-street map matches:** when the map lands on a different street than the one typed ("1 West St" found as "1 West Jericho Turnpike"), the page says so and the record search uses the typed street.
+  - **Owner mailing address:** shown and flagged when it is not the property.
+- **Signatures:**
+  - **Signature maker.** Every signature and set of initials is kept in this browser and can be renamed, deleted, downloaded as PNG or SVG, or copied in another ink.
+    - **Type:** 20 handwriting styles, including five pen-like (monoline) hands close to the calligrapher.ai look. Ink, slant, stroke width, size, variation (legibility), a flourish (underline swoosh, return tail, double underline), "New variation", and initials.
+    - **Draw:** with a mouse, finger or pen; the line thins with speed, or follows pen pressure.
+    - **From a file:** PNG, SVG, JPG or a photo. Paper removal is optional and is turned off on its own for a transparent PNG or SVG; the ink can be kept or changed.
+    - **Saved:** signatures and initials listed apart.
+  - **Every document builder:** a Signatures section lists the document's signature lines by name (Purchaser, Seller, Landlord's Signature, Contractor, Donor, Borrower…). Each line can take a signature or initials, with:
+    - a look: signature only, or an **e-signature frame** (bracket, "Signed by:", a signature ID and the date);
+    - a size, an opacity and a date.
+  - **Moving signatures:** a placed signature can be **dragged** on the page, and "Put back on the line" resets it. Print and Download PDF use what is shown.
+  - **Frame wording:** the frame says "Signed by", not any e-signature service's name. A signature picture is not a verified e-signature, and the maker says so.
+- **Logos:** an SVG logo without a set size keeps its proportions.
+- **The calligrapher-ai zip:** it holds only the desktop wrapper (Rust and Sciter); the handwriting network is a separate native library that is not included, so it cannot run on a web page. The typed styles and their variation, stroke-width and legibility controls follow its approach.
+- Asset version 57.10.
+
 ## Release 55.14b - self-employment, rental and more of the income worksheet; one look across the pages
 
 - **Self-employment follows the income worksheet** (sections A-E and Tables!J20:K31), proven against the workbook (16 of 16 cases). Fixed: K-1 amounts were multiplied by the ownership percentage a second time (a 10% partner's $10,748 K-1 counted as $1,075); with only one year of returns entered the income was halved; the 1120 net operating loss is added back and dividends are subtracted, as on the worksheet and Form 1084. Added: Schedule F (farm), Schedule D (recurring capital gains - the worksheet takes the larger year), Schedule C line 6 non-recurring income, 1065 line 4 income from other partnerships, business mileage decided on its own with the worksheet's rate table.

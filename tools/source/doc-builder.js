@@ -9,6 +9,7 @@
   'use strict';
   if (window.MTBuild && !window.MTBuild.__lazy) return;          /* v57: the lazy stand-in (mt-build-lazy.js) gives way to the real builder */
   var $ = function (id) { return document.getElementById(id); };
+  var SELF = (document.currentScript && document.currentScript.src) || '';   /* 57.10: the signature maker loads from beside this file */
   function G(n) { try { return (0, eval)(n); } catch (e) { return undefined; } }
   function esc(v) { return String(v == null ? '' : v).replace(/[&<>"]/g, function (c) { return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]; }); }
   function N(v) { if (typeof v === 'number') return isFinite(v) ? v : 0; var t = String(v == null ? '' : v).trim().toLowerCase(), neg = /^\(.*\)$/.test(t) || /^-/.test(t), m = 1;
@@ -1645,10 +1646,12 @@
       '<p class="note">PNG, JPG, GIF, WebP or SVG. It is resized and kept in this browser with the draft.</p></fieldset>';
   }
   function loadLogo(b, fl) {
-    if (!drafts[b] || !/^image\//.test(fl.type)) { say('Choose an image file for the logo.'); return; }
+    var svg = /svg/i.test(fl.type) || /\.svg$/i.test(fl.name || '');
+    if (!drafts[b] || !(/^image\//.test(fl.type) || svg)) { say('Choose an image file for the logo - PNG, JPG, GIF, WebP or SVG.'); return; }
     var rd = new FileReader();
     rd.onload = function () {
       var img = new Image();
+      if (svg) { var t = String(rd.result), vb = t.match(/viewBox\s*=\s*["']\s*[-\d.]+[\s,]+[-\d.]+[\s,]+([\d.]+)[\s,]+([\d.]+)/i); if (vb && !/<svg[^>]*\swidth\s*=\s*["'][\d.]+(px)?["']/i.test(t)) { var k0 = 640 / +vb[1]; t = t.replace(/<svg\b/i, '<svg width="' + Math.round(+vb[1] * k0) + '" height="' + Math.round(+vb[2] * k0) + '"'); } rd.svgSrc = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(t); }
       img.onload = function () {
         var w = img.naturalWidth || 600, h = img.naturalHeight || 200, k = Math.min(1, 640 / w, 320 / h), cv = document.createElement('canvas');
         cv.width = Math.max(1, Math.round(w * k)); cv.height = Math.max(1, Math.round(h * k)); cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
@@ -1658,9 +1661,9 @@
         persist(); renderForm(); refresh(true);
       };
       img.onerror = function () { say('That image could not be read - try a PNG or JPG.'); };
-      img.src = rd.result;
+      img.src = rd.svgSrc || rd.result;
     };
-    rd.readAsDataURL(fl);
+    if (svg) rd.readAsText(fl); else rd.readAsDataURL(fl);
   }
   function logoImg(s) { return s.logo ? '<img class="lg" src="' + s.logo + '" alt="" style="height:' + (N(s.logoSize) || 52) + 'px">' : ''; }
   /* a header with the logo where the user placed it: left of the name, centered above, or top right */
@@ -2495,6 +2498,91 @@
   }
 
   var ORDER = ['addendum', 'lease', 'estimate', 'pl', 'schc', 'pay', 'gift', 'le', 'commit', 'lox', 'cpa', 'mi'];
+  /* ---------------------------------------------------- 57.10: signatures
+     Every document's signature lines (and the CPA letter's sign-off space) are found after it is drawn and numbered in page
+     order; each can carry a signature made in the signature maker (mt-sign.js). The draft keeps only which signature goes
+     on which line - the pictures stay in the signature store, so one signature serves every document. */
+  var SIGSPOT = /<(div|span) class="(sl|sl3|ln|lnv|cps|lsig|sbs|sxl|l|bl)"([^>]*)>/g;
+  function sigSpots(html) {
+    var all = [], m, out = []; SIGSPOT.lastIndex = 0; while ((m = SIGSPOT.exec(html))) all.push([m.index, m.index + m[0].length]);
+    var txt = function (h) { return h.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&#?\w+;/g, ' ').replace(/\*/g, ' ').replace(/\bDated?:?(?=\s|$)/gi, ' ').replace(/_{2,}/g, ' ').replace(/\s+/g, ' ').trim(); };
+    all.forEach(function (p, i) {
+      var after = txt(html.slice(p[1], i + 1 < all.length ? Math.min(all[i + 1][0], p[1] + 500) : p[1] + 500)), before = txt(html.slice(Math.max(i ? all[i - 1][1] : 0, p[0] - 160), p[0]));
+      var bm = before.match(/([A-Za-z'’ ()-]{0,40}signature)\s*:?$/i), t = bm ? bm[1].trim() : after;
+      t = t.replace(/^[,\s]+/, ''); out.push((t.length > 46 ? t.slice(0, 46).replace(/\s\S*$/, '') + '…' : t) || 'Signature line ' + (i + 1));
+    });
+    return out;
+  }
+  /* two looks: the signature alone, or an e-signature frame - a bracket with "Signed by:" above the signature and a signature
+     ID under it, the way e-signature services mark a signed line (it says "Signed by", not any service's name) */
+  var SIGCSS = '.esg{position:relative;overflow:visible}span.esg{display:inline-block;min-height:1em}.esg>img.esig{position:absolute;left:4px;bottom:-4px;max-width:96%;object-fit:contain;object-position:left bottom}' +
+    '.esg>.esd{position:absolute;right:2px;bottom:3px;font:9.5pt/1 Arial,Helvetica,sans-serif;color:#111}.esg>.esfr{position:absolute;left:2px;bottom:3px;display:flex;flex-direction:column;align-items:flex-start;padding:2px 10px 2px 9px;border:1.3px solid #2a4fb5;border-right:0;border-radius:10px 0 0 10px;font:6.8pt/1.2 Arial,Helvetica,sans-serif;color:#2a4fb5;background:transparent;white-space:nowrap}' +
+    '.esfr>img{display:block;max-width:3in;object-fit:contain;object-position:left center;margin:1px 0}.esfr>b{font-weight:400}.esfr>i{font-style:normal;letter-spacing:.02em}[data-esi]{cursor:move}@media print{[data-esi]{cursor:auto}}';
+  function sigId(a) { var h1 = 0x811c9dc5, h2 = 0x1b873593, t = String(a); for (var i = 0; i < t.length; i++) { var c = t.charCodeAt(i); h1 = Math.imul(h1 ^ c, 16777619) >>> 0; h2 = Math.imul(h2 ^ c, 2246822519) >>> 0; } return (('00000000' + h1.toString(16)).slice(-8) + ('00000000' + h2.toString(16)).slice(-8)).toUpperCase(); }
+  function applySigs(html, s, k) {
+    var L = s && s.esigs; if (!L || !L.length || !window.MTSign || typeof html !== 'string') return html;
+    var i = -1, any = false, base = N(s.esigSize) || 44;
+    html = html.replace(SIGSPOT, function (m0, tag, cls, rest) { i++; var e = L[i], g = e && e.id && MTSign.get(e.id); if (!g) return m0; any = true;
+      var h = N(e.size) || base, op = N(e.op) ? 'opacity:' + Math.min(1, N(e.op) / 100) + ';' : '', mv = e.dx || e.dy ? 'transform:translate(' + (+e.dx || 0) + 'px,' + (+e.dy || 0) + 'px);' : '';
+      if (e.style === 'frame') { var gap = 'margin-top:' + Math.round(h * 0.85 + 6) + 'px;'; rest = /style="/.test(rest) ? rest.replace('style="', 'style="' + gap) : rest + ' style="' + gap + '"'; }
+      var out = '<' + tag + ' class="' + cls + ' esg"' + rest + '>';
+      if (e.style === 'frame') out += '<span class="esfr" data-esi="' + i + '" style="' + op + mv + '"><b>Signed by:</b><img alt="Signature" style="height:' + Math.round(h * 0.85) + 'px" src="' + g.png + '"><i>' + sigId(g.id + '|' + (k || '') + '|' + i).slice(0, 15) + '…' + (e.date ? ' &nbsp; ' + esc(e.date) : '') + '</i></span>';
+      else out += '<img class="esig" data-esi="' + i + '" alt="Signature" style="height:' + h + 'px;' + op + mv + '" src="' + g.png + '">' + (e.date ? '<span class="esd">' + esc(e.date) + '</span>' : '');
+      return out; });
+    return any ? html.replace('</style>', SIGCSS + '</style>') : html;
+  }
+  ORDER.forEach(function (k) { var raw = B[k].doc; if (!raw || raw.__sig) return; B[k].rawDoc = raw; B[k].doc = function (st) { return applySigs(raw.apply(this, arguments), st, k); }; B[k].doc.__sig = true; });
+  /* a placed signature can be dragged on the preview; the move is kept with the draft and used in Print and the PDF */
+  function sigDrag(fr) {
+    var d = fr.contentDocument; if (!d || !d.body) return;
+    [].forEach.call(d.querySelectorAll('[data-esi]'), function (el) {
+      el.title = 'Drag to move this signature';
+      el.addEventListener('pointerdown', function (e) {
+        if (editing) return; e.preventDefault(); var i = +el.getAttribute('data-esi'), dr = drafts[cur], E = (dr.esigs || [])[i]; if (!E) return;
+        var z = parseFloat(d.body.style.zoom) || 1, x0 = e.clientX, y0 = e.clientY, dx0 = +E.dx || 0, dy0 = +E.dy || 0, moved = false; try { el.setPointerCapture(e.pointerId); } catch (er) {}
+        var mv = function (ev) { moved = true; E.dx = Math.round(dx0 + (ev.clientX - x0) / z); E.dy = Math.round(dy0 + (ev.clientY - y0) / z); el.style.transform = 'translate(' + E.dx + 'px,' + E.dy + 'px)'; };
+        var up = function () { el.removeEventListener('pointermove', mv); el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up); if (moved) { persist(); scheduleVersion(cur); renderForm(); } };
+        el.addEventListener('pointermove', mv); el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+      });
+    });
+  }
+  var signP = null;
+  function needSign() {
+    if (window.MTSign) return Promise.resolve(true);
+    if (!signP) signP = new Promise(function (res) { var src = SELF ? SELF.replace(/doc-builder\.js[^]*$/, 'mt-sign.js') + (SELF.match(/\?v=[^&#]*/) || [''])[0] : 'assets/mt-sign.js';
+      var sc = document.createElement('script'); sc.src = src; sc.onload = function () { res(!!window.MTSign); }; sc.onerror = function () { signP = null; res(false); }; document.head.appendChild(sc); });
+    return signP;
+  }
+  function today() { var d = new Date(); return (d.getMonth() + 1) + '/' + d.getDate() + '/' + d.getFullYear(); }
+  function sigForm(b) {
+    var s = drafts[b], spots = [], L = s.esigs || []; try { spots = sigSpots(B[b].rawDoc ? B[b].rawDoc(s) : ''); } catch (e) {}
+    var saved = window.MTSign ? MTSign.list() : [];
+    var rows = !spots.length ? '<div class="note">This layout has no signature lines.</div>' :
+      '<div class="esl" style="display:grid;gap:6px">' + spots.map(function (lab, i) { var e = L[i] || {};
+        return '<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(130px,190px) auto;gap:8px;align-items:center"><span style="font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + esc(lab) + '">' + (i + 1) + '. ' + esc(lab) + '</span>' +
+          '<select data-a="esig" data-i="' + i + '" aria-label="Signature on line ' + (i + 1) + ', ' + esc(lab) + '"><option value="">Unsigned</option>' + opts(saved, e.id) + '</select>' +
+          '<label class="ck" title="Print today\'s date on this line"><input type="checkbox" data-a="esigDate" data-i="' + i + '"' + (e.date ? ' checked' : '') + '><span>Date</span></label></div>' +
+          (e.id ? '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:-2px 0 4px 18px;font-size:12px">' + sel(i, 'style', 'Look', [['', 'Signature only'], ['frame', 'E-signature frame']], e.style) + sel(i, 'size', 'Size', [['', 'Size: as set below'], ['30', 'Small'], ['44', 'Normal'], ['56', 'Large'], ['70', 'Extra large']], e.size) +
+            sel(i, 'op', 'Opacity', [['', 'Opacity 100%'], ['85', '85%'], ['70', '70%'], ['55', '55%']], e.op) + (e.dx || e.dy ? '<button type="button" class="x" data-a="esigHome" data-i="' + i + '">Put back on the line</button>' : '<span class="note" style="margin:0">Drag it on the page to move it.</span>') + '</div>' : ''); }).join('') + '</div>';
+    return '<fieldset><legend>Signatures</legend>' + rows + '<div class="g" style="margin-top:8px">' + field(b, 'esigSize', 'Signature size', {type: 'select', options: [['', 'Normal'], ['34', 'Small'], ['56', 'Large'], ['68', 'Extra large']]}) + '</div>' +
+      '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"><button type="button" class="btn" data-a="esigMake">Signature maker…</button>' + (L.some(function (x) { return x && x.id; }) ? '<button type="button" class="btn" data-a="esigClear">Remove all signatures</button>' : '') + '</div>' +
+      '<div class="note">Make a signature or initials once - typed in a handwriting style, drawn, or from a PNG, SVG or photo - and pick it for any line. ' + (saved.length ? saved.length + ' saved in this browser.' : 'None saved yet.') + ' Lines are numbered as they appear on the page.</div></fieldset>';
+  }
+  function opts(saved, id) {
+    var grp = function (t, l) { return l.length ? '<optgroup label="' + t + '">' + l.map(function (g) { return '<option value="' + esc(g.id) + '"' + (id === g.id ? ' selected' : '') + '>' + esc(g.label) + '</option>'; }).join('') + '</optgroup>' : ''; };
+    return grp('Signatures', saved.filter(function (g) { return g.type !== 'initials'; })) + grp('Initials', saved.filter(function (g) { return g.type === 'initials'; })) + (id && !saved.some(function (g) { return g.id === id; }) ? '<option value="' + esc(id) + '" selected>(deleted signature)</option>' : '');
+  }
+  function sel(i, o, lab, list, v) { return '<select data-a="esigOpt" data-o="' + o + '" data-i="' + i + '" aria-label="' + lab + ' of the signature on line ' + (i + 1) + '" style="padding:3px 6px;font-size:12px">' + list.map(function (x) { return '<option value="' + x[0] + '"' + (String(v || '') === x[0] ? ' selected' : '') + '>' + x[1] + '</option>'; }).join('') + '</select>'; }
+  function esigSet(t) {
+    var s = drafts[cur], i = +t.getAttribute('data-i'); s.esigs = (s.esigs || []).slice(); var e = Object.assign({}, s.esigs[i] || {});
+    var a = t.getAttribute('data-a'); if (a === 'esig') e.id = t.value; else if (a === 'esigOpt') e[t.getAttribute('data-o')] = t.value; else if (a === 'esigHome') { e.dx = 0; e.dy = 0; } else e.date = t.checked ? today() : '';
+    s.esigs[i] = e; for (var k = 0; k < s.esigs.length; k++) if (!s.esigs[k]) s.esigs[k] = {};
+    persist(); scheduleVersion(cur); if (a !== 'esigDate') renderForm(); refresh(true);
+  }
+  function esigMake() {
+    var s = drafts[cur], who = ''; try { var n = s.borrowers || s.buyers || s.clients || []; who = (typeof n[0] === 'object' ? n[0] && n[0].name : n[0]) || s.signer || s.lo || ''; } catch (e) {}
+    needSign().then(function (ok) { if (!ok) { say('The signature maker could not load - check the connection and try again.'); return; } MTSign.open({name: who}); });
+  }
   var RERENDER = {fFont: 0, fWeight: 0, fItal: 0, listSet: 1, listFmt: 1, listGroup: 1, listDone: 1, showPay: 1, drawCustom: 1, style: 1, leaseType: 1, program: 1, concOnTop: 1, ttOn: 1, renoOn: 0, payType: 1, state: 1, locality: 1, ytdMode: 1, logoSize: 0, type: 1, oSource: 0, oPrice: 1};
   function mount() {
     if ($('mtB')) return;
@@ -2504,12 +2592,15 @@
       '<nav class="mb-nav" aria-label="Documents"></nav><div class="mb-form"></div><div class="mb-prev"><div class="fitbar" id="mtBfit"></div><div class="pe" id="mtBpe" hidden>Editing on the page - click into the document and type. Print and Download PDF use your edits. Changing the form afterwards rebuilds the page.</div><iframe title="Document preview" id="mtBframe"></iframe></div></div>';
     document.body.appendChild(w);
     wire(w);
+    /* 57.10: the signature maker loads with the builder; a signature made, renamed or deleted updates the form and the page */
+    needSign().then(function (ok) { if (ok && $('mtB')) { try { renderForm(); refresh(true); } catch (e) {} } });
+    document.addEventListener('mtsign:change', function () { if ($('mtB') && !$('mtB').hidden) { renderForm(); refresh(true); } });
   }
   function renderNav() { var n = document.querySelector('#mtB .mb-nav'); n.innerHTML = ORDER.map(function (k) { return '<button type="button" data-a="nav" data-k="' + k + '" aria-current="' + (k === cur) + '">' + B[k].label + '<small>' + B[k].sub + '</small></button>'; }).join('') + 
       (window.V14 && V14.__mtbOrig && (cur === 'addendum' || cur === 'lease') ? '<button type="button" data-a="classic">Classic ' + (cur === 'addendum' ? 'addendum' : 'lease') + ' form<small>The earlier Loan Suite form</small></button>' : ''); $('mtBsub').textContent = ' · ' + B[cur].label; fillFromMenu(); }
   function renderForm() {
     var f = document.querySelector('#mtB .mb-form'), ae = document.activeElement, key = ae && f.contains(ae) ? ['b', 'k', 'list', 'i', 'f', 'cond'].map(function (a) { return ae.getAttribute('data-' + a) || ''; }).join('|') : '', st = f.scrollTop;
-    f.innerHTML = B[cur].form();
+    f.innerHTML = B[cur].form() + sigForm(cur);
     f.scrollTop = st;
     if (key) { var el = Array.prototype.filter.call(f.querySelectorAll('input,select,textarea'), function (x) { return ['b', 'k', 'list', 'i', 'f', 'cond'].map(function (a) { return x.getAttribute('data-' + a) || ''; }).join('|') === key; })[0]; if (el) { el.focus(); try { if (el.setSelectionRange && el.type === 'text') el.setSelectionRange(el.value.length, el.value.length); } catch (e) {} } }
     if (B[cur].side) B[cur].side();
@@ -2540,7 +2631,7 @@
     var html; try { html = B[cur].doc(drafts[cur]); } catch (e) { html = '<!doctype html><body style="font:14px system-ui;padding:30px;color:#a00">This document could not be drawn (' + esc(e && e.message || e) + '). Check the last field you changed.</body>'; try { console.error(e); } catch (e2) {} }
     rendering = true; clearTimeout(render.guard);
     render.guard = setTimeout(function () { if (rendering) { rendering = false; settle(); } }, 8000);
-    fr.onload = function () { clearTimeout(render.guard); try { fit(true); fr.contentWindow.scrollTo(0, y); } catch (e) {} rendering = false; settle(); };
+    fr.onload = function () { clearTimeout(render.guard); try { fit(true); fr.contentWindow.scrollTo(0, y); } catch (e) {} try { sigDrag(fr); } catch (e) {} rendering = false; settle(); };
     fr.srcdoc = html;
     try { if (B[cur].side) B[cur].side(); } catch (e) { try { console.error(e); } catch (e2) {} }
   }
@@ -2748,6 +2839,7 @@
       if (t.classList.contains('pk')) { var box = t.parentNode.querySelector('input[data-fdate]'); if (box && t.value) { box.value = dateFromPicker(t.value); setVal(box); } return; }
       if (t.id === 'mtBpreset') return;
       if (a === 'condCat') return condAct(a, t);
+      if (a === 'esig' || a === 'esigDate' || a === 'esigOpt') return esigSet(t);
       if (t.hasAttribute('data-fdate')) { var rd = relDate(t.value); if (rd) { t.value = dateFromPicker(iso(rd)); setVal(t); } return; }
       if (a === 'fillFrom') { var fv = t.value; t.value = ''; refillFrom(fv); fillFromMenu(); return; }
       if (a === 'layoutSel' || a === 'marginSel') { savePref(a === 'layoutSel' ? LAYOUT_KEY : MARGIN_KEY, t.value); if (a === 'layoutSel' && t.value === 'pages') savePref('mt.builder.fit', '0'); pageEdit(false); refresh(true); return; }
@@ -2804,6 +2896,9 @@
       if (a === 'logoRm') { var lb = t.getAttribute('data-b'); drafts[lb].logo = ''; persist(); renderForm(); refresh(true); return; }
       if (a === 'logoReuse') { var lb2 = t.getAttribute('data-b'); drafts[lb2].logo = savedLogo(); drafts[lb2].logoSize = drafts[lb2].logoSize || '52'; persist(); renderForm(); refresh(true); return; }
       if (/^cond/.test(a)) return condAct(a, t);
+      if (a === 'esigMake') return esigMake();
+      if (a === 'esigHome') return esigSet(t);
+      if (a === 'esigClear') { if (!confirm('Remove every signature from this document? The saved signatures are kept.')) return; drafts[cur].esigs = []; persist(); scheduleVersion(cur); renderForm(); refresh(true); return; }
       if (a === 'pdetails') { var pb = drafts[t.getAttribute('data-b')], pp = t.getAttribute('data-p') || '', pl = String(pb[pp + 'addrFree'] || '').trim() || [pb[pp + 'address'], pb[pp + 'city'], [stateAbbr(pb[pp + 'state'] || ''), pb[pp + 'zip']].filter(Boolean).join(' ')].filter(Boolean).join(', '); if (!String(pl).trim()) { say('Enter the property address first.'); return; } if (window.MTAddr && MTAddr.lookup) MTAddr.lookup(pl); else say('The address tools are not loaded on this page.'); return; }
       if (a === 'loxUse' || a === 'loxFromCommit' || a === 'loxUseGen' || a === 'cpaUse' || a === 'cpaBiz') {
         if (a === 'loxUse') { var lx = drafts.lox, g0 = (lx.suggest || [])[+t.getAttribute('data-i')]; if (g0) { lx.type = g0.type; lx.cond = g0.text; lx.subject = ''; lx.body = ''; loxPrefill(lx, g0); } }

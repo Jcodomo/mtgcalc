@@ -6,11 +6,12 @@
     ['home','Home','index.html','M3 10l9-7 9 7v11H3z M9 21v-8h6v8'],
     ['pages','All pages','pages.html','M4 5h16 M4 12h16 M4 19h16'],
     ['docs','Doc Organizer','doc-organizer.html','M6 3h8l4 4v14H6z M14 3v5h5 M9 13h6 M9 17h6'],
+    ['property','Property','property.html','M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z M12 12.5a3 3 0 1 0 0-6 3 3 0 0 0 0 6'],
     ['income','Income','income-calculator.html','M5 3h14v18H5z M8 7h8 M8 11h2 M14 11h2 M8 15h2 M14 15h2'],
     ['full','Full Suite','full-suite.html','M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z']
   ];
   const path = location.pathname;
-  const active = /income-calculator/.test(path) ? 'income' : /pages\.html/.test(path) ? 'pages' : (/quick/.test(path) || /\/(index\.html)?$/.test(path)) ? 'home' : /doc-organizer/.test(path) ? 'docs' : /(?:full-suite|all-in-one|loan-suite|renovation-suite)/.test(path) ? 'full' : 'home';
+  const active = /income-calculator/.test(path) ? 'income' : /pages\.html/.test(path) ? 'pages' : (/quick/.test(path) || /\/(index\.html)?$/.test(path)) ? 'home' : /doc-organizer/.test(path) ? 'docs' : /property\.html/.test(path) ? 'property' : /(?:full-suite|all-in-one|loan-suite|renovation-suite)/.test(path) ? 'full' : 'home';
   const css = document.createElement('style');
   css.id = 'mtgcalc-5512-css';
   css.textContent =
@@ -41,6 +42,13 @@
     '#suite-root .rail .v39-rail>.body>.note,body .rail .v39-rail>.body>.note{display:none!important}';
   document.head.appendChild(css);
 
+  function propertyLine() {
+    const j = (k) => { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (_) { return null; } };
+    const mk = (st, c, s, z) => st ? [st, c, [s, z].filter(Boolean).join(' ')].filter(Boolean).join(', ') : '';
+    try { const a = window.mortgageSuite && mortgageSuite.store && mortgageSuite.store.activeInputs; if (a && a.propertyAddress) return mk(a.propertyAddress, a.city, a.state, a.zipCode); } catch (_) {}
+    const wf = j('mtgcalc-shared-workflow-v1'), si = wf && wf.suiteInputs; if (si && si.propertyAddress) return mk(si.propertyAddress, si.city, si.state, si.zipCode);
+    const r = (j('mt.addr.recent') || [])[0]; return r ? mk(r.street, r.city, r.state, r.zip) : '';
+  }
   function mount() {
     if (document.getElementById('mtgcalcPageNav')) return;
     const nav = document.createElement('nav'); nav.id = 'mtgcalcPageNav'; nav.setAttribute('aria-label', 'Mortgage tools');
@@ -48,6 +56,8 @@
     nav.addEventListener('click', (event) => {
       const link = event.target.closest('a'); if (!link) return;
       try { window.MtgcalcSync && window.MtgcalcSync.syncNow(); } catch (_) {}
+      /* 57.10: Property opens on the address in use - the loan file's property, else the last address picked anywhere */
+      if (/property\.html/.test(link.getAttribute('href')) && !/property\.html/.test(path)) { try { const line = propertyLine(); if (line) { link.href = 'property.html?a=' + encodeURIComponent(line); return; } } catch (_) {} }
       try { const token = window.LOS55 && LOS55.Shared && LOS55.Shared.token(); if (token) link.href = link.getAttribute('href').split('#')[0] + '#los55=' + token; } catch (_) {}
     });
     document.body.appendChild(nav);
