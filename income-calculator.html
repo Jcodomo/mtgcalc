@@ -7,7 +7,7 @@
 <title>Mortgage Income Calculator &amp; Guideline Engine</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <!-- v57: the PDF writer and reader load when a report or PDF needs them (mt-libs.js), not with the page -->
-<script src="assets/mt-libs.js?v=57.6"></script>
+<script src="assets/mt-libs.js?v=57.7"></script>
 <style>
 /* ============================================================
    NMB / UW ENGINE STYLE SYSTEM  —  light + dark themes
@@ -3780,7 +3780,7 @@ function nmbLoad(){
   if (window.NMBReport && window.NMB_TEMPLATE) return Promise.resolve(true);
   if (nmbLoad.p) return nmbLoad.p;
   const add = src => new Promise(res => { const s=document.createElement('script'); s.src=src; s.onload=()=>res(true); s.onerror=()=>res(false); document.head.appendChild(s); });
-  return nmbLoad.p = add('assets/nmb-template.js?v=57.6').then(a => add('assets/nmb-report.js?v=57.6').then(b => a && b));
+  return nmbLoad.p = add('assets/nmb-template.js?v=57.7').then(a => add('assets/nmb-report.js?v=57.7').then(b => a && b));
 }
 function buildReportPages(){
   const pages = [];
@@ -8270,20 +8270,20 @@ window.__mtgcalcBridge = {
   }
 };
 </script>
-<script src="assets/income-enhancements.js?v=57.6"></script>
-<script src="assets/sync-bridge.js?v=57.6"></script>
-<script src="assets/workflow-ui.js?v=57.6"></script>
-<script src="assets/income-features.js?v=57.6"></script>
-<script src="assets/income-extras.js?v=57.6"></script>
-<script src="assets/mt-live.js?v=57.6"></script>
-<script src="assets/release56-income.js?v=57.6"></script>
-<script src="assets/mt-mnd.js?v=57.6"></script>
-<script src="assets/mt-addr.js?v=57.6"></script>
-<script src="assets/mt-paste.js?v=57.6"></script>
-<script src="assets/mt-search.js?v=57.6"></script>
-<script src="assets/doc-center.js?v=57.6"></script>
-<script src="assets/mt-data.js?v=57.6"></script>
-<script src="assets/mt-build-lazy.js?v=57.6"></script>
-<script src="assets/ic-simple.js?v=57.6"></script>
+<script src="assets/income-enhancements.js?v=57.7"></script>
+<script src="assets/sync-bridge.js?v=57.7"></script>
+<script src="assets/workflow-ui.js?v=57.7"></script>
+<script src="assets/income-features.js?v=57.7"></script>
+<script src="assets/income-extras.js?v=57.7"></script>
+<script src="assets/mt-live.js?v=57.7"></script>
+<script src="assets/release56-income.js?v=57.7"></script>
+<script src="assets/mt-mnd.js?v=57.7"></script>
+<script src="assets/mt-addr.js?v=57.7"></script>
+<script src="assets/mt-paste.js?v=57.7"></script>
+<script src="assets/mt-search.js?v=57.7"></script>
+<script src="assets/doc-center.js?v=57.7"></script>
+<script src="assets/mt-data.js?v=57.7"></script>
+<script src="assets/mt-build-lazy.js?v=57.7"></script>
+<script src="assets/ic-simple.js?v=57.7"></script>
 </body>
 </html>

@@ -1,6 +1,6 @@
 {
   "name": "mtgcalc",
-  "version": "57.6.0",
+  "version": "57.7.0",
   "private": true,
   "description": "Mortgage Suite static GitHub Pages site (56.6) with the v57 engine source in src/.",
   "scripts": {

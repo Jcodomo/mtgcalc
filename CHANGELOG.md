@@ -132,7 +132,7 @@
 - **Address suggestions match known addresses instantly:** the loan file's property, the document builders' properties, addresses picked before and full addresses typed into an address box are matched on every keystroke without waiting for the network (tagged "Loan file", "Document builder", "Used before", "Typed before"); OpenStreetMap results join them, now after 0.2 seconds and from the third character.
 - The MI & renovation worksheet's program is a typeable box (FHA, FHA 203(k), Conventional, HomeStyle, VA, USDA or anything else). Choices that drive a calculation - pay frequency, filing status, the state tax table, lease type and each builder's style - stay as lists.
 
-## 2026-11-12 - everything released today (56.6 to 57.6)
+## 2026-11-12 - everything released today (56.6 to 57.7)
 
 The release entries below have the details. In short:
 
@@ -156,6 +156,7 @@ The release entries below have the details. In short:
 - **57.4 - one Documents page:** the Doc Organizer holds the library and OCR, paste box, income document reader, Document Builder and organizer; the Income Calculator's Documents tab opens it. Conditions can be exported (.txt / .csv / .json, or checked-off only into a text box) and checked or unchecked all at once, internal or external.
 - **57.5 - scanned approvals and two new builders:** multi-page scanned approvals read in full (OCR headings and grid); company, NMLS and contact details remembered and suggested; letter of explanation builder (21 kinds, approval / bank statement / credit report drops); CPA / tax preparer letter builder (5 styles with logo).
 - **57.6 - hotfix:** scanned PDFs read on every page. Choosing a PDF no longer swaps the real reader for a text-only one, and the original scanned pictures are OCR'd directly.
+- **57.7 - navigation and tools:** "All pages" in the top bar instead of the bottom bar; Full Suite Simple opens Documents / Rates / Property / Max mortgage below on demand; property details (flood zone, census tract, building data); recent borrower names; letter formatting options; three more CPA styles; contractor labor / materials split.
 - **Behind the scenes, with no change to the site on their own:**
   - The 56.5 calculation was recovered into readable TypeScript (src/) and gives identical results on 3,000 scenarios.
   - Engine fixes D1-D5 were written with tests.
@@ -343,6 +344,34 @@ The release entries below have the details. In short:
 - **Cache keys:** every shared script on every page now carries the release number, including loan-ux.js, which had none.
 - **Tested:** the 7-page scanned commitment PDF, dropped into the commitment letter on the Documents page, read in 42 seconds: both borrowers, the loan number, and 100 conditions across PTA / PTD / AC / PTP.
 - Asset version 57.6.
+
+## Release 57.7 - page navigation in the header, Simple sections on demand, property details, letter formatting
+
+- **All pages, at the top:** the bar at the bottom of every page is gone.
+  - Each page's top bar now has an "All pages" button that slides out a row of every page: Home, Full Suite, Loan Suite, Income Calculator, Documents, Renovation, Quick income, All-in-one and Every page.
+  - On the home page the button sits beside "Mortgage Suite  Quick".
+  - The row stays on screen on narrow windows.
+- **Documents page header:** it now has the same "MORTGAGE SUITE | Documents" top bar as the other pages, with a page title under it.
+- **Full Suite, Simple:**
+  - **Opening below:** Documents, Rates, Property and Max mortgage open their section below the Simple screen, loaded only when clicked. The Simple screen and its live summary stay in place.
+  - **Hidden while open:** the suite's own top bar, figures and summary rail.
+  - **The bar above it:** "Open in Advanced" or "Close".
+  - **Labels:** the buttons show ↓ instead of ↗.
+- **Addresses and property details:**
+  - **Second lookup:** when the type-ahead search finds fewer than two addresses, OpenStreetMap Nominatim is searched too.
+  - **Suggestion list links:** USPS ZIP lookup and "Property details".
+  - **Property details:** shows the flood zone (FEMA), county / FIPS, census tract and block (FCC), and building data from OpenStreetMap where mapped. Beds, baths, living area, year built, lot, taxes, HOA and style are entered by you and kept per address in this browser. Links open Zillow, Redfin, Realtor.com, Google and the FEMA map.
+  - **In the document builders:** each Property section has a Property details button.
+  - **Borrower names:** the last 10 names are suggested on borrower name boxes. Addresses (up to 40) and your saved details were already remembered.
+- **Letters of explanation and CPA letters, formatting:** font, text size, line spacing, letter case (as typed, all lowercase, ALL UPPERCASE, Title Case), justified or centered paragraphs, and options to remove all bold or italics.
+- **CPA letters, three more styles** (eight in all), from the sample letters:
+  - Ownership & liquidity, with a "Re:" block of the client and businesses and a footer address bar.
+  - Good standing & wages, with a logo box left and the preparer right, plus a new owner-wage statement.
+  - Return transmittal, with the returns prepared and "no balance due".
+- **CPA letters, other additions:** a sign-off choice, and other businesses for the Re: block.
+- **Contractor estimate, labor / materials split:** re-split every line by a labor % (labor typically 60-75%, materials 25-40%), or add a lump-sum total as a split line. The current labor / materials share is shown.
+- **Cache keys:** the Simple-screen bundles' cache keys now include a hash of their content, since quote-embed.js had a fixed ?v=57.9.
+- Asset version 57.7.
 
 ## Release 55.14b - self-employment, rental and more of the income worksheet; one look across the pages
 

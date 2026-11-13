@@ -16,7 +16,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).parent)); from split import scan
 
 SRC, OUT = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2])
 MIG = "<script>/* 55.15: OLED dark blue by default (once for everyone; afterwards the Look menu / theme switch decides) */(function(){try{var L=localStorage,k='mt.oledDefault.v1';if(!L.getItem(k)){L.setItem('los.v25.surface','oled');L.setItem('uwTheme','dark');['los.v251.appearanceSeeded','los.v35.appearanceSeeded','v15ThemeSeeded'].forEach(function(f){L.setItem(f,'1')});L.setItem(k,'1');}document.documentElement.setAttribute('data-mt-mode',L.getItem('los.v25.surface')==='light'&&L.getItem('uwTheme')!=='dark'?'light':'oled');}catch(e){}})();</script>"
-VER = '57.6'   # cache key for the shared assets: change it with every release
+VER = '57.7'   # cache key for the shared assets: change it with every release
 COMPANIONS = ['income-enhancements.js', 'loan-ux.js', 'sync-bridge.js', 'workflow-ui.js', 'quick-worksheet.js', 'income-features.js', 'loan-docs-ai.js', 'loan-cards.js', 'income-extras.js', 'quick-engine.js',
               'mt-live.js', 'release56-income.js', 'release56-suite.js', 'doc-center.js', 'mt-mnd.js', 'mt-data.js', 'doc-builder.js', 'mt-addr.js', 'mt-paste.js', 'mt-search.js', 'mt-build-lazy.js', 'mt-libs.js', 'ic-simple.js', 'nmb-report.js', 'nmb-template.js']
 
@@ -222,6 +222,14 @@ a:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 """
     (OUT / 'pages.html').write_text(html, encoding='utf-8'); print('  pages.html  (every page)')
 
+def v57hash(rel):
+    """57.7: a short hash of the bundle's content, so a rebuilt Simple screen always gets a new cache key"""
+    import hashlib
+    for base in (OUT, pathlib.Path(__file__).resolve().parent.parent):
+        f = base / rel
+        if f.exists(): return hashlib.md5(f.read_bytes()).hexdigest()[:6]
+    return '0'
+
 def stamp_builder_versions():
     """57.3: the document builder is fetched by mt-build-lazy.js, and the pages fetch that loader; both carried a fixed
     ?v= (56.8 / 57.0), so a browser that had cached them kept an old builder. Stamp both with this release's VER."""
@@ -234,6 +242,7 @@ def stamp_builder_versions():
         t2 = re.sub(r"(doc-builder\.js\?v=)[0-9.]+", lambda m: m.group(1) + VER, t2)
         # 57.4: every shared companion script a page loads carries this release's key (doc-center.js was still ?v=56.1)
         t2 = re.sub(r'(assets/(?:' + '|'.join(re.escape(c) for c in COMPANIONS + ['mt-build-lazy.js']) + r'))(?:\?v=[0-9.]+)?(?=["\'])', lambda m: m.group(1) + '?v=' + VER, t2)   # 57.6: also scripts that had no key (loan-ux.js)
+        t2 = re.sub(r'(assets/v57/[a-z0-9-]+\.(?:js|css))\?v=[0-9.]+', lambda m: m.group(1) + '?v=' + VER + '-' + v57hash(m.group(1)), t2)   # 57.7: the Simple screen bundles too (quote-embed.js was a fixed ?v=57.9)
         if t2 != t: f.write_text(t2, encoding='utf-8'); n += 1
     print(f'  builder cache key -> {VER} ({n} pages)')
 

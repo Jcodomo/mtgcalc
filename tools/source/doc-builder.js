@@ -191,7 +191,7 @@
       field(b, prefix + 'state', 'State', {list: STATE_NAMES, ph: 'NY or New York'}) + field(b, prefix + 'zip', 'ZIP') + field(b, prefix + 'county', 'County') +
       field(b, prefix + 'addrFree', 'Address exactly as it should print (optional - replaces the lines above in the document)', {type: 'textarea', wide: 1, rows: 2, ph: 'e.g. 106 Main Street a/k/a Section 12 Block 4 Lot 22, Town of Hempstead, NY 11550'}) + '</div>' +
       '<div class="row" style="margin-top:8px"><button type="button" class="btn" data-a="psearch" data-b="' + b + '" data-p="' + prefix + '">Search address</button>' +
-      '<button type="button" class="btn" data-a="pgoogle" data-b="' + b + '" data-p="' + prefix + '">Check on Google</button><button type="button" class="btn" data-a="pfile" data-b="' + b + '" data-p="' + prefix + '">Use loan file address</button></div>' +
+      '<button type="button" class="btn" data-a="pgoogle" data-b="' + b + '" data-p="' + prefix + '">Check on Google</button><button type="button" class="btn" data-a="pfile" data-b="' + b + '" data-p="' + prefix + '">Use loan file address</button><button type="button" class="btn" data-a="pdetails" data-b="' + b + '" data-p="' + prefix + '">Property details</button></div>' +
       '<div class="sr" id="mtBsr-' + b + prefix + '" hidden></div><p class="note">Type a street address and pick a suggestion to fill the city, state, ZIP and county (OpenStreetMap). Google opens a search in a new tab so you can confirm it. <button type="button" class="x" style="color:#9fc4ff" data-a="addrToggle">' + (window.MTAddr && MTAddr.isOff() ? 'Turn address suggestions on' : 'Turn address suggestions off') + '</button></p></fieldset>';
   }
   function psearch(b, p) {
@@ -809,6 +809,13 @@
     exterior: ['Exterior, siding and windows', [['Siding / exterior', 'Remove and replace siding, house wrap, trim and soffit'], ['Windows and doors', 'Replace windows and exterior doors, capped and sealed'], ['Painting', 'Exterior paint and caulking'], ['Walks and driveways', 'Repair walks, steps and driveway']]],
     full: ['Full renovation (FHA 203(k) / HomeStyle)', [['Permits and plans', 'Building permits, plans and inspections'], ['Demolition and debris', 'Interior demolition and debris removal'], ['Roofing', 'Roof replacement'], ['Electrical', 'Upgrade service to 200 amp; rewire as needed to code'], ['Plumbing', 'Replace supply and drain lines; new water heater'], ['HVAC', 'New furnace / boiler and distribution'], ['Kitchen', 'New kitchen cabinets, counters and appliances'], ['Bathroom', 'Remodel bathroom(s)'], ['Flooring', 'New flooring throughout'], ['Drywall / plaster', 'Repair or replace drywall'], ['Painting', 'Interior and exterior paint'], ['Lead paint / health and safety', 'Lead-safe work practices; handrails, smoke and CO detectors']]]
   };
+  /* 57.6: labor and materials from a total - labor is typically 60-75% of a home renovation, materials 25-40% */
+  function estSplitBlock(b, s) {
+    var c = B.estimate.calc(s), base = c.sub || 0, lp = base ? Math.round((s.items || []).reduce(function (t, i) { return t + N(i.labor); }, 0) / base * 100) : 0;
+    return '<fieldset><legend>Labor / materials split</legend><div class="g">' + field(b, 'laborPct', 'Labor share of each line (%)', {type: 'pct', ph: '65', list: ['60', '65', '70', '75']}) + field(b, 'splitTotal', 'Or split a lump-sum total ($)', {type: 'money'}) + field(b, 'splitTrade', 'For that total, the line is', {list: ['General construction', 'Kitchen', 'Bathroom', 'Roof', 'Whole-house renovation']}) + '</div>' +
+      '<div class="row" style="margin-top:6px"><button type="button" class="btn" data-a="estSplit">Re-split every line by the labor %</button><button type="button" class="btn" data-a="estSplitAdd">Add the lump sum as a split line</button></div>' +
+      '<p class="note">Labor usually runs 60-75% of renovation cost and materials 25-40%. ' + (base ? 'Now: labor ' + lp + '%, materials ' + (100 - lp) + '% of ' + usd(base) + '.' : '') + '</p></fieldset>';
+  }
   B.estimate = {
     label: 'Contractor estimate', sub: 'Eight layouts, logo, draws',
     init: function () { var f = file(); return {style: 'classic', title: '', company: '', license: '', phone: '', email: '', companyAddr: '', number: 'EST-' + iso().replace(/-/g, '').slice(2), date: dateFromPicker(iso()), validDays: '30', customer: f.borrowers.join(' & '), custPhone: '', custEmail: '',
@@ -850,6 +857,7 @@
             (q ? '<label class="f">Quantity<input inputmode="decimal"' + a('qty') + ' value="' + esc(it.qty || '') + '"></label><label class="f">Unit<input list="mtBunits"' + a('unit') + ' value="' + esc(it.unit || '') + '" placeholder="sq ft" autocomplete="off"></label><span></span>' : '') +
             '<label class="f">Labor<input inputmode="decimal"' + a('labor') + ' value="' + esc(it.labor || '') + '"></label><label class="f">Materials<input inputmode="decimal"' + a('materials') + ' value="' + esc(it.materials || '') + '"></label></div></div>'; }).join('') +
         '</div><datalist id="mtBunits"><option value="sq ft"><option value="lin ft"><option value="each"><option value="lot"><option value="hours"><option value="squares"><option value="sq yd"></datalist><button type="button" class="btn" data-a="add" data-b="estimate" data-list="items">+ Add a line</button></fieldset>' +
+        estSplitBlock(b, s) +
         '<fieldset><legend>Totals and payment</legend><div class="g">' + field(b, 'permits', 'Permits and fees ($)', {type: 'money'}) + field(b, 'ohp', 'Overhead & profit (%)', {type: 'pct'}) + field(b, 'tax', 'Sales tax on materials (%)', {type: 'pct'}) + field(b, 'contingency', 'Contingency (%)', {type: 'pct'}) + field(b, 'deposit', 'Deposit at signing (%)', {type: 'pct', ph: '0 = no deposit line'}) + field(b, 'signer', 'Signed by (contractor)') + '</div>' +
         '<div class="g" style="margin-top:6px">' + field(b, 'showPay', 'Show the payment / draw schedule', {type: 'check', wide: 1}) + (s.showPay !== false ? field(b, 'drawCustom', 'Set each draw myself (name, share, remove)', {type: 'check', wide: 1}) + (s.drawCustom ? '' : field(b, 'draws', 'Number of equal draws')) : '') + '</div>' +
         (s.showPay !== false && s.drawCustom ? '<div class="list" style="margin-top:6px">' + (s.drawList || []).map(function (d, i) { var a = function (f) { return ' data-b="estimate" data-list="drawList" data-i="' + i + '" data-f="' + f + '"'; };
@@ -2060,6 +2068,25 @@
      editable - type over the generated text), and the right signer: the borrowers, or a third party for rent-free and
      business-access letters. Drop the approval (or paste its conditions) to list every explanation it asks for; drop a
      bank statement or a credit report to fill the deposits or inquiries. */
+  /* 57.6: formatting for the letter builders - font, size, spacing, no bold, letter case, justified text */
+  var FMT_FONTS = [['', 'Layout default'], ['Calibri, Carlito, "Segoe UI", Arial, sans-serif', 'Calibri'], ['Arial, Helvetica, sans-serif', 'Arial'], ['"Times New Roman", Times, serif', 'Times New Roman'], ['Georgia, serif', 'Georgia'], ['Garamond, "EB Garamond", Georgia, serif', 'Garamond'], ['Verdana, Geneva, sans-serif', 'Verdana'], ['"Courier New", Courier, monospace', 'Courier']];
+  function fmtFields(b) {
+    return '<fieldset><legend>Formatting</legend><div class="g">' + field(b, 'fFont', 'Font', {type: 'select', options: FMT_FONTS}) + field(b, 'fSize', 'Text size', {type: 'select', options: [['', 'Layout default'], ['9.5', '9.5 pt'], ['10', '10 pt'], ['10.5', '10.5 pt'], ['11', '11 pt'], ['11.5', '11.5 pt'], ['12', '12 pt'], ['13', '13 pt'], ['14', '14 pt']]}) +
+      field(b, 'fLine', 'Line spacing', {type: 'select', options: [['', 'Layout default'], ['1.15', 'Tight (1.15)'], ['1.35', 'Normal (1.35)'], ['1.5', '1.5 lines'], ['1.8', 'Loose (1.8)'], ['2', 'Double']]}) +
+      field(b, 'fCase', 'Letter case', {type: 'select', options: [['', 'As typed'], ['lower', 'all lowercase'], ['upper', 'ALL UPPERCASE'], ['title', 'Title Case Every Word']]}) +
+      field(b, 'fAlign', 'Paragraphs', {type: 'select', options: [['', 'Left aligned'], ['justify', 'Justified'], ['center', 'Centered']]}) + field(b, 'fNoBold', 'Remove all bold', {type: 'check'}) + field(b, 'fNoItalic', 'Remove all italics', {type: 'check'}) + '</div></fieldset>';
+  }
+  function fmtCss(s) {
+    var c = [];
+    if (s.fFont) c.push('.pg,.pg *{font-family:' + s.fFont + '!important}');
+    if (N(s.fSize)) c.push('.pg p,.pg li,.pg td,.pg div{font-size:' + N(s.fSize) + 'pt}');
+    if (N(s.fLine)) c.push('.pg p,.pg li{line-height:' + N(s.fLine) + '!important}');
+    if (s.fNoBold) c.push('.pg *{font-weight:400!important}');
+    if (s.fNoItalic) c.push('.pg *{font-style:normal!important}');
+    if (s.fCase) c.push('.pg .fitw{text-transform:' + ({lower: 'lowercase', upper: 'uppercase', title: 'capitalize'}[s.fCase]) + '}');
+    if (s.fAlign) c.push('.pg p{text-align:' + s.fAlign + '}');
+    return c.join('');
+  }
   var LOX_STYLES = [['plain', 'Plain letter - "To Whom It May Concern"'], ['re', 'Letter with RE: line - borrower, property, loan number'], ['formal', 'Formal - sender address, lender, signature lines'], ['table', 'Modern - details table and lists as tables']];
   var LOX_COLS = {
     deposits: [['date', 'Date'], ['amount', 'Amount'], ['account', 'Account (bank, last 4)'], ['source', 'Source of the funds']],
@@ -2154,7 +2181,7 @@
         (T.rows ? rowsBlock(T.rows) : '') + propertyBlock(b) +
         '<fieldset><legend>Wording</legend><div class="g">' + field(b, 'body', 'Letter text (blank = the wording for this kind of letter; type here to write your own)', {type: 'textarea', wide: 1, rows: 7, ph: B.lox.gen(s).filter(function (p) { return typeof p === 'string'; }).join('\n\n')}) +
         field(b, 'extra', 'Add a paragraph (optional)', {type: 'textarea', wide: 1, rows: 2}) + field(b, 'closing', 'Closing', {list: ['Sincerely,', 'Thank you for your consideration.\nSincerely,', 'Respectfully,', 'Signed,']}) + field(b, 'sigDates', 'Date line under each signature', {type: 'check'}) + '</div>' +
-        '<div class="row" style="margin-top:6px"><button type="button" class="btn" data-a="loxUseGen">Copy the generated wording into the text box to edit</button></div></fieldset>' + logoBlock(b);
+        '<div class="row" style="margin-top:6px"><button type="button" class="btn" data-a="loxUseGen">Copy the generated wording into the text box to edit</button></div></fieldset>' + fmtFields(b) + logoBlock(b);
     },
     doc: function (s) {
       var T = loxType(s), bor = names(s.borrowers), st = s.style || 'plain', table = st === 'table';
@@ -2179,7 +2206,7 @@
       else if (st === 'formal') { var sender = (s.borrowers || []).map(function (p) { return typeof p === 'object' ? p : {name: p}; }).filter(function (p) { return p.name; }); body = lg + '<div class="lxf">' + sender.map(function (p) { return '<div><b>' + esc(p.name) + '</b>' + (p.mail ? '<br>' + esc(p.mail) : '') + '</div>'; }).join('') + '</div>' + date + (s.lender ? '<p>' + esc(s.lender) + '<br>Underwriting Department</p>' : '') + re + hi + paras + sig; }
       else if (table) body = lg + '<h1 class="lxti">Letter of Explanation</h1><table class="lxk"><tr><th>Date</th><td>' + esc(when(s.date, slashDate)) + '</td></tr><tr><th>Subject</th><td>' + esc(subj) + '</td></tr>' + (bor.length ? '<tr><th>Borrower' + (bor.length > 1 ? 's' : '') + '</th><td>' + esc(bor.join(' & ')) + '</td></tr>' : '') + (pa ? '<tr><th>Property</th><td>' + pa + '</td></tr>' : '') + (s.loanNumber ? '<tr><th>Loan #</th><td>' + esc(s.loanNumber) + '</td></tr>' : '') + '</table>' + hi + paras + sig;
       else body = lg + date + hi + paras + sig;
-      return page(st === 'table' ? 'ari' : 'cal', body, CSS_LOX);
+      return page(st === 'table' ? 'ari' : 'cal', body, CSS_LOX + fmtCss(s));
     }
   };
   var CSS_LOX = 'p{margin:0 0 .16in;line-height:1.45}.lxh{margin-top:.18in}ul.lxl{margin:-.06in 0 .16in .3in;padding:0}ul.lxl li{margin:0 0 4px;line-height:1.4}table.lxr{border-collapse:collapse;margin:.12in 0 .1in}table.lxr td{padding:1px 10px 1px 0;vertical-align:top}table.lxr td:first-child{font-weight:700;white-space:nowrap}' +
@@ -2226,16 +2253,17 @@
      business started, that it is active and current on taxes, and that using business funds will not hurt it. Five
      letterheads, a logo, statements switched on and off, your own statements, the businesses from the Income Calculator,
      and the preparer's details read from an earlier letter. */
-  var CPA_STYLES = [['letterhead', 'Firm letterhead - centered name, "based upon the records available to us" list'], ['certify', 'Certification letter - "CPA LETTER" title, narrative paragraphs'], ['sideband', 'Side-band letterhead - colored band, firm block on the right'], ['modern', 'Modern - firm bar, facts table, statements'], ['brief', 'Brief - logo left, short confirmation']];
+  var CPA_STYLES = [['letterhead', 'Firm letterhead - centered name, "based upon the records available to us" list'], ['certify', 'Certification letter - "CPA LETTER" title, narrative paragraphs'], ['sideband', 'Side-band letterhead - colored band, firm block on the right'], ['modern', 'Modern - firm bar, facts table, statements'], ['brief', 'Brief - logo left, short confirmation'],
+    ['reblock', 'Ownership & liquidity - logo, "Re:" block, footer address bar'], ['split', 'Good standing & wages - logo box left, preparer right'], ['transmittal', 'Return transmittal - returns prepared, no balance due']];
   var CPA_ENT = ['Sole proprietorship (Schedule C)', 'Single-member LLC (Schedule C)', 'LLC taxed as a partnership (Form 1065)', 'Partnership (Form 1065)', 'S corporation (Form 1120-S)', 'C corporation (Form 1120)'];
   var CPA_ST = [['stSince', 'Years we have prepared the returns'], ['stOwner', 'Ownership'], ['stEst', 'When the business started / self-employed since'], ['stPrior', 'How it filed before (e.g. Schedule C before the LLC)'], ['stStanding', 'Active and in good standing'],
-    ['stTaxes', 'Current on tax obligations'], ['stFunds', 'Use of business funds will not harm the business'], ['stAccess', 'Full access to the business account'], ['stOngoing', 'Business is stable and ongoing'], ['stDebts', 'Debts paid by the business'], ['stExt', 'Extension filed'], ['stExplain', 'Explanation the lender asked for'], ['stDisclaim', 'Prepared for mortgage purposes (disclaimer)']];
+    ['stTaxes', 'Current on tax obligations'], ['stFunds', 'Use of business funds will not harm the business'], ['stAccess', 'Full access to the business account'], ['stOngoing', 'Business is stable and ongoing'], ['stDebts', 'Debts paid by the business'], ['stExt', 'Extension filed'], ['stWage', 'Wage income on the return (owner-officer wages)'], ['stExplain', 'Explanation the lender asked for'], ['stDisclaim', 'Prepared for mortgage purposes (disclaimer)']];
   B.cpa = {
     label: 'CPA / tax preparer letter', sub: 'Self-employment, ownership, use of business funds',
     init: function () {
       var f = file(), y = new Date().getFullYear(), d = {style: 'letterhead', date: dateFromPicker(iso()), voice: 'I', cred: 'CPA', prepName: '', firm: '', firmAddr1: '', firmAddr2: '', firmPhone: '', firmFax: '', firmEmail: '', firmWeb: '', license: '', ptin: '', members: '',
         clients: f.borrowers.length ? f.borrowers.map(function (n) { return {name: n}; }) : [{name: ''}], title: 'Mr.', ssn4: '', biz: '', ent: CPA_ENT[0], ownPct: '100', bizType: '', bizAddr: '', bizPhone: '', estDate: '', selfSince: '', since: String(y - 3), years: (y - 2) + ' and ' + (y - 1), priorForm: '', priorUntil: '',
-        state: stateName(f.state), fundsAmt: '', acct: '', debts: '', extYear: String(y - 1), explain: '', extra: [''], closing: 'Should you require any additional information, please feel free to contact ' + 'me.', color: '#2f5d50', logo: '', logoSize: '52', logoPos: 'left'};
+        state: stateName(f.state), fundsAmt: '', acct: '', debts: '', extYear: String(y - 1), explain: '', extra: [''], closing: 'Should you require any additional information, please feel free to contact ' + 'me.', signoff: 'Sincerely,', biz2: '', wageAmt: '', wageLine: 'Line 7 of Form 1120-S', wageTitle: 'president and sole owner', returnsList: 'U.S. Return of Partnership Income (Form 1065)\nNew York Partnership Return (Form IT-204)', fedForm: (y - 1) + ' Form 1065', stForm: 'New York ' + (y - 1) + ' Form IT-204', clientAddr: '', color: '#2f5d50', logo: '', logoSize: '52', logoPos: 'left'};
       CPA_ST.forEach(function (x) { d[x[0]] = /stSince|stOwner|stEst|stStanding|stTaxes|stDisclaim/.test(x[0]); });
       return d;
     },
@@ -2256,6 +2284,7 @@
       if (s.stOngoing) L.push('Based on ' + my + ' review of the financial records and tax filings, the business is stable and ongoing, and ' + I + ' have no knowledge of any plan to close or sell it.');
       if (s.stDebts && s.debts) L.push('The following obligations in ' + c + '\'s name are paid by the business: ' + s.debts + '.');
       if (s.stExt) L.push('An extension has been filed for tax year ' + (s.extYear || '________') + '.');
+      if (s.stWage) L.push((I === 'we' ? 'We' : 'I') + ' can also confirm that the ' + (s.wageAmt ? (N(s.wageAmt) ? usd(s.wageAmt, 0) : s.wageAmt) : '$________') + ' reported on ' + (s.wageLine || '________') + ' is the wage income for ' + c + ', the ' + (s.wageTitle || 'owner') + ' of ' + biz + '.');
       if (s.stExplain && s.explain) { var ex = String(s.explain).trim(); if (/[:\-–]$/.test(ex)) ex += ' ________'; L.push(ex.replace(/([^.])\s*$/, '$1.')); }
       (s.extra || []).forEach(function (t) { if (String(t || '').trim()) L.push(String(t).trim()); });
       return L;
@@ -2271,12 +2300,14 @@
         people(b, 'clients', 'Clients (borrowers)', 4) +
         '<fieldset><legend>Business</legend>' + (biz.length ? '<div class="row" style="margin-bottom:6px">' + biz.map(function (x, i) { return '<button type="button" class="btn" data-a="cpaBiz" data-i="' + i + '">Use ' + esc(x.name) + '</button>'; }).join('') + '</div>' : '') + '<div class="g">' +
         field(b, 'biz', 'Business name') + field(b, 'ent', 'Entity / how it files', {list: CPA_ENT}) + field(b, 'ownPct', 'Ownership %') + field(b, 'bizType', 'Kind of business', {ph: 'e.g. consulting services'}) + field(b, 'bizAddr', 'Business address', {wide: 1}) + field(b, 'bizPhone', 'Business phone') + field(b, 'state', 'State of good standing') +
-        field(b, 'estDate', 'Established on', {type: 'date'}) + field(b, 'selfSince', 'Self-employed since', {type: 'date'}) + field(b, 'since', 'Preparing the returns since (year)') + field(b, 'years', 'Tax years prepared', {ph: '2024 and 2025'}) + field(b, 'title', 'Client title (certification style)', {list: ['Mr.', 'Mrs.', 'Ms.', 'Mx.', '']}) + field(b, 'ssn4', 'SSN last 4 (optional)') + '</div></fieldset>' +
+        field(b, 'estDate', 'Established on', {type: 'date'}) + field(b, 'selfSince', 'Self-employed since', {type: 'date'}) + field(b, 'since', 'Preparing the returns since (year)') + field(b, 'years', 'Tax years prepared', {ph: '2024 and 2025'}) + field(b, 'title', 'Client title (certification style)', {list: ['Mr.', 'Mrs.', 'Ms.', 'Mx.', '']}) + field(b, 'ssn4', 'SSN last 4 (optional)') + field(b, 'biz2', 'Other businesses (Re: block)', {wide: 1, ph: 'e.g. VIVI Global Holdings LLC'}) + '</div></fieldset>' +
+        '<fieldset><legend>Wages and return transmittal</legend><div class="g">' + field(b, 'wageAmt', 'Wages reported') + field(b, 'wageLine', 'Reported on', {list: ['Line 7 of Form 1120-S', 'Line 7 of Schedule C (and Line 7 of Form 1120-S)', 'Line 12 of Form 1120', 'Line 1 of Form W-2']}) + field(b, 'wageTitle', 'Owner\'s role', {list: ['president and sole owner', 'managing member', 'officer and shareholder']}) +
+          field(b, 'clientAddr', 'Client mailing address (transmittal)', {type: 'textarea', wide: 1, rows: 2}) + field(b, 'returnsList', 'Returns prepared (one per line)', {type: 'textarea', wide: 1, rows: 3}) + field(b, 'fedForm', 'Federal return') + field(b, 'stForm', 'State return') + '</div></fieldset>' +
         '<fieldset><legend>Statements in the letter</legend><div class="g">' + CPA_ST.map(function (x) { return field(b, x[0], x[1], {type: 'check'}); }).join('') + '</div><div class="g" style="margin-top:8px">' +
         field(b, 'priorForm', 'Filed before as', {ph: 'a sole proprietorship on Schedule C'}) + field(b, 'priorUntil', 'Until', {type: 'date'}) + field(b, 'fundsAmt', 'Business funds to be used (optional)') + field(b, 'acct', 'Business account', {ph: 'Chase checking ending 8720'}) + field(b, 'debts', 'Debts paid by the business', {wide: 1}) + field(b, 'extYear', 'Extension filed for') +
         field(b, 'explain', 'Explanation the lender asked for', {type: 'textarea', wide: 1, rows: 3, ph: 'e.g. The client reported two Schedule C businesses for 2025 because ...'}) + '</div>' +
         '<div class="note" style="margin-top:8px">Your own statements:</div>' + s.extra.map(function (t, i) { return '<div class="row" style="gap:6px;margin-bottom:4px"><textarea data-b="cpa" data-list="extra" data-i="' + i + '" rows="2" style="flex:1">' + esc(t) + '</textarea>' + (s.extra.length > 1 ? '<button type="button" class="x" data-a="rm" data-b="cpa" data-list="extra" data-i="' + i + '">Remove</button>' : '') + '</div>'; }).join('') +
-        '<button type="button" class="btn" data-a="add" data-b="cpa" data-list="extra">+ Add a statement</button><div class="g" style="margin-top:8px">' + field(b, 'closing', 'Closing sentence', {wide: 1}) + '</div></fieldset>';
+        '<button type="button" class="btn" data-a="add" data-b="cpa" data-list="extra">+ Add a statement</button><div class="g" style="margin-top:8px">' + field(b, 'closing', 'Closing sentence', {wide: 1}) + field(b, 'signoff', 'Sign-off', {list: ['Sincerely,', 'Very truly yours,', 'Regards,', 'Respectfully,']}) + '</div></fieldset>' + fmtFields(b);
     },
     doc: function (s) {
       var st = s.style || 'letterhead', L = B.cpa.stmts(s), cl = names(s.clients), c = cl.join(' and ') || '________', we = s.voice === 'We', col = s.color || '#2f5d50';
@@ -2307,11 +2338,33 @@
         body = '<div class="cpmb" style="--c:' + col + '"><div>' + (lg ? lg : '') + '<div class="cpn3">' + esc(s.firm || s.prepName || 'Firm Name') + '</div></div><div class="cpmr">' + contact + (phones ? '<br>' + phones : '') + (web ? '<br>' + web : '') + '</div></div>' +
           '<p>' + esc(when(s.date)) + '</p>' + hello + intro + '<table class="cpft" style="--c:' + col + '">' + facts.map(function (r) { return '<tr><th>' + esc(r[0]) + '</th><td>' + esc(r[1]) + '</td></tr>'; }).join('') + '</table>' +
           (L.length ? '<ol class="cpo">' + L.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ol>' : '') + disc + bye + sig;
+      } else if (st === 'reblock') {
+        var re = [c].concat([s.biz, s.biz2].filter(function (x) { return String(x || '').trim(); }));
+        body = (lg ? '<div style="margin-bottom:.45in">' + lg + '</div>' : '<div class="cpn4" style="--c:' + col + '">' + esc(s.firm || 'Firm Name') + '</div>') + '<p style="margin-left:.4in">' + esc(when(s.date)) + '</p>' +
+          '<table class="cpre"><tr><td>Re:</td><td>' + re.map(esc).join('<br>') + '</td></tr></table>' + hello +
+          L.map(function (t) { return '<p>' + esc(t) + '</p>'; }).join('') + disc + '<p style="margin-top:.3in">' + esc(String(s.closing || '').replace(/^Should you require any additional information, please feel free to contact me\.$/, 'Please let me know if I can provide you with any additional information.')) + '</p>' +
+          '<p style="margin-top:.25in">' + esc(s.signoff || 'Very truly yours,') + '</p><div class="cps"></div><div>' + credLine + '</div>' +
+          '<div class="cpfb" style="--c:' + col + '"><div>' + esc([s.firmAddr1, s.firmAddr2].filter(Boolean).join(' - ')) + (s.firmPhone ? ' | ' + esc(s.firmPhone) : '') + '</div><div><b>' + esc(s.firmWeb || s.firmEmail || '') + '</b></div></div>';
+      } else if (st === 'split') {
+        body = '<div class="cpsp"><div class="cpsx">' + (lg || '<div class="cpbox"><b>' + esc(s.firm || 'FIRM') + '</b></div>') + '</div><div class="cpsr"><div class="cpn5">' + esc(s.prepName || '') + (s.cred ? ' ' + esc(s.cred.replace(/\s*\(.*\)/, '')) : '') + '</div><div class="cpcr">' + esc(isCpa ? 'Certified Public Accountant' : /EA/.test(s.cred || '') ? 'Enrolled Agent' : s.cred || '') + '</div><div style="margin-top:8px">' + contact + (s.firmPhone ? '<br>Tel: ' + esc(s.firmPhone) : '') + (s.firmFax ? '<br>Fax: ' + esc(s.firmFax) : '') + (s.firmEmail ? '<br>E-Mail: ' + esc(s.firmEmail) : '') + '</div></div></div>' +
+          '<p style="margin-top:.5in">' + esc(when(s.date)) + '</p><p style="margin-top:.2in">To whom it may concern,</p>' +
+          (s.stStanding ? '<p>Please be advised that ' + esc(s.biz || '________') + ' is currently active and is in good standing as of the date of this letter.</p>' : '') +
+          L.filter(function (t) { return !/^The business is currently open, operating and in good standing/.test(t); }).map(function (t) { return '<p>' + esc(t) + '</p>'; }).join('') + disc +
+          '<p style="margin-top:.3in">' + esc(s.signoff || 'Regards,') + '</p><div class="cps"></div><div>' + credLine + '</div>' + (ids ? '<div class="cpm">' + ids + '</div>' : '');
+      } else if (st === 'transmittal') {
+        var rl = String(s.returnsList || '').split('\n').map(function (x) { return x.trim(); }).filter(Boolean);
+        body = '<div class="cptr"><div class="cptrh"><b>' + esc((s.firm || 'FIRM NAME').toUpperCase()) + '</b><br><b>' + esc([s.firmAddr1, s.firmAddr2].filter(Boolean).join('<br>').toUpperCase()).replace(/&lt;br&gt;/gi, '<br>') + '</b>' + (s.firmPhone ? '<br><b>' + esc(s.firmPhone) + '</b>' : '') + '</div>' +
+          '<p>' + esc(when(s.date)) + '</p><p><b>CONFIDENTIAL</b></p><p>' + esc((s.biz || c).toUpperCase()) + (s.clientAddr ? '<br>' + esc(s.clientAddr.toUpperCase()).replace(/\n/g, '<br>') : '') + '</p><p>Dear ' + esc(c) + ':</p>' +
+          '<p>We have prepared the following returns from information provided by you without verification or audit.</p>' + (rl.length ? '<div class="cptl">' + rl.map(esc).join('<br>') + '</div>' : '') +
+          '<p>We suggest that you examine these returns carefully to fully acquaint yourself with all items contained therein to ensure that there are no omissions or misstatements.</p>' +
+          (s.fedForm ? '<p><b>Federal Filing Instructions</b></p><p class="cphl">Your ' + esc(s.fedForm) + ' shows no balance due.</p>' : '') + (s.stForm ? '<p><b>State Filing Instructions</b></p><p class="cphl">Your ' + esc(s.stForm) + ' shows no balance due.</p>' : '') +
+          L.filter(function (t) { return !/^(I|We) have prepared the federal/.test(t); }).map(function (t) { return '<p>' + esc(t) + '</p>'; }).join('') + disc +
+          '<p>If you have any questions, or if we can be of assistance in any way, please call.</p><p>' + esc(s.signoff || 'Sincerely,') + '</p><p>' + esc((s.firm || '').toUpperCase()) + '</p></div>';
       } else {
         body = '<div class="cpbr">' + (lg || '') + '<div><b>' + esc(s.firm || '') + '</b><div class="cpm">' + [s.firmAddr1, s.firmAddr2, s.firmPhone].filter(Boolean).map(esc).join(' &middot; ') + '</div></div></div><p>' + esc(when(s.date)) + '</p>' + hello +
           '<p>' + L.map(esc).join(' ') + '</p>' + disc + bye + sig;
       }
-      return page(st === 'certify' ? 'tnr' : st === 'sideband' ? 'geo' : 'cal', body, CSS_CPA);
+      return page(st === 'certify' || st === 'transmittal' || st === 'split' ? 'tnr' : st === 'sideband' ? 'geo' : 'cal', body, CSS_CPA + fmtCss(s));
     }
   };
   var CSS_CPA = 'p{margin:0 0 .14in;line-height:1.42}.cph{font-weight:700;margin-top:.15in}.cps{border-bottom:1px solid #000;width:2.8in;height:34px;margin:.06in 0 3px}.cpm{font-size:9pt;color:#444}.cpd{font-size:9.5pt;color:#333}' +
@@ -2320,7 +2373,10 @@
     '.cpsw{display:grid;grid-template-columns:.62in 1fr;gap:.32in;min-height:9.2in}.cpbd{position:relative;background:linear-gradient(90deg,#4a4a4a 0 .22in,transparent .22in)}.cpbd i{position:absolute;left:.07in;top:0;width:.55in;height:1.9in;background:var(--c);box-shadow:2px 2px 6px rgba(0,0,0,.25)}.cpsb{min-width:0}.cpsf{text-align:right;font-size:10pt;line-height:1.35;margin-bottom:.45in}.cpsf .lg{margin-left:auto;margin-bottom:4px}.cpn2{font-variant:small-caps;font-size:20pt;color:var(--c)}' +
     '.cpmb{display:flex;justify-content:space-between;align-items:center;background:var(--c);color:#fff;margin:-1in -1in .3in;padding:.45in 1in .3in}.cpmb .lg{max-height:46px;margin-bottom:4px;background:#fff;padding:3px;border-radius:3px}.cpn3{font-size:16pt;font-weight:700}.cpmr{text-align:right;font-size:9pt;line-height:1.45}' +
     'table.cpft{border-collapse:collapse;width:100%;margin:0 0 .16in;font-size:10pt}table.cpft th{text-align:left;width:1.8in;padding:5px 8px;border:1px solid #cfd8d4;background:#f1f5f3;color:var(--c)}table.cpft td{padding:5px 8px;border:1px solid #cfd8d4}ol.cpo{padding-left:.25in}ol.cpo li{margin:0 0 .08in;line-height:1.4}' +
-    '.cpbr{display:flex;gap:14px;align-items:center;border-bottom:1px solid #999;padding-bottom:8px;margin-bottom:.3in}' + CSS_LOGO;
+    '.cpbr{display:flex;gap:14px;align-items:center;border-bottom:1px solid #999;padding-bottom:8px;margin-bottom:.3in}' +
+    '.cpn4{font-size:24pt;font-weight:700;color:var(--c);margin-bottom:.45in}table.cpre{border-collapse:collapse;margin:.1in 0 .3in .4in;font-size:12pt}table.cpre td{vertical-align:top;padding:0 18px 0 0;line-height:1.35}.cpfb{position:absolute;left:1in;right:1in;bottom:.45in;border-top:1px solid #7fb2dc;padding-top:6px;display:flex;justify-content:space-between;font-size:8pt;color:#333}.cpfb b{color:var(--c)}' +
+    '.cpsp{display:flex;justify-content:space-between;align-items:flex-start}.cpsx .lg{max-width:2.2in}.cpbox{border:1.5px solid #000;padding:8px 14px;font-size:14pt;text-align:center;max-width:2.2in}.cpsr{text-align:left;max-width:3.3in}.cpn5{font-size:18pt;font-weight:700}.cpcr{font-size:10pt;letter-spacing:.06em;text-transform:uppercase}' +
+    '.cptr{border:2px solid #000;padding:.3in .35in;min-height:9in}.cptrh{text-align:center;font-size:12.5pt;margin-bottom:.3in;line-height:1.3}.cptl{margin:0 0 .14in .4in;line-height:1.4}.cphl{background:#fff35c;display:inline}' + CSS_LOGO;
   /* an earlier letter from this preparer: name, firm, address, phone, fax, email, PTIN */
   function parseCpaLetter(text) {
     var T = String(text || ''), g = function (re) { var m = T.match(re); return m ? m[1].trim() : ''; }, o = {};
@@ -2335,7 +2391,7 @@
   }
 
   var ORDER = ['addendum', 'lease', 'estimate', 'pl', 'schc', 'pay', 'gift', 'le', 'commit', 'lox', 'cpa', 'mi'];
-  var RERENDER = {listSet: 1, listFmt: 1, listGroup: 1, listDone: 1, showPay: 1, drawCustom: 1, style: 1, leaseType: 1, program: 1, concOnTop: 1, ttOn: 1, renoOn: 0, payType: 1, state: 1, locality: 1, ytdMode: 1, logoSize: 0, type: 1, oSource: 0, oPrice: 1};
+  var RERENDER = {fFont: 0, listSet: 1, listFmt: 1, listGroup: 1, listDone: 1, showPay: 1, drawCustom: 1, style: 1, leaseType: 1, program: 1, concOnTop: 1, ttOn: 1, renoOn: 0, payType: 1, state: 1, locality: 1, ytdMode: 1, logoSize: 0, type: 1, oSource: 0, oPrice: 1};
   function mount() {
     if ($('mtB')) return;
     if (!$('mtBcss')) { var st = document.createElement('style'); st.id = 'mtBcss'; st.textContent = CSS; document.head.appendChild(st); }
@@ -2623,6 +2679,12 @@
       if (a === 'concUse') return B.addendum.concUse();
       if (a === 'concLoan') return B.addendum.concLoan();
       if (a === 'estPreset' || a === 'estPresetAdd') { var ps = $('mtBpreset'); if (!ps || !ps.value) { if (ps) ps.focus(); return; } return B.estimate.preset(ps.value, a === 'estPresetAdd'); }
+      if (a === 'estSplit' || a === 'estSplitAdd') {
+        var es = drafts.estimate, lpct = Math.max(0, Math.min(100, N(es.laborPct) || 65)) / 100, sp = function (tot) { var l = Math.round(tot * lpct * 100) / 100; return {labor: l.toFixed(2), materials: (Math.round((tot - l) * 100) / 100).toFixed(2)}; };
+        if (a === 'estSplit') { var nsp = 0; (es.items || []).forEach(function (i) { var tot = N(i.labor) + N(i.materials); if (tot > 0) { var r = sp(tot); i.labor = r.labor; i.materials = r.materials; nsp++; } }); say(nsp + ' line' + (nsp === 1 ? '' : 's') + ' re-split: ' + Math.round(lpct * 100) + '% labor, ' + Math.round((1 - lpct) * 100) + '% materials.'); }
+        else { var tt = N(es.splitTotal); if (!tt) { say('Enter the lump-sum total first.'); return; } var r2 = sp(tt), blank = (es.items || []).filter(function (i) { return !N(i.labor) && !N(i.materials) && !String(i.desc || '').trim(); })[0]; var it = blank || {trade: '', desc: '', qty: '', unit: '', labor: '', materials: ''}; it.trade = es.splitTrade || it.trade || 'General construction'; it.labor = r2.labor; it.materials = r2.materials; if (!blank) es.items.push(it); es.splitTotal = ''; say('Added ' + usd(tt) + ': labor ' + usd(r2.labor) + ', materials ' + usd(r2.materials) + '.'); }
+        persist(); scheduleVersion('estimate'); renderForm(); refresh(); return;
+      }
       if (a === 'estUse') { var c = B.estimate.calc(drafts.estimate); sendLoan([['reno.baseCost', c.sub + c.ohp + c.tax], ['reno.permits', c.permits]], 'Contractor estimate'); return; }
       if (a === 'leaseRent') { if (N(drafts.lease.rent)) sendLoan([['rental.mainUnit.gross', N(drafts.lease.rent)]], 'Lease'); return; }
       if (a === 'plUse') return plUse();
@@ -2633,6 +2695,7 @@
       if (a === 'logoRm') { var lb = t.getAttribute('data-b'); drafts[lb].logo = ''; persist(); renderForm(); refresh(true); return; }
       if (a === 'logoReuse') { var lb2 = t.getAttribute('data-b'); drafts[lb2].logo = savedLogo(); drafts[lb2].logoSize = drafts[lb2].logoSize || '52'; persist(); renderForm(); refresh(true); return; }
       if (/^cond/.test(a)) return condAct(a, t);
+      if (a === 'pdetails') { var pb = drafts[t.getAttribute('data-b')], pp = t.getAttribute('data-p') || '', pl = String(pb[pp + 'addrFree'] || '').trim() || [pb[pp + 'address'], pb[pp + 'city'], [stateAbbr(pb[pp + 'state'] || ''), pb[pp + 'zip']].filter(Boolean).join(' ')].filter(Boolean).join(', '); if (!String(pl).trim()) { say('Enter the property address first.'); return; } if (window.MTAddr && MTAddr.lookup) MTAddr.lookup(pl); else say('The address tools are not loaded on this page.'); return; }
       if (a === 'loxUse' || a === 'loxFromCommit' || a === 'loxUseGen' || a === 'cpaUse' || a === 'cpaBiz') {
         if (a === 'loxUse') { var lx = drafts.lox, g0 = (lx.suggest || [])[+t.getAttribute('data-i')]; if (g0) { lx.type = g0.type; lx.cond = g0.text; lx.subject = ''; lx.body = ''; loxPrefill(lx, g0); } }
         else if (a === 'loxFromCommit') { drafts.lox.suggest = loxSuggest(drafts.commit.conditions); say(drafts.lox.suggest.length + ' explanation' + (drafts.lox.suggest.length === 1 ? '' : 's') + ' found in the conditions.'); }

@@ -65,8 +65,19 @@
       var best = list.reduce(function (m, a) { return Math.max(m, a.score); }, 0);
       var out = list.filter(function (a) { return a.score >= Math.max(1, best - 2) || best === 0; })
         .sort(function (x, y) { return y.score - x.score || (y.exact ? 1 : 0) - (x.exact ? 1 : 0) || x.rank - y.rank; }).slice(0, 6);
-      cache[key] = out; return out;
-    });
+      cache[key] = out; return out.length >= 2 ? out : nominatim(q).then(function (more) { var all = merge(out, more); cache[key] = all; return all; }, function () { return out; });
+    }, function (e) { if (e && e.name === 'AbortError') throw e; return nominatim(q); });
+  }
+  /* 57.6: the second search - OpenStreetMap Nominatim, used when the type-ahead search has fewer than two answers */
+  var lastNom = 0;
+  function nominatim(q) {
+    var wait = Math.max(0, 1100 - (Date.now() - lastNom)); lastNom = Date.now() + wait;   /* their limit: one search a second */
+    return new Promise(function (res) { setTimeout(res, wait); }).then(function () {
+      return fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&countrycodes=us&limit=5&q=' + encodeURIComponent(q));
+    }).then(function (r) { return r.ok ? r.json() : []; }).then(function (j) {
+      return (j || []).map(function (x) { var d = x.address || {}, num = d.house_number || '', st = d.road || ''; var lead = String(q).match(/^\s*(\d+[A-Za-z]?)\s/); if (!num && st && lead) num = lead[1];
+        var a = mk([num, st].filter(Boolean).join(' ') || x.name, d.city || d.town || d.village || d.hamlet || d.suburb || '', d.state || '', d.postcode || '', d.county || '', 'Nominatim'); if (a) { a.lat = +x.lat; a.lon = +x.lon; a.exact = !!num; } return a; }).filter(Boolean);
+    }).catch(function () { return []; });
   }
 
   /* ------------------------------------------------------------ the list UI */
@@ -88,13 +99,15 @@
       var b = e.target.closest('[data-mta]'); if (!b) return; var a = b.getAttribute('data-mta');
       if (a === 'off') { setOff(true); hide(); }
       if (a === 'google' && cur) window.open('https://www.google.com/search?q=' + encodeURIComponent(cur.value), '_blank', 'noopener');
+      if (a === 'usps') window.open('https://tools.usps.com/zip-code-lookup.htm?byaddress', '_blank', 'noopener');
+      if (a === 'prop' && cur) { var v = cur.value, p2 = partners(cur), line = [v, p2.city && p2.city.value, p2.state && (p2.state.value || ''), p2.zip && p2.zip.value].filter(Boolean).join(', '); hide(); lookup(line || v); }
     });
     document.body.appendChild(box); return box;
   }
   function place() { if (!box || !cur || box.hidden) return; var r = cur.getBoundingClientRect(); if (!r.width) return hide(); var below = innerHeight - r.bottom, h = box.offsetHeight || 220;
     box.style.left = Math.max(8, Math.min(r.left, innerWidth - Math.max(r.width, 340) - 8)) + 'px'; box.style.width = Math.max(r.width, 340) + 'px';
     box.style.top = (below < h + 8 && r.top > h + 8 ? r.top - h - 4 : r.bottom + 4) + 'px'; }
-  function foot() { return '<div class="mtA-ft"><span>Address data &copy; OpenStreetMap contributors</span><span><button type="button" data-mta="google">Check on Google</button> &middot; <button type="button" data-mta="off">Turn off suggestions</button></span></div>'; }
+  function foot() { return '<div class="mtA-ft"><span>Address data &copy; OpenStreetMap contributors</span><span><button type="button" data-mta="prop">Property details</button> &middot; <button type="button" data-mta="usps">USPS ZIP lookup</button> &middot; <button type="button" data-mta="google">Google</button> &middot; <button type="button" data-mta="off">Turn off</button></span></div>'; }
   function render(list, msg) {
     ensureBox(); items = list || []; hi = -1;
     box.innerHTML = (items.length ? items.map(function (a, i) { return '<div role="option" id="mtA-o' + i + '" data-i="' + i + '" aria-selected="false"><b>' + esc(a.street) + (a.src ? ' <em>' + esc(a.src) + '</em>' : '') + '</b><small>' + esc(a.cityLine) + (a.county ? ' &middot; ' + esc(a.county) + ' County' : '') + '</small></div>'; }).join('') : '<div class="mtA-msg">' + esc(msg || 'No US address matches yet - keep typing.') + '</div>') + foot();
@@ -226,5 +239,60 @@
   window.addEventListener('scroll', place, true); window.addEventListener('resize', place);
   document.addEventListener('focusin', function (e) { var t = e.target; if (t && t.matches && t.matches('input[type=text], input:not([type])') && candidate(t)) attach(t); });
 
-  window.MTAddr = {attach: attach, search: search, isOff: off, setOff: setOff, fill: fill, scan: scan};
+  /* ------------------------------------------------ 57.6: property details
+     Free public sources only, looked up when asked: FEMA's flood map (flood zone), the FCC's census area service (county,
+     census tract and block) and OpenStreetMap (building type, floors, units, year built where mapped). Beds, baths, living
+     area and year built are not in free public records - the panel opens the listing sites for the address and keeps what
+     you enter for it in this browser. */
+  var PKEY = 'mt.prop.details', pbox = null;
+  function pstore() { try { return JSON.parse(localStorage.getItem(PKEY) || '{}') || {}; } catch (e) { return {}; } }
+  function psave(k, d) { try { var all = pstore(); all[k] = d; var keys = Object.keys(all); if (keys.length > 30) delete all[keys[0]]; localStorage.setItem(PKEY, JSON.stringify(all)); } catch (e) {} }
+  function geocode(line) { return search(line).then(function (l) { return (l || []).filter(function (a) { return isFinite(a.lat); })[0] || nominatim(line).then(function (n) { return n[0] || null; }); }); }
+  function lookup(line) {
+    line = String(line || '').trim(); if (!line) return;
+    css(); if (!pbox) { pbox = document.createElement('div'); pbox.id = 'mtPropBox'; pbox.className = 'no-print'; pbox.setAttribute('role', 'dialog'); pbox.setAttribute('aria-label', 'Property details'); document.body.appendChild(pbox);
+      pbox.addEventListener('click', function (e) { var b = e.target.closest('[data-p]'); if (!b) return; var a = b.getAttribute('data-p');
+        if (a === 'x') pbox.hidden = true;
+        if (a === 'copy') { var t = pbox.querySelector('.mtP-body').innerText + '\n' + [].map.call(pbox.querySelectorAll('[data-pf]'), function (i) { return i.getAttribute('data-pl') + ': ' + i.value; }).filter(function (x) { return !/:\s*$/.test(x); }).join('\n'); try { navigator.clipboard.writeText(t); b.textContent = 'Copied'; } catch (er) {} } });
+      pbox.addEventListener('input', function (e) { var i = e.target.closest('[data-pf]'); if (!i) return; var k = pbox.getAttribute('data-key'), d = pstore()[k] || {}; d[i.getAttribute('data-pf')] = i.value; psave(k, d); });
+      var st = document.createElement('style'); st.textContent = '#mtPropBox{position:fixed;z-index:' + (Z + 1) + ';right:16px;top:70px;width:min(420px,calc(100vw - 32px));max-height:calc(100vh - 100px);overflow:auto;background:#0a1b38;color:#e6eefb;border:1px solid #2b5590;border-radius:12px;box-shadow:0 18px 40px rgba(0,0,0,.5);font:13px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;animation:mtPin .25s ease}' +
+        '@keyframes mtPin{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:none}}#mtPropBox h3{margin:0;font-size:14px}#mtPropBox .mtP-h{display:flex;justify-content:space-between;gap:8px;align-items:flex-start;padding:12px 14px;border-bottom:1px solid #142d52}#mtPropBox .mtP-body{padding:10px 14px}#mtPropBox dl{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:0}#mtPropBox dt{color:#9db0c8}#mtPropBox dd{margin:0}' +
+        '#mtPropBox .mtP-f{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:0 14px 10px}#mtPropBox label{font-size:11.5px;color:#9db0c8;display:grid;gap:2px}#mtPropBox input{background:#071630;border:1px solid #2b5590;border-radius:6px;color:#fff;padding:5px 7px}#mtPropBox .mtP-l{display:flex;flex-wrap:wrap;gap:6px;padding:0 14px 12px}#mtPropBox .mtP-l a,#mtPropBox button{border:1px solid #2b5590;border-radius:999px;padding:4px 10px;color:#9fc4ff;background:transparent;text-decoration:none;font:600 12px system-ui;cursor:pointer}#mtPropBox .mtP-l a:hover,#mtPropBox button:hover{background:#123a75}#mtPropBox .mtP-n{font-size:11px;color:#8ea3c0;padding:0 14px 12px}';
+      document.head.appendChild(st);
+    }
+    var key = line.toLowerCase().replace(/\s+/g, ' '), saved = pstore()[key] || {}, q = encodeURIComponent(line);
+    pbox.setAttribute('data-key', key); pbox.hidden = false;
+    var fields = [['beds', 'Bedrooms'], ['baths', 'Bathrooms'], ['sqft', 'Living area (sq ft)'], ['year', 'Year built'], ['lot', 'Lot size'], ['taxes', 'Annual taxes'], ['hoa', 'HOA dues'], ['style', 'Style / type']];
+    pbox.innerHTML = '<div class="mtP-h"><div><h3>Property details</h3><div style="color:#9db0c8;font-size:12px">' + esc(line) + '</div></div><button type="button" data-p="x" aria-label="Close">Close</button></div><div class="mtP-body">Looking up flood zone, census area and building data…</div>' +
+      '<div class="mtP-f">' + fields.map(function (f) { return '<label>' + f[1] + '<input data-pf="' + f[0] + '" data-pl="' + f[1] + '" value="' + esc(saved[f[0]] || '') + '"></label>'; }).join('') + '</div>' +
+      '<div class="mtP-l"><a target="_blank" rel="noopener" href="https://www.zillow.com/homes/' + encodeURIComponent(line.replace(/,/g, '').replace(/\s+/g, '-')) + '_rb/">Zillow</a><a target="_blank" rel="noopener" href="https://www.redfin.com/search?q=' + q + '">Redfin</a><a target="_blank" rel="noopener" href="https://www.realtor.com/realestateandhomes-search/' + encodeURIComponent(line) + '">Realtor.com</a><a target="_blank" rel="noopener" href="https://www.google.com/search?q=' + encodeURIComponent(line + ' beds baths sqft') + '">Google</a><a target="_blank" rel="noopener" href="https://msc.fema.gov/portal/search?AddressQuery=' + q + '">FEMA map</a><button type="button" data-p="copy">Copy details</button></div>' +
+      '<div class="mtP-n">Beds, baths, living area and year built are not in free public records - check a listing or the appraisal and enter them above; they are kept for this address in this browser.</div>';
+    var body = pbox.querySelector('.mtP-body'), rows = [];
+    var show = function () { body.innerHTML = '<dl>' + rows.map(function (r) { return '<dt>' + esc(r[0]) + '</dt><dd>' + r[1] + '</dd>'; }).join('') + '</dl>'; };
+    geocode(line).then(function (a) {
+      if (!a) { body.textContent = 'This address was not found on the map - check the spelling, or use the links below.'; return; }
+      rows.push(['Matched', esc(a.line || line)]); if (a.county) rows.push(['County', esc(a.county) + ' County']); show();
+      var lat = a.lat, lon = a.lon, jobs = [];
+      jobs.push(fetch('https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28/query?geometry=' + lon + ',' + lat + '&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=FLD_ZONE,ZONE_SUBTY,SFHA_TF&returnGeometry=false&f=json').then(function (r) { return r.json(); }).then(function (j) {
+        var f = (j.features || [])[0], at = f && f.attributes; rows.push(['Flood zone', at ? '<b>' + esc(at.FLD_ZONE) + '</b>' + (at.ZONE_SUBTY ? ' - ' + esc(at.ZONE_SUBTY.toLowerCase()) : '') + (at.SFHA_TF === 'T' ? ' <b style="color:#ffb35c">(special flood hazard area - flood insurance required)</b>' : ' (not a special flood hazard area)') : 'Not mapped by FEMA here']); show(); }).catch(function () { rows.push(['Flood zone', 'FEMA did not answer - use the FEMA map link']); show(); }));
+      jobs.push(fetch('https://geo.fcc.gov/api/census/area?lat=' + lat + '&lon=' + lon + '&format=json').then(function (r) { return r.json(); }).then(function (j) {
+        var r0 = (j.results || [])[0]; if (!r0) return; var tr = String(r0.block_fips || '').slice(5, 11);
+        rows.push(['County / FIPS', esc(r0.county_name || '') + ' (' + esc(r0.county_fips || '') + ')']); rows.push(['Census tract', tr ? esc(tr.slice(0, 4) + '.' + tr.slice(4)) : '']); rows.push(['Census block', esc(r0.block_fips || '')]); show(); }).catch(function () {}));
+      jobs.push(fetch('https://overpass-api.de/api/interpreter?data=' + encodeURIComponent('[out:json][timeout:15];(way(around:25,' + lat + ',' + lon + ')[building];);out tags 3;')).then(function (r) { return r.json(); }).then(function (j) {
+        var t = ((j.elements || [])[0] || {}).tags || {}; if (!Object.keys(t).length) { rows.push(['Building', 'Not mapped in OpenStreetMap']); show(); return; }
+        var b = []; if (t.building && t.building !== 'yes') b.push(t.building.replace(/_/g, ' ')); if (t['building:levels']) b.push(t['building:levels'] + ' floor' + (t['building:levels'] === '1' ? '' : 's')); if (t['building:units']) b.push(t['building:units'] + ' unit(s)'); if (t.start_date) b.push('built ' + t.start_date); if (t['roof:shape']) b.push(t['roof:shape'] + ' roof');
+        rows.push(['Building (OSM)', esc(b.join(', ') || 'building mapped, no details')]); show();
+        var y = pbox.querySelector('[data-pf=year]'); if (y && !y.value && /^\d{4}/.test(t.start_date || '')) { y.value = t.start_date.slice(0, 4); y.dispatchEvent(new Event('input', {bubbles: true})); } }).catch(function () {}));
+    }).catch(function () { body.textContent = 'The address lookup is not answering - use the links below.'; });
+  }
+
+  /* ------------------------------------------------ 57.6: the last 10 borrower names, offered on borrower name boxes */
+  var NKEY = 'mt.recent.names';
+  function names10() { try { return JSON.parse(localStorage.getItem(NKEY) || '[]') || []; } catch (e) { return []; } }
+  function nameDl() { var dl = document.getElementById('mtRecentNames'); if (!dl) { dl = document.createElement('datalist'); dl.id = 'mtRecentNames'; document.body.appendChild(dl); } dl.innerHTML = names10().map(function (n) { return '<option value="' + esc(n) + '">'; }).join(''); return dl; }
+  function isName(el) { if (el.list || el.__mtaName) return false; var l = (labelOf(el) + ' ' + (el.getAttribute('data-list') || '') + ' ' + (el.getAttribute('data-path') || '')).toLowerCase(); return /borrower|co-?borrower|client|buyer|applicant/.test(l) && /name|borrowers|clients|buyers/.test(l) && !/e-?mail|phone|address|employer|business|company|lender|processor|officer|ssn/.test(l); }
+  document.addEventListener('focusin', function (e) { var t = e.target; if (!t || !t.matches || !t.matches('input[type=text], input:not([type])') || !isName(t)) return; t.__mtaName = true; nameDl(); t.setAttribute('list', 'mtRecentNames'); });
+  document.addEventListener('change', function (e) { var t = e.target; if (!t || !t.__mtaName) return; var v = String(t.value || '').replace(/\s+/g, ' ').trim(); if (v.length < 3 || /\d/.test(v)) return; var l = names10().filter(function (x) { return x.toLowerCase() !== v.toLowerCase(); }); l.unshift(v); try { localStorage.setItem(NKEY, JSON.stringify(l.slice(0, 10))); } catch (er) {} nameDl(); }, true);
+
+  window.MTAddr = {attach: attach, search: search, isOff: off, setOff: setOff, fill: fill, scan: scan, lookup: lookup, recentNames: names10};
 })();
