@@ -158,6 +158,7 @@ The release entries below have the details. In short:
 - **57.6 - hotfix:** scanned PDFs read on every page. Choosing a PDF no longer swaps the real reader for a text-only one, and the original scanned pictures are OCR'd directly.
 - **57.7 - navigation and tools:** "All pages" in the top bar instead of the bottom bar; Full Suite Simple opens Documents / Rates / Property / Max mortgage below on demand; property details (flood zone, census tract, building data); recent borrower names; letter formatting options; three more CPA styles; contractor labor / materials split.
 - **57.8 - hotfix:** the bottom-right page bar is back (the top-bar "All pages" is removed); faster condition ticking, 203(k) / HomeStyle / income / asset / credit / property check boxes and a borrower email pop-up; loan officer / company NMLS and underwriter read from approvals; property sites side by side with a map in the panel; more dates in words; bold / italic all or none, CPA fonts, sentence case and small caps, remove underlines; OCR and document timeouts.
+- **57.9 - property links:** Redfin goes to the property page; FEMA map opens the current flood viewer with the address copied.
 - **Behind the scenes, with no change to the site on their own:**
   - The 56.5 calculation was recovered into readable TypeScript (src/) and gives identical results on 3,000 scenarios.
   - Engine fixes D1-D5 were written with tests.
