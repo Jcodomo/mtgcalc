@@ -132,7 +132,7 @@
 - **Address suggestions match known addresses instantly:** the loan file's property, the document builders' properties, addresses picked before and full addresses typed into an address box are matched on every keystroke without waiting for the network (tagged "Loan file", "Document builder", "Used before", "Typed before"); OpenStreetMap results join them, now after 0.2 seconds and from the third character.
 - The MI & renovation worksheet's program is a typeable box (FHA, FHA 203(k), Conventional, HomeStyle, VA, USDA or anything else). Choices that drive a calculation - pay frequency, filing status, the state tax table, lease type and each builder's style - stay as lists.
 
-## 2026-11-12 - everything released today (56.6 to 57.10)
+## 2026-11-12 - everything released today (56.6 to 57.11)
 
 The release entries below have the details. In short:
 
@@ -160,6 +160,7 @@ The release entries below have the details. In short:
 - **57.8 - hotfix:** the bottom-right page bar is back (the top-bar "All pages" is removed); faster condition ticking, 203(k) / HomeStyle / income / asset / credit / property check boxes and a borrower email pop-up; loan officer / company NMLS and underwriter read from approvals; property sites side by side with a map in the panel; more dates in words; bold / italic all or none, CPA fonts, sentence case and small caps, remove underlines; OCR and document timeouts.
 - **57.9 - property links:** Redfin goes to the property page; FEMA map opens the current flood viewer with the address copied.
 - **57.10 - Property page and signatures:** a Property page (on every page's bottom bar) with public records for New York, New Jersey, Florida and the big California counties beside Street View, satellite and flood maps; a signature maker (20 handwriting styles, drawn, PNG / SVG / photo, initials) and signatures with an e-signature frame option on every document builder's signature lines.
+- **57.11 - handwriting pen:** our own pen engine writes typed text by hand (20 styles traced to single pen strokes) with speed, legibility, stroke width, opacity, sloppiness, fade and uneven-ink controls; PNG or vector SVG; a Handwriting page.
 - **Behind the scenes, with no change to the site on their own:**
   - The 56.5 calculation was recovered into readable TypeScript (src/) and gives identical results on 3,000 scenarios.
   - Engine fixes D1-D5 were written with tests.
@@ -441,6 +442,25 @@ The release entries below have the details. In short:
 - **Logos:** an SVG logo without a set size keeps its proportions.
 - **The calligrapher-ai zip:** it holds only the desktop wrapper (Rust and Sciter); the handwriting network is a separate native library that is not included, so it cannot run on a web page. The typed styles and their variation, stroke-width and legibility controls follow its approach.
 - Asset version 57.10.
+
+## Release 57.11 - our own handwriting pen engine
+
+- **Handwriting pen:** written for this site with no outside model. It is the first tab of the signature maker, and has its own page, **handwriting.html**, listed under All pages.
+  - **How it writes:** text is set in any of the 20 handwriting styles, each letter is thinned to its centre line and traced into single pen strokes in writing order, and the strokes are inked again.
+  - **What it writes:** names, initials or short notes of several lines; periods, commas and the dots on i and j are kept as pen dabs.
+  - **Controls:**
+    - **Speed:** the writing plays back as it is written; 10 shows it at once.
+    - **Legibility:** letters stretch and squash like quick handwriting.
+    - **Stroke width**, **opacity** and **slant**.
+    - **Sloppiness:** the hand wanders and the line drifts.
+    - **Faded:** the pen runs dry along the writing.
+    - **Uneven ink:** wavering pressure, skips and paper grain.
+    - **Style and ink:** black, blue or navy.
+  - **Buttons:** "New take" writes the same words again, a little differently, and Replay plays the writing again.
+  - **Output:** PNG, or **SVG made of the actual pen strokes**. Save as a signature or initials to use on any document's signature lines.
+- **Type tab:** the same ink controls (opacity, faded, uneven ink) on all 20 typed styles.
+- **The calligrapher-ai DLL:** not decompiled or used. It holds Sean Vasquez's handwriting model, which is published without a licence.
+- Asset version 57.11.
 
 ## Release 55.14b - self-employment, rental and more of the income worksheet; one look across the pages
 

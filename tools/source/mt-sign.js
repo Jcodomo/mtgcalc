@@ -69,10 +69,161 @@
     return fontsP;
   }
 
+  /* ------------------------------------------------------------------ 57.11: the pen engine
+     Our own handwriting engine (written for this site, no outside model): the text is set in one of the handwriting styles,
+     thinned to the centre line of every letter (Zhang-Suen thinning), traced into pen strokes in writing order, and then drawn
+     again as ink - pressure that swells and tapers, a hand that wanders (sloppiness, legibility), a pen that runs dry and comes
+     back (fade), uneven flow with paper grain, and an animated "being written" preview at the chosen speed. */
+  function noise1(seed) { var R = rng(seed), v = new Float32Array(1024); for (var i = 0; i < 1024; i++) v[i] = R() * 2 - 1;
+    return function (x) { var i = Math.floor(x), f = x - i, a = v[i & 1023], b = v[(i + 1) & 1023], t = f * f * (3 - 2 * f); return a + (b - a) * t; }; }
+  function hexRgb(h) { h = String(h || '#111827').replace('#', ''); return [parseInt(h.slice(0, 2), 16) || 0, parseInt(h.slice(2, 4), 16) || 0, parseInt(h.slice(4, 6), 16) || 0]; }
+  function wrapLines(text, n) {
+    var out = []; String(text || '').replace(/\r/g, '').split('\n').forEach(function (para) { var line = ''; para.split(/\s+/).forEach(function (w) { if (!w) return; if (line && (line + ' ' + w).length > n) { out.push(line); line = w; } else line = line ? line + ' ' + w : w; }); out.push(line); });
+    while (out.length > 1 && !out[out.length - 1]) out.pop(); return out.slice(0, 14);
+  }
+  function rasterLines(lines, font, px) {
+    var m = document.createElement('canvas').getContext('2d'); m.font = px + 'px "' + font + '"';
+    var tw = Math.max.apply(null, lines.map(function (l) { return m.measureText(l || ' ').width; })), lh = Math.round(px * 1.45);
+    var c = document.createElement('canvas'); c.width = Math.ceil(tw + px * 1.4); c.height = Math.ceil(lh * lines.length + px * 0.9);
+    var g = c.getContext('2d'); g.fillStyle = '#000'; g.font = m.font; g.textBaseline = 'alphabetic';
+    lines.forEach(function (l, i) { g.fillText(l, px * 0.7, px * 1.15 + i * lh); });
+    return {c: c, lh: lh, base: px * 1.15};
+  }
+  /* Zhang-Suen thinning inside the ink's bounding box */
+  function thin(c) {
+    var w = c.width, h = c.height, d = c.getContext('2d', {willReadFrequently: true}).getImageData(0, 0, w, h).data, g = new Uint8Array(w * h), x0 = w, y0 = h, x1 = 0, y1 = 0, i, x, y;
+    for (y = 0; y < h; y++) for (x = 0; x < w; x++) { i = y * w + x; if (d[i * 4 + 3] > 110) { g[i] = 1; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; } }
+    x0 = Math.max(1, x0); y0 = Math.max(1, y0); x1 = Math.min(w - 2, x1); y1 = Math.min(h - 2, y1);
+    var rm = [], changed = true, guard = 0;
+    while (changed && guard++ < 60) { changed = false;
+      for (var pass = 0; pass < 2; pass++) { rm.length = 0;
+        for (y = y0; y <= y1; y++) for (x = x0; x <= x1; x++) { i = y * w + x; if (!g[i]) continue;
+          var p2 = g[i - w], p3 = g[i - w + 1], p4 = g[i + 1], p5 = g[i + w + 1], p6 = g[i + w], p7 = g[i + w - 1], p8 = g[i - 1], p9 = g[i - w - 1], B = p2 + p3 + p4 + p5 + p6 + p7 + p8 + p9;
+          if (B < 2 || B > 6) continue;
+          var A = (!p2 && p3 ? 1 : 0) + (!p3 && p4 ? 1 : 0) + (!p4 && p5 ? 1 : 0) + (!p5 && p6 ? 1 : 0) + (!p6 && p7 ? 1 : 0) + (!p7 && p8 ? 1 : 0) + (!p8 && p9 ? 1 : 0) + (!p9 && p2 ? 1 : 0);
+          if (A !== 1) continue;
+          if (pass === 0 ? (p2 && p4 && p6) || (p4 && p6 && p8) : (p2 && p4 && p8) || (p2 && p6 && p8)) continue;
+          rm.push(i); }
+        if (rm.length) { changed = true; for (var k = 0; k < rm.length; k++) g[rm[k]] = 0; } } }
+    return {g: g, w: w, h: h, box: [x0, y0, x1, y1]};
+  }
+  var NB = [[1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1]];
+  /* the thinned letters become pen strokes: from each loose end, then around closed loops, always carrying on in the
+     straightest direction, joined to the stroke they meet, short thinning spurs dropped, dots kept */
+  function tracePaths(S, px) {
+    var g = S.g, w = S.w, vis = new Uint8Array(g.length), paths = [], b = S.box;
+    var nbs = function (i) { var x = i % w, y = (i - x) / w, o = []; for (var k = 0; k < 8; k++) { var j = (y + NB[k][1]) * w + x + NB[k][0]; if (g[j]) o.push(j); } return o; };
+    var xy = function (i) { var x = i % w; return [x, (i - x) / w]; };
+    var walk = function (s) {
+      var p = [s], cur = s, dx = 0, dy = 0; vis[s] = 1;
+      var pre = nbs(s).filter(function (j) { return vis[j]; })[0], joined = pre != null; if (joined) p.unshift(pre);
+      for (var n = 0; n < 20000; n++) {
+        var c = nbs(cur).filter(function (j) { return !vis[j]; }); if (!c.length) break;
+        var best = c[0], bs = -9, cx = cur % w, cy = (cur - cx) / w;
+        c.forEach(function (j) { var q = xy(j), ex = q[0] - cx, ey = q[1] - cy, sc = (dx || dy) ? (ex * dx + ey * dy) / Math.hypot(ex, ey) / Math.hypot(dx, dy) : 0; if (Math.abs(ex) + Math.abs(ey) === 1) sc += 0.02; if (sc > bs) { bs = sc; best = j; } });
+        var q2 = xy(best); dx = dx * 0.55 + (q2[0] - cx); dy = dy * 0.55 + (q2[1] - cy); vis[best] = 1; p.push(best); cur = best;
+      }
+      var post = nbs(cur).filter(function (j) { return vis[j] && j !== p[p.length - 2] && p.indexOf(j) < 0; })[0]; if (post != null && p.length > 3) { p.push(post); joined = true; }
+      p.joined = joined || nbs(cur).some(function (j) { return vis[j] && p.indexOf(j) < 0; }); return p;
+    };
+    var all = []; for (var y = b[1]; y <= b[3]; y++) for (var x = b[0]; x <= b[2]; x++) { var i = y * w + x; if (g[i]) all.push(i); }
+    var ends = all.filter(function (i) { return nbs(i).length === 1; }).sort(function (a, c) { return (a % w) - (c % w); });
+    ends.forEach(function (i) { if (!vis[i]) paths.push(walk(i)); });
+    all.sort(function (a, c) { return (a % w) - (c % w); }).forEach(function (i) { if (!vis[i]) { if (!nbs(i).length) { vis[i] = 1; paths.push([i]); } else paths.push(walk(i)); } });
+    var minLen = Math.max(3, px * 0.07);
+    /* a short mark on its own is a dot, period or comma (kept as one dab); a short one touching a stroke is thinning debris */
+    return paths.map(function (p) { var q = p.map(xy); q.joined = p.joined; return q; }).map(function (p) { if (p.length === 1) return p; var L = 0; for (var k = 1; k < p.length; k++) L += Math.hypot(p[k][0] - p[k - 1][0], p[k][1] - p[k - 1][1]); if (L >= minLen) return p; if (p.joined) return null;
+        var cx = 0, cy = 0; p.forEach(function (q) { cx += q[0]; cy += q[1]; }); return L > minLen * 0.5 ? [p[0], p[p.length - 1]] : [[cx / p.length, cy / p.length]]; }).filter(Boolean)
+      .map(function (p) { if (p.length < 2) return p; var a = p[0], z = p[p.length - 1], vert = Math.abs(z[1] - a[1]) > Math.abs(z[0] - a[0]) * 1.6; return (vert ? a[1] > z[1] : a[0] > z[0] + 2) ? p.reverse() : p; })
+      .map(function (p) { return smooth(rdp(p, 0.75)); })
+      .sort(function (a, c) { var la = Math.floor(a[0][1] / (px * 1.45)), lc = Math.floor(c[0][1] / (px * 1.45)); return la - lc || minX(a) - minX(c); });
+  }
+  function minX(p) { var m = 1e9; p.forEach(function (q) { if (q[0] < m) m = q[0]; }); return m; }
+  function rdp(p, e) { if (p.length < 3) return p; var a = p[0], z = p[p.length - 1], dx = z[0] - a[0], dy = z[1] - a[1], L = Math.hypot(dx, dy) || 1, mi = 0, md = 0;
+    for (var i = 1; i < p.length - 1; i++) { var d = Math.abs(dy * p[i][0] - dx * p[i][1] + z[0] * a[1] - z[1] * a[0]) / L; if (d > md) { md = d; mi = i; } }
+    return md > e ? rdp(p.slice(0, mi + 1), e).slice(0, -1).concat(rdp(p.slice(mi), e)) : [a, z]; }
+  function smooth(p) { if (p.length < 3) return p; for (var r = 0; r < 2; r++) { var o = [p[0]]; for (var i = 0; i < p.length - 1; i++) { var a = p[i], b = p[i + 1]; o.push([a[0] * 0.75 + b[0] * 0.25, a[1] * 0.75 + b[1] * 0.25], [a[0] * 0.25 + b[0] * 0.75, a[1] * 0.25 + b[1] * 0.75]); } o.push(p[p.length - 1]); p = o; } return p; }
+  var penCache = {};
+  function penPaths(lines, font, px) {
+    var key = font + '|' + px + '|' + lines.join('\n'); if (penCache[key]) return penCache[key];
+    var R = rasterLines(lines, font, px), S = thin(R.c), P = {paths: tracePaths(S, px), w: R.c.width, h: R.c.height, px: px, lh: R.lh, base: R.base};
+    var keys = Object.keys(penCache); if (keys.length > 24) delete penCache[keys[0]]; penCache[key] = P; return P;
+  }
+  /* the hand and the ink: every point moves a little (sloppiness), letters stretch and squash around their line (legibility),
+     the whole line leans (slant) and drifts; pressure tapers at both ends of a stroke and wavers (uneven), the ink thins as
+     the pen runs dry (fade) and has grain where it skips */
+  function penInk(P, o, seed, scale) {
+    var px = P.px, sl = Math.tan((o.slant || 0) * Math.PI / 180), sloppy = (o.sloppy || 0) / 10, leg = 1 - (o.legib == null ? 7 : o.legib) / 10, fade = (o.fade || 0) / 10, un = (o.uneven || 0) / 10;
+    var nA = noise1(seed + 1), nB = noise1(seed + 2), nP = noise1(seed + 3), nF = noise1(seed + 4), nL = noise1(seed + 5), nL2 = noise1(seed + 6), nS = noise1(seed + 7), R = rng(seed + 8), ph = R() * 6.28;
+    var pad = px * 0.6, W = Math.ceil((P.w + Math.abs(sl) * P.h + pad * 2) * scale), H = Math.ceil((P.h + pad * 2) * scale);
+    var strokes = P.paths.map(function (p, k) {
+      var s = 0; return p.map(function (q, j) {
+        if (j) s += Math.hypot(q[0] - p[j - 1][0], q[1] - p[j - 1][1]);
+        var line = Math.max(0, Math.floor((q[1] - P.base + px * 0.95) / P.lh)), base = P.base + line * P.lh, x = q[0], y = q[1];
+        x += nL(x / 45 + line * 9) * leg * px * 0.13; y = base + (y - base) * (1 + nL2(x / 70 + line * 5) * leg * 0.32);
+        x += nA(s / 26 + k * 7.31) * sloppy * px * 0.045; y += nB(s / 26 + k * 3.17) * sloppy * px * 0.045 + Math.sin(x / (px * 2.6) + ph + line) * sloppy * px * 0.07;
+        x += sl * (base - y);
+        return [(x + pad + Math.max(0, sl) * 0 + (sl < 0 ? Math.abs(sl) * P.h : 0)) * scale, (y + pad) * scale, s];
+      });
+    });
+    var total = 0; strokes.forEach(function (p) { total += p.length ? p[p.length - 1][2] : 0; });
+    var wid = Math.max(0.6, (o.width || 3) * scale * px / 110), ink = hexRgb(o.ink), op = (o.op == null ? 92 : o.op) / 100;
+    var A = document.createElement('canvas'), Bc = document.createElement('canvas'); A.width = Bc.width = W; A.height = Bc.height = H;
+    var ga = A.getContext('2d'), gb = Bc.getContext('2d'); ga.lineCap = ga.lineJoin = gb.lineCap = gb.lineJoin = 'round'; ga.strokeStyle = ga.fillStyle = '#fff';
+    var segs = [], run = 0;
+    strokes.forEach(function (p, k) {
+      var L = p.length ? p[p.length - 1][2] || 1 : 1;
+      if (p.length === 1) { var lv0 = Math.max(0.25, 1 - fade * 0.45 * (run / (total || 1))); segs.push({k: k, a: p[0], b: p[0], w: wid * 1.15, lv: lv0}); return; }
+      for (var j = 1; j < p.length; j++) { var t = p[j][2] / L, tap = 0.45 + 0.55 * Math.sin(Math.PI * Math.min(1, 0.08 + t * 0.92)), pr = tap * (1 + un * 0.45 * nP(p[j][2] / 14 + k * 11.3));
+        var lv = 1 - fade * 0.5 * ((run + p[j][2]) / (total || 1)) - fade * 0.3 * Math.max(0, nF(p[j][2] / 45 + k * 1.7)) - un * 0.38 * Math.max(0, nS(p[j][2] / 4 + k * 5.1)) + (j < 6 ? 0.08 : 0);
+        segs.push({k: k, a: p[j - 1], b: p[j], w: Math.max(0.5, wid * pr), lv: Math.max(0.12, Math.min(1, lv))}); }
+      run += L;
+    });
+    segs.forEach(function (sg) {
+      ga.lineWidth = sg.w; ga.beginPath(); ga.moveTo(sg.a[0], sg.a[1]); if (sg.a === sg.b) { ga.arc(sg.a[0], sg.a[1], sg.w / 2, 0, 7); ga.fill(); } else { ga.lineTo(sg.b[0], sg.b[1]); ga.stroke(); }
+      var v = Math.round(sg.lv * 255); gb.strokeStyle = gb.fillStyle = 'rgb(' + v + ',' + v + ',' + v + ')'; gb.lineWidth = sg.w + 2.5 * scale; gb.beginPath(); gb.moveTo(sg.a[0], sg.a[1]); if (sg.a === sg.b) { gb.arc(sg.a[0], sg.a[1], sg.w, 0, 7); gb.fill(); } else { gb.lineTo(sg.b[0], sg.b[1]); gb.stroke(); }
+    });
+    var da = ga.getImageData(0, 0, W, H), pa = da.data, pb = gb.getImageData(0, 0, W, H).data, R2 = rng(seed + 13);
+    for (var i = 0; i < pa.length; i += 4) { var a = pa[i + 3]; if (!a) continue; var lvp = pb[i + 3] ? pb[i] / 255 : 1, gr = 1 - un * 0.6 * Math.pow(R2(), 4); pa[i] = ink[0]; pa[i + 1] = ink[1]; pa[i + 2] = ink[2]; pa[i + 3] = Math.round(a * lvp * op * gr); }
+    ga.putImageData(da, 0, 0);
+    /* crop to the writing, and move the strokes with it */
+    var bx0 = 1e9, by0 = 1e9, bx1 = -1e9, by1 = -1e9; segs.forEach(function (sg) { [sg.a, sg.b].forEach(function (q) { var r2 = sg.w; if (q[0] - r2 < bx0) bx0 = q[0] - r2; if (q[1] - r2 < by0) by0 = q[1] - r2; if (q[0] + r2 > bx1) bx1 = q[0] + r2; if (q[1] + r2 > by1) by1 = q[1] + r2; }); });
+    if (segs.length) { var m = 12 * scale; bx0 = Math.max(0, Math.floor(bx0 - m)); by0 = Math.max(0, Math.floor(by0 - m)); bx1 = Math.min(W, Math.ceil(bx1 + m)); by1 = Math.min(H, Math.ceil(by1 + m));
+      var C = document.createElement('canvas'); C.width = bx1 - bx0; C.height = by1 - by0; C.getContext('2d').drawImage(A, bx0, by0, C.width, C.height, 0, 0, C.width, C.height); A = C; W = C.width; H = C.height;
+      segs = segs.map(function (sg) { var a2 = [sg.a[0] - bx0, sg.a[1] - by0], b2 = sg.a === sg.b ? a2 : [sg.b[0] - bx0, sg.b[1] - by0]; return {k: sg.k, a: a2, b: b2, w: sg.w, lv: sg.lv}; }); }
+    return {canvas: A, segs: segs, W: W, H: H, ink: o.ink, op: op};
+  }
+  /* "being written": the strokes drawn in order at the chosen speed, then the finished ink */
+  function animatePen(cv, res, speed, done) {
+    var g = cv.getContext('2d'), k = cv.width / res.W; g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, cv.width, cv.height);
+    if (!speed || speed >= 10 || !res.segs.length) { g.drawImage(res.canvas, 0, 0, cv.width, cv.height); if (done) done(); return function () {}; }
+    var i = 0, per = Math.max(1, Math.round(speed * speed * 0.9)), stop = false, ink = res.ink;
+    g.lineCap = g.lineJoin = 'round'; g.strokeStyle = g.fillStyle = ink; g.globalAlpha = Math.min(1, res.op);
+    var step = function () { if (stop) return; for (var n = 0; n < per && i < res.segs.length; n++, i++) { var sg = res.segs[i]; g.lineWidth = sg.w * k; g.beginPath(); g.moveTo(sg.a[0] * k, sg.a[1] * k); if (sg.a === sg.b) { g.arc(sg.a[0] * k, sg.a[1] * k, sg.w * k / 2, 0, 7); g.fill(); } else { g.lineTo(sg.b[0] * k, sg.b[1] * k); g.stroke(); } }
+      if (i < res.segs.length) setTimeout(step, 16); else { g.globalAlpha = 1; g.clearRect(0, 0, cv.width, cv.height); g.drawImage(res.canvas, 0, 0, cv.width, cv.height); if (done) done(); } };
+    step(); return function () { stop = true; };
+  }
+  function penSvg(res) {
+    var c = res.ink, byStroke = {}; res.segs.forEach(function (sg) { (byStroke[sg.k] = byStroke[sg.k] || []).push(sg); });
+    var body = Object.keys(byStroke).map(function (k) { var L = byStroke[k], w = L.reduce(function (m, s2) { return m + s2.w; }, 0) / L.length, lv = L.reduce(function (m, s2) { return m + s2.lv; }, 0) / L.length;
+      if (L.length === 1 && L[0].a === L[0].b) return '<circle cx="' + L[0].a[0].toFixed(1) + '" cy="' + L[0].a[1].toFixed(1) + '" r="' + (L[0].w / 2).toFixed(1) + '" fill="' + c + '" fill-opacity="' + (lv * res.op).toFixed(2) + '"/>';
+      return '<path d="M' + L[0].a[0].toFixed(1) + ' ' + L[0].a[1].toFixed(1) + L.map(function (s2) { return 'L' + s2.b[0].toFixed(1) + ' ' + s2.b[1].toFixed(1); }).join('') + '" stroke-width="' + w.toFixed(2) + '" stroke-opacity="' + (lv * res.op).toFixed(2) + '"/>'; }).join('');
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="' + res.W + '" height="' + res.H + '" viewBox="0 0 ' + res.W + ' ' + res.H + '"><g fill="none" stroke="' + c + '" stroke-linecap="round" stroke-linejoin="round">' + body + '</g></svg>';
+  }
+  /* the same ink for typed styles: opacity, a pen running dry and grain */
+  function inkify(c, o, seed) {
+    if (!c) return c; var op = (o.op == null ? 100 : o.op) / 100, fade = (o.fade || 0) / 10, un = (o.uneven || 0) / 10; if (op >= 1 && !fade && !un) return c;
+    var g = c.getContext('2d'), d; try { d = g.getImageData(0, 0, c.width, c.height); } catch (e) { return c; } var p = d.data, nF = noise1(seed + 4), R = rng(seed + 13), W = c.width;
+    for (var i = 0; i < p.length; i += 4) { if (!p[i + 3]) continue; var x = (i / 4) % W, y = Math.floor(i / 4 / W), lv = 1 - fade * 0.5 * (x / W) - fade * 0.3 * Math.max(0, nF(x / 55)) - un * 0.35 * Math.max(0, nF(x / 4 + y / 9 + 40)), gr = 1 - un * 0.6 * Math.pow(R(), 4);
+      p[i + 3] = Math.round(p[i + 3] * Math.max(0.12, lv) * op * gr); }
+    g.putImageData(d, 0, 0); return c;
+  }
+  function download(href, name, revoke) { var l = document.createElement('a'); l.href = href; l.download = name; document.body.appendChild(l); l.click(); l.remove(); if (revoke) setTimeout(function () { URL.revokeObjectURL(href); }, 4000); }
+
   /* ------------------------------------------------------------------ the dialog */
-  var dlg = null, opts = {}, st = {tab: 'type', stype: 'signature', rmbg: true, font: 0, ink: INKS[0][0], slant: 6, weight: 0.6, vary: 4, size: 1, flourish: '', seed: 7, initials: false, pen: 3, thr: 190, upInk: 'keep'};
+  var dlg = null, opts = {}, st = {tab: 'pen', penFont: 0, penText: '', speed: 6, legib: 7, width: 3, op: 92, sloppy: 3, fade: 3, uneven: 3, penSlant: 4, tOp: 100, tFade: 0, tUneven: 0, stype: 'signature', rmbg: true, font: 0, ink: INKS[0][0], slant: 6, weight: 0.6, vary: 4, size: 1, flourish: '', seed: 7, initials: false, pen: 3, thr: 190, upInk: 'keep'};
   try { var keep = JSON.parse(localStorage.getItem('mt.sign.prefs') || 'null'); if (keep) Object.keys(keep).forEach(function (k) { if (k in st && k !== 'tab') st[k] = keep[k]; }); } catch (e) {}
-  function prefs() { try { var p = {}; ['font', 'ink', 'slant', 'weight', 'vary', 'size', 'flourish', 'pen', 'thr', 'upInk'].forEach(function (k) { p[k] = st[k]; }); localStorage.setItem('mt.sign.prefs', JSON.stringify(p)); } catch (e) {} }
+  function prefs() { try { var p = {}; ['font', 'ink', 'slant', 'weight', 'vary', 'size', 'flourish', 'pen', 'thr', 'upInk', 'penFont', 'speed', 'legib', 'width', 'op', 'sloppy', 'fade', 'uneven', 'penSlant', 'tOp', 'tFade', 'tUneven'].forEach(function (k) { p[k] = st[k]; }); localStorage.setItem('mt.sign.prefs', JSON.stringify(p)); } catch (e) {} }
   var CSS = '#mtSign{position:fixed;inset:0;z-index:' + Z + ';background:rgba(3,8,18,.62);display:flex;align-items:center;justify-content:center;padding:14px;font:13px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}' +
     '#mtSign .sd{background:#0b1a31;color:#e8eef8;border:1px solid #22406a;border-radius:14px;box-shadow:0 24px 60px rgba(0,0,0,.55);width:min(980px,100%);max-height:calc(100vh - 28px);display:flex;flex-direction:column}' +
     '#mtSign .sh{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid #16325a}#mtSign .sh h2{margin:0;font-size:16px;flex:1}' +
@@ -97,17 +248,18 @@
     if (!document.getElementById('mtSignCss')) { var s = document.createElement('style'); s.id = 'mtSignCss'; s.textContent = CSS; document.head.appendChild(s); }
     dlg = document.createElement('div'); dlg.id = 'mtSign'; dlg.className = 'no-print';
     dlg.innerHTML = '<div class="sd" role="dialog" aria-modal="true" aria-labelledby="mtSignT"><div class="sh"><h2 id="mtSignT">Signatures</h2><button type="button" data-s="close" aria-label="Close the signature maker">Close</button></div>' +
-      '<div class="tb" role="tablist">' + [['type', 'Type'], ['draw', 'Draw'], ['upload', 'From a file'], ['saved', 'Saved (' + load().length + ')']].map(function (t) { return '<button type="button" role="tab" data-tab="' + t[0] + '">' + t[1] + '</button>'; }).join('') + '</div><div class="bd"></div></div>';
+      '<div class="tb" role="tablist">' + [['pen', 'Handwriting pen'], ['type', 'Type'], ['draw', 'Draw'], ['upload', 'From a file'], ['saved', 'Saved (' + load().length + ')']].map(function (t) { return '<button type="button" role="tab" data-tab="' + t[0] + '">' + t[1] + '</button>'; }).join('') + '</div><div class="bd"></div></div>';
     document.body.appendChild(dlg); document.addEventListener('keydown', onKey, true);
     dlg.addEventListener('click', function (e) { if (e.target === dlg) close(); });
     dlg.querySelector('.sh').addEventListener('click', function (e) { if (e.target.closest('[data-s=close]')) close(); });
     dlg.querySelector('.tb').addEventListener('click', function (e) { var b = e.target.closest('[data-tab]'); if (b) tab(b.getAttribute('data-tab')); });
-    tab(opts.tab || (load().length && !opts.name ? 'saved' : 'type'));
+    tab(opts.tab || (load().length && !opts.name ? 'saved' : 'pen'));
   }
   function tab(t) {
     st.tab = t; [].forEach.call(dlg.querySelectorAll('[data-tab]'), function (b) { b.classList.toggle('on', b.getAttribute('data-tab') === t); b.setAttribute('aria-selected', String(b.getAttribute('data-tab') === t)); });
     var old = dlg.querySelector('.bd'), bd = old.cloneNode(false); old.parentNode.replaceChild(bd, old);   /* a fresh box: no handlers left over from the last tab */
-    ({type: tabType, draw: tabDraw, upload: tabUpload, saved: tabSaved})[t](bd);
+    if (penStop) { penStop(); penStop = null; }
+    ({pen: tabPen, type: tabType, draw: tabDraw, upload: tabUpload, saved: tabSaved})[t](bd);
   }
   function footer(def, ini) { return '<div class="ft"><input type="text" data-s="label" aria-label="Name for this signature" placeholder="Name for this signature" value="' + esc(def) + '"><label style="display:flex;align-items:center;gap:6px">Save as<select data-s="stype"><option value="signature"' + (ini ? '' : ' selected') + '>Signature</option><option value="initials"' + (ini ? ' selected' : '') + '>Initials</option></select></label><button type="button" class="pri" data-s="save">Save</button><span class="msg" role="status"></span></div>' +
     '<div class="note">Signatures are kept as pictures in this browser only. A signature picture is not a verified e-signature - place one only on a document its signer has approved.</div>'; }
@@ -123,6 +275,49 @@
     if (opts.onSave) { try { opts.onSave(sig); } catch (e) {} }
   }
 
+  /* ----- Handwriting pen */
+  var penStop = null;
+  function tabPen(bd) {
+    var rng10 = function (k, lab, min, max, step, tip) { return '<label' + (tip ? ' title="' + tip + '"' : '') + '>' + lab + '<input type="range" data-s="' + k + '" min="' + min + '" max="' + max + '" step="' + step + '" value="' + st[k] + '"></label>'; };
+    if (!st.penText) st.penText = st.name || '';
+    bd.innerHTML = '<div class="ctl"><label>Style<select data-s="penFont">' + FONTS.map(function (f, i) { return '<option value="' + i + '"' + (i === +st.penFont ? ' selected' : '') + '>' + (i + 1) + '. ' + esc(f[0]) + '</option>'; }).join('') + '</select></label>' +
+      '<label>Ink<select data-s="ink">' + INKS.map(function (k) { return '<option value="' + k[0] + '"' + (st.ink === k[0] ? ' selected' : '') + '>' + k[1] + '</option>'; }).join('') + '</select></label>' +
+      rng10('speed', 'Speed', 1, 10, 1, '10 shows the finished ink at once') + rng10('legib', 'Legibility', 0, 10, 1, 'Lower lets the letters stretch and squash like quick handwriting') + rng10('width', 'Stroke width', 1, 7, 0.5) + rng10('op', 'Opacity', 35, 100, 5) +
+      rng10('sloppy', 'Sloppiness', 0, 10, 1, 'How much the hand wanders and the line drifts') + rng10('fade', 'Faded', 0, 10, 1, 'The pen running dry along the writing') + rng10('uneven', 'Uneven ink', 0, 10, 1, 'Wavering pressure, skips and paper grain') + rng10('penSlant', 'Slant', -10, 25, 1) + '</div>' +
+      '<div class="prev" style="min-height:180px;padding:6px"><canvas data-s="penCanvas" style="max-width:100%;display:block" aria-label="Handwriting preview"></canvas></div>' +
+      '<div class="ft" style="align-items:stretch"><textarea data-s="penText" rows="2" aria-label="Text to write by hand" placeholder="Type a name, initials or a short note - it is written by hand above" style="flex:1 1 300px;background:#06101f;border:1px solid #2b5590;border-radius:8px;color:#fff;padding:8px 10px;font:15px/1.4 ui-monospace,Consolas,monospace;resize:vertical">' + esc(st.penText) + '</textarea>' +
+      '<div style="display:flex;flex-direction:column;gap:6px"><button type="button" class="pri" data-s="write" style="font-size:14px;padding:9px 18px">Write</button><button type="button" data-s="retake" title="The same words, written again">New take</button></div></div>' +
+      '<div class="ft" style="margin-top:6px"><button type="button" data-s="replay">Replay</button><button type="button" data-s="png">Download PNG</button><button type="button" data-s="svg">Download SVG (vector)</button><span class="note" style="margin:0">Our own pen engine: the letters are traced to single pen strokes and inked again.</span></div>' +
+      footer(st.penText.split('\n')[0] || st.name || '', st.initials);
+    var cv = bd.querySelector('[data-s=penCanvas]'), last = null, busy = 0;
+    var write = function (animate) {
+      var text = (bd.querySelector('[data-s=penText]').value || '').trim(); st.penText = text; prefs();
+      if (!text) { say('Type something to write.', true); return; }
+      var lines = wrapLines(text, 38), f = FONTS[+st.penFont] || FONTS[0], my = ++busy; say('Writing…');
+      fonts(text).then(function () { return document.fonts && document.fonts.load ? document.fonts.load('80px "' + f[0] + '"', text).catch(function () {}) : null; }).then(function () {
+        if (my !== busy || !cv.isConnected) return;
+        setTimeout(function () {
+          if (my !== busy) return; var t0 = performance.now();
+          var P = penPaths(lines, f[0], Math.round(96 * (f[1] || 1))), res = penInk(P, {ink: st.ink, width: +st.width, op: +st.op, sloppy: +st.sloppy, fade: +st.fade, uneven: +st.uneven, legib: +st.legib, slant: +st.penSlant}, st.seed || 7, 2);
+          last = res; var box = cv.parentNode.clientWidth - 12 || 800, k = Math.min(1, box / res.W, 360 / res.H); cv.width = Math.max(10, Math.round(res.W * k)); cv.height = Math.max(10, Math.round(res.H * k));
+          if (penStop) penStop(); penStop = animatePen(cv, res, animate === false ? 10 : +st.speed, function () { say(P.paths.length + ' pen strokes, written in ' + Math.round(performance.now() - t0) + ' ms.'); });
+          var lb = bd.querySelector('[data-s=label]'); if (lb && lb.__auto !== false) { lb.value = text.split('\n')[0].slice(0, 60); lb.__auto = true; }
+        }, 10);
+      });
+    };
+    var again = function () { clearTimeout(again.t); again.t = setTimeout(function () { write(false); }, 160); };
+    bd.addEventListener('input', function (e) { var k = e.target.getAttribute('data-s'); if (!k || k === 'label') return; if (k === 'penText') { st.penText = e.target.value; return; } st[k] = e.target.type === 'range' ? +e.target.value : e.target.value; prefs(); if (k !== 'speed') again(); });
+    bd.addEventListener('change', function (e) { var k = e.target.getAttribute('data-s'); if (k === 'penFont' || k === 'ink') { st[k] = k === 'penFont' ? +e.target.value : e.target.value; prefs(); write(true); } if (k === 'label') e.target.__auto = false; });
+    bd.addEventListener('keydown', function (e) { if (e.target.getAttribute('data-s') === 'penText' && e.key === 'Enter' && (e.ctrlKey || e.metaKey || !e.shiftKey && e.target.value.indexOf('\n') < 0 && e.target.value.length < 60)) { e.preventDefault(); write(true); } });
+    bd.addEventListener('click', function (e) { var b = e.target.closest('[data-s]'); if (!b) return; var a = b.getAttribute('data-s');
+      if (a === 'write') write(true); if (a === 'retake') { st.seed = 1 + Math.floor(Math.random() * 1e6); write(true); }
+      if (a === 'replay' && last) { if (penStop) penStop(); penStop = animatePen(cv, last, Math.min(9, +st.speed || 6)); }
+      if (a === 'png' && last) download(trim(last.canvas, 10).toDataURL('image/png'), (st.penText.split('\n')[0] || 'handwriting').replace(/[^\w -]+/g, '').slice(0, 40) + '.png');
+      if (a === 'svg' && last) download(URL.createObjectURL(new Blob([penSvg(last)], {type: 'image/svg+xml'})), (st.penText.split('\n')[0] || 'handwriting').replace(/[^\w -]+/g, '').slice(0, 40) + '.svg', true);
+      if (a === 'save') { if (!last) { say('Press Write first.', true); return; } saveCanvas(trim(last.canvas, 10), 'pen', {font: (FONTS[+st.penFont] || [''])[0], text: st.penText, seed: st.seed, speed: st.speed, legib: st.legib, width: st.width, op: st.op, sloppy: st.sloppy, fade: st.fade, uneven: st.uneven}); }
+    });
+    if (st.penText) write(true);
+  }
   /* ----- Type */
   function tabType(bd) {
     bd.innerHTML = '<div class="ctl"><label style="flex:1 1 220px">Name<input type="text" data-s="name" value="' + esc(st.name || '') + '" placeholder="Full name as it is signed"></label>' +
@@ -131,6 +326,7 @@
       '<label>Slant<input type="range" data-s="slant" min="-12" max="24" step="1" value="' + st.slant + '"></label><label>Stroke width<input type="range" data-s="weight" min="0" max="3" step="0.2" value="' + st.weight + '"></label>' +
       '<label>Size<input type="range" data-s="size" min="0.7" max="1.4" step="0.05" value="' + st.size + '"></label><label title="Lower is neater and more legible; higher looks more hand-made">Variation (legibility)<input type="range" data-s="vary" min="0" max="10" step="1" value="' + st.vary + '"></label>' +
       '<label>Flourish<select data-s="flourish">' + [['', 'None'], ['under', 'Underline swoosh'], ['tail', 'Return tail'], ['double', 'Double underline']].map(function (k) { return '<option value="' + k[0] + '"' + (st.flourish === k[0] ? ' selected' : '') + '>' + k[1] + '</option>'; }).join('') + '</select></label>' +
+      '<label>Opacity<input type="range" data-s="tOp" min="35" max="100" step="5" value="' + st.tOp + '"></label><label title="The pen running dry along the name">Faded<input type="range" data-s="tFade" min="0" max="10" step="1" value="' + st.tFade + '"></label><label title="Skips and paper grain">Uneven ink<input type="range" data-s="tUneven" min="0" max="10" step="1" value="' + st.tUneven + '"></label>' +
       '<button type="button" data-s="reseed" title="Another natural variation of every style">New variation</button></div>' +
       '<div class="gal" role="listbox" aria-label="Handwriting styles">' + FONTS.map(function (f, i) { return '<div class="card' + (i === st.font ? ' sel' : '') + '" role="option" tabindex="0" aria-selected="' + (i === st.font) + '" data-f="' + i + '"><small>' + esc(f[0]) + '</small></div>'; }).join('') + '</div>' +
       footer(st.initials ? nameText() : st.name || '', st.initials);
@@ -141,14 +337,14 @@
       var c = e.target.closest('[data-f]'); if (c) { st.font = +c.getAttribute('data-f'); prefs(); [].forEach.call(bd.querySelectorAll('[data-f]'), function (x) { x.classList.toggle('sel', x === c); x.setAttribute('aria-selected', String(x === c)); }); return; }
       var b = e.target.closest('[data-s]'); if (!b) return; var a = b.getAttribute('data-s');
       if (a === 'reseed') { st.seed = 1 + Math.floor(Math.random() * 1e6); draw(); }
-      if (a === 'save') { var t = nameText(); if (!t) { say('Type the name first.', true); return; } var f = FONTS[st.font]; saveCanvas(typed(t, f, st), 'typed', {font: f[0], text: t, ink: st.ink, slant: st.slant, weight: st.weight, vary: st.vary, flourish: st.flourish, seed: st.seed}); }
+      if (a === 'save') { var t = nameText(); if (!t) { say('Type the name first.', true); return; } var f = FONTS[st.font]; saveCanvas(inkify(typed(t, f, st), {op: st.tOp, fade: st.tFade, uneven: st.tUneven}, st.seed), 'typed', {font: f[0], text: t, ink: st.ink, slant: st.slant, weight: st.weight, vary: st.vary, flourish: st.flourish, seed: st.seed}); }
     });
     bd.addEventListener('keydown', function (e) { var c = e.target.closest('[data-f]'); if (c && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); c.click(); } });
     paint();
     function paint() {
       var t = nameText(), cards = bd.querySelectorAll('[data-f]'); if (!cards.length) return;
       if (!t) { [].forEach.call(cards, function (c) { var im = c.querySelector('img'); if (im) im.remove(); }); return; }
-      fonts(t).then(function () { if (!bd.isConnected) return; [].forEach.call(cards, function (c, i) { var cv = typed(t, FONTS[i], st); var im = c.querySelector('img') || c.insertBefore(document.createElement('img'), c.firstChild); im.alt = t + ' in ' + FONTS[i][0]; if (cv) im.src = fit(cv, 600, 160).toDataURL(); }); });
+      fonts(t).then(function () { if (!bd.isConnected) return; [].forEach.call(cards, function (c, i) { var cv = inkify(typed(t, FONTS[i], st), {op: st.tOp, fade: st.tFade, uneven: st.tUneven}, st.seed); var im = c.querySelector('img') || c.insertBefore(document.createElement('img'), c.firstChild); im.alt = t + ' in ' + FONTS[i][0]; if (cv) im.src = fit(cv, 600, 160).toDataURL(); }); });
     }
   }
   /* ----- Draw */
@@ -227,5 +423,5 @@
   }
 
   function get(id) { var l = load(); for (var i = 0; i < l.length; i++) if (l[i].id === id) return l[i]; return null; }
-  window.MTSign = {open: open, close: close, list: function () { return load().map(function (g) { return {id: g.id, label: g.label, kind: g.kind, type: g.type || 'signature', png: g.png, w: g.w, h: g.h}; }); }, get: get, fonts: FONTS.map(function (f) { return f[0]; }), _typed: typed, _fonts: fonts};
+  window.MTSign = {open: open, close: close, list: function () { return load().map(function (g) { return {id: g.id, label: g.label, kind: g.kind, type: g.type || 'signature', png: g.png, w: g.w, h: g.h}; }); }, get: get, fonts: FONTS.map(function (f) { return f[0]; }), _typed: typed, _fonts: fonts, _pen: {paths: penPaths, ink: penInk, svg: penSvg, wrap: wrapLines}};
 })();

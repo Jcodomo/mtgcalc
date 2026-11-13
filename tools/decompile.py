@@ -16,7 +16,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).parent)); from split import scan
 
 SRC, OUT = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2])
 MIG = "<script>/* 55.15: OLED dark blue by default (once for everyone; afterwards the Look menu / theme switch decides) */(function(){try{var L=localStorage,k='mt.oledDefault.v1';if(!L.getItem(k)){L.setItem('los.v25.surface','oled');L.setItem('uwTheme','dark');['los.v251.appearanceSeeded','los.v35.appearanceSeeded','v15ThemeSeeded'].forEach(function(f){L.setItem(f,'1')});L.setItem(k,'1');}document.documentElement.setAttribute('data-mt-mode',L.getItem('los.v25.surface')==='light'&&L.getItem('uwTheme')!=='dark'?'light':'oled');}catch(e){}})();</script>"
-VER = '57.10'   # cache key for the shared assets: change it with every release
+VER = '57.11'   # cache key for the shared assets: change it with every release
 COMPANIONS = ['income-enhancements.js', 'loan-ux.js', 'sync-bridge.js', 'workflow-ui.js', 'quick-worksheet.js', 'income-features.js', 'loan-docs-ai.js', 'loan-cards.js', 'income-extras.js', 'quick-engine.js',
               'mt-live.js', 'release56-income.js', 'release56-suite.js', 'doc-center.js', 'mt-mnd.js', 'mt-data.js', 'doc-builder.js', 'mt-addr.js', 'mt-paste.js', 'mt-search.js', 'mt-build-lazy.js', 'mt-libs.js', 'ic-simple.js', 'nmb-report.js', 'nmb-template.js', 'mt-prop.js', 'mt-sign.js']
 
@@ -127,11 +127,11 @@ def main():
         print(f'  income-calculator.html  {n:,}  (the app on its Income workspace)')
     # stand-alone feature pages from the repo, companion scripts pointed at assets/
     comp = re.compile(r'src="(' + '|'.join(re.escape(c[:-3]) for c in COMPANIONS) + r')\.js')
-    for f in ['income-calculator.html', 'quick.html', 'doc-organizer.html', 'property.html']:
+    for f in ['income-calculator.html', 'quick.html', 'doc-organizer.html', 'property.html', 'handwriting.html']:
         if (SRC / f).exists():
             t = (SRC / f).read_text(encoding='utf-8').replace('\r\n', '\n')
             t = comp.sub(r'src="assets/\1.js', t)
-            tag = {'income-calculator.html': 'income', 'quick.html': 'quick', 'doc-organizer.html': 'docorg', 'property.html': 'property'}[f]
+            tag = {'income-calculator.html': 'income', 'quick.html': 'quick', 'doc-organizer.html': 'docorg', 'property.html': 'property', 'handwriting.html': 'handwriting'}[f]
             t = re.sub(r'<html\b', f'<html data-mt-page="{tag}"', t, count=1)
             t = re.sub(r'(<head[^>]*>)', lambda m: m.group(1) + '\n' + MIG, t, count=1)
             t = t.replace('</head>', '<link rel="stylesheet" href="assets/mtgcalc-theme.css">\n</head>', 1)
@@ -185,6 +185,7 @@ def hub(OUT):
              ('income-calculator.html', 'Income Calculator', 'W-2, self-employment, rental and other income, document import with OCR, AUS findings, DTI.'),
              ('doc-organizer.html', 'Documents', 'Document library with OCR, paste text, spreadsheet rows, screenshots and files, the income document reader, the Document Builder, and rename / split / zip; send reviewed fields to the Loan Suite or the Income Calculator.'),
              ('property.html', 'Property', 'Flood zone, census area and the public property record beside Street View, satellite and flood maps; listing sites open on the right half of the screen.'),
+             ('handwriting.html', 'Handwriting', 'Type anything and it is written by hand with our own pen engine; signatures typed, drawn or from a PNG, SVG or photo, for every document.'),
              ('full-suite.html', 'Full Suite', 'The complete Loan Suite in one page. The Income Calculator is its own page.')]
     sec = []
     for gid, glabel in GROUPS:

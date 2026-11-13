@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="dark light">
+<title>Handwriting · Mortgage Suite</title>
+<style>
+:root{--bg:#06101f;--panel:#0b1a31;--ink:#e8eef8;--mute:#93a6c0;--line:#22406a;--acc:#3d8bfd;--nav:#0f2a4a}
+html[data-mt-mode=light]{--bg:#eef2f7;--panel:#fff;--ink:#0f2a4a;--mute:#56677a;--line:#d5dee9;--acc:#1f6fd6}
+*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+.mtsh{background:var(--nav);color:#fff;padding:13px clamp(14px,3vw,32px);display:flex;align-items:center;gap:12px}.mtsh b{letter-spacing:.08em;text-transform:uppercase;font-size:13.5px}.mtsh span{color:#b9cbe2;font-size:13px}
+main{max-width:980px;margin:0 auto;padding:24px clamp(14px,3vw,32px) 80px}h1{margin:0 0 6px;font-size:clamp(22px,3vw,28px)}p{color:var(--mute);margin:0 0 14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin:14px 0}.card h2{margin:0 0 6px;font-size:15px}
+button{border:1px solid var(--acc);background:var(--acc);color:#fff;border-radius:999px;padding:9px 18px;font:600 14px system-ui,sans-serif;cursor:pointer}button.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+.row{display:flex;gap:8px;flex-wrap:wrap}ul{margin:6px 0 0;padding-left:18px;color:var(--mute)}
+</style></head><body>
+<header class="mtsh"><b>Mortgage Suite</b><span>Handwriting</span></header>
+<main>
+  <h1>Handwriting and signatures</h1>
+  <p>Type anything - a name, initials or a short note - and it is written by hand with our own pen engine, or make a signature by typing, drawing or uploading a PNG, SVG or photo. Everything you save here is offered on the signature lines of every document in the Document Builder.</p>
+  <div class="row"><button type="button" id="hwOpen">Open the handwriting pen</button><button type="button" class="ghost" id="hwSaved">Saved signatures</button></div>
+  <div class="card"><h2>How the pen works</h2>
+    <ul>
+      <li>The words are set in one of 20 handwriting styles, thinned to the centre line of each letter and traced into single pen strokes in writing order.</li>
+      <li>The strokes are then inked again: pressure that swells and tapers, a hand that wanders (sloppiness and legibility), a pen that runs dry (faded), uneven ink with paper grain, slant, opacity and stroke width.</li>
+      <li>Speed plays the writing back as it is written. New take writes the same words again, a little differently. Download as PNG, or as SVG made of real pen strokes.</li>
+      <li>Everything runs in this browser. Saved signatures are kept here only. A signature picture is not a verified e-signature - place one only on a document its signer has approved.</li>
+    </ul>
+  </div>
+</main>
+<script src="workflow-ui.js?v=55.12"></script>
+<script src="mt-sign.js?v=57.11"></script>
+<script>
+(function () {
+  var open = function (t) { if (window.MTSign) MTSign.open({tab: t}); };
+  document.getElementById('hwOpen').addEventListener('click', function () { open('pen'); });
+  document.getElementById('hwSaved').addEventListener('click', function () { open('saved'); });
+  var q = new URLSearchParams(location.search).get('text');
+  if (window.MTSign) { MTSign.open({tab: 'pen', name: q || ''}); }
+})();
+</script>
+</body></html>
