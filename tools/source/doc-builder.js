@@ -2761,7 +2761,18 @@
   }
 
   /* -------------------------------------------------- reading dropped files */
-  function readText(fl) { if (window.MTDocs && MTDocs.readText) return MTDocs.readText(fl); return fl.text(); }
+  /* 57.6: PDFs, scans and pictures go through the shared reader (PDF text, then OCR); on a page that has not loaded it yet it is
+     loaded first - a PDF is never read as plain text */
+  var docCenterP = null;
+  function needDocCenter() {
+    if (window.MTDocs && MTDocs.readText) return Promise.resolve(MTDocs);
+    if (!docCenterP) docCenterP = new Promise(function (res) { var sc = document.createElement('script'), base = (Array.from(document.scripts).map(function (x) { return x.src; }).filter(function (x) { return /\/assets\/[^/]+\.js/.test(x); })[0] || '').replace(/[^/]+\.js.*$/, '') || 'assets/'; sc.src = base + 'doc-center.js?v=' + Date.now().toString(36); sc.onload = function () { res(window.MTDocs || null); }; sc.onerror = function () { res(null); }; document.head.appendChild(sc); });
+    return docCenterP;
+  }
+  function readText(fl) {
+    var bin = /\.(pdf|png|jpe?g|webp|gif|bmp|tiff?|heic)$/i.test(fl.name || '') || /^(image\/|application\/pdf)/.test(fl.type || '');
+    return needDocCenter().then(function (M) { if (M && M.readText) return M.readText(fl); if (bin) throw new Error('The document reader could not be loaded - check the connection and reload the page.'); return fl.text(); });
+  }
   var lastStatus = {};
   function status(id, html, cls) { lastStatus[id] = {html: html, cls: cls}; var el = $(id); if (el) { el.className = 'note ' + (cls || ''); el.innerHTML = html; } }
   function restoreStatus() { Object.keys(lastStatus).forEach(function (id) { var el = $(id), s = lastStatus[id]; if (el && !el.innerHTML) { el.className = 'note ' + (s.cls || ''); el.innerHTML = s.html; } }); }

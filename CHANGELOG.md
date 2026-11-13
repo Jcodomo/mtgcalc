@@ -132,7 +132,7 @@
 - **Address suggestions match known addresses instantly:** the loan file's property, the document builders' properties, addresses picked before and full addresses typed into an address box are matched on every keystroke without waiting for the network (tagged "Loan file", "Document builder", "Used before", "Typed before"); OpenStreetMap results join them, now after 0.2 seconds and from the third character.
 - The MI & renovation worksheet's program is a typeable box (FHA, FHA 203(k), Conventional, HomeStyle, VA, USDA or anything else). Choices that drive a calculation - pay frequency, filing status, the state tax table, lease type and each builder's style - stay as lists.
 
-## 2026-11-12 - everything released today (56.6 to 57.5)
+## 2026-11-12 - everything released today (56.6 to 57.6)
 
 The release entries below have the details. In short:
 
@@ -155,6 +155,7 @@ The release entries below have the details. In short:
 - **57.3 - commitment letters:** an approval letter layout ("Congratulations") and an underwriting conditional approval layout (lender grid, conditions in PTA / PTD / PTF / AC / PTP boxes); conditions keep their stage; a button that makes the conditions list to paste into an email or tick off.
 - **57.4 - one Documents page:** the Doc Organizer holds the library and OCR, paste box, income document reader, Document Builder and organizer; the Income Calculator's Documents tab opens it. Conditions can be exported (.txt / .csv / .json, or checked-off only into a text box) and checked or unchecked all at once, internal or external.
 - **57.5 - scanned approvals and two new builders:** multi-page scanned approvals read in full (OCR headings and grid); company, NMLS and contact details remembered and suggested; letter of explanation builder (21 kinds, approval / bank statement / credit report drops); CPA / tax preparer letter builder (5 styles with logo).
+- **57.6 - hotfix:** scanned PDFs read on every page. Choosing a PDF no longer swaps the real reader for a text-only one, and the original scanned pictures are OCR'd directly.
 - **Behind the scenes, with no change to the site on their own:**
   - The 56.5 calculation was recovered into readable TypeScript (src/) and gives identical results on 3,000 scenarios.
   - Engine fixes D1-D5 were written with tests.
@@ -328,6 +329,20 @@ The release entries below have the details. In short:
   - **From other places:** businesses from the Income Calculator, and the CPA conditions from an approval, with "Answer it" turning on the matching statements.
   - **Preparer details:** an earlier letter from the same preparer fills the name, firm, address, phone, fax, email and PTIN.
 - Asset version 57.5.
+
+## Release 57.6 - scanned PDFs read on every page (hotfix)
+
+- **The bug:** on pages without the newer library loader (the Documents page among them), choosing or dropping any PDF replaced the real PDF reader (pdf.js) with an older text-only stand-in. A scanned PDF, such as an Encompass underwriting approval, then gave "No text could be read". Fixed in two places:
+  - The stand-in is never used while the real reader is available.
+  - The shared reader always uses the real pdf.js, and loads it if needed.
+- **Scanned pages:** the original scan inside the PDF is now read directly, which is sharper and faster than drawing the page.
+  - **If the page draws blank:** it's drawn a second way.
+  - **If OCR returns nothing:** the OCR engine is restarted and the page read again.
+  - **If it still fails:** the message says which step failed, not just "try a clearer scan".
+- **Builders:** the document builders load the shared reader before reading a PDF or picture, and never read a PDF as plain text.
+- **Cache keys:** every shared script on every page now carries the release number, including loan-ux.js, which had none.
+- **Tested:** the 7-page scanned commitment PDF, dropped into the commitment letter on the Documents page, read in 42 seconds: both borrowers, the loan number, and 100 conditions across PTA / PTD / AC / PTP.
+- Asset version 57.6.
 
 ## Release 55.14b - self-employment, rental and more of the income worksheet; one look across the pages
 

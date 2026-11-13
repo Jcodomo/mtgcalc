@@ -230,6 +230,7 @@
     window.pdfjsLib.__mtgcalcNative = true;
     return previous || true;
   }
+  function realPdfJs() { return (window.pdfjsLib && !window.pdfjsLib.__mtgcalcNative && window.pdfjsLib) || window['pdfjs-dist/build/pdf'] || null; }
   function nativePdfStub(files) {
     const list = Array.from(files || []).filter(function (file) { return /\.pdf$/i.test(file.name || ''); });
     if (!list.length) return false;
@@ -299,7 +300,9 @@
              /\.pdf/i.test(input.accept || ''))) {
           /* v57 phase 4: the page loader (LOS_LIBS) now holds a PDF until the real reader is loaded, so the text-only
              stand-in is installed only where that loader is absent */
-          if (!window.LOS_LIBS) nativePdfStub(input.files);
+          /* 57.6: never in place of the real reader - the stand-in reads text layers only, so a scanned PDF (an underwriting
+             approval, a statement) came back empty on pages without the loader (the Documents page) */
+          if (!window.LOS_LIBS && !realPdfJs()) nativePdfStub(input.files);
         }
       }, true);
     }

@@ -34,7 +34,14 @@
   }
   var PDFJS = '3.11.174';
   async function pdfLib() {
-    if (window.pdfjsLib && pdfjsLib.getDocument) return pdfjsLib;
+    /* 57.6: the real pdf.js only - an older text-only stand-in (window.pdfjsLib.__mtgcalcNative) cannot draw scanned pages */
+    var fix = function (L) { if (L && L.GlobalWorkerOptions && !L.GlobalWorkerOptions.workerSrc) L.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/' + (L.version || PDFJS) + '/pdf.worker.min.js'; return L; };
+    var real = function () { return (window.pdfjsLib && window.pdfjsLib.getDocument && !window.pdfjsLib.__mtgcalcNative && window.pdfjsLib) || (window['pdfjs-dist/build/pdf'] && window['pdfjs-dist/build/pdf'].getDocument && window['pdfjs-dist/build/pdf']) || null; };
+    if (real()) return fix(real());
+    var stub = window.pdfjsLib && window.pdfjsLib.__mtgcalcNative ? window.pdfjsLib : null; if (stub) window.pdfjsLib = undefined;
+    await loadScript(['https://cdnjs.cloudflare.com/ajax/libs/pdf.js/' + PDFJS + '/pdf.min.js', 'https://cdn.jsdelivr.net/npm/pdfjs-dist@' + PDFJS + '/build/pdf.min.js']);
+    if (real()) return fix(real());
+    if (stub && !window.pdfjsLib) window.pdfjsLib = stub;
     var lp = G('loadPdfJs'); if (typeof lp === 'function') { try { await lp(); } catch (e) {} if (window.pdfjsLib) return pdfjsLib; }
     await loadScript(['https://cdnjs.cloudflare.com/ajax/libs/pdf.js/' + PDFJS + '/pdf.min.js', 'https://cdn.jsdelivr.net/npm/pdfjs-dist@' + PDFJS + '/build/pdf.min.js']);
     if (window.pdfjsLib && pdfjsLib.GlobalWorkerOptions && !pdfjsLib.GlobalWorkerOptions.workerSrc) pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/' + PDFJS + '/pdf.worker.min.js';
@@ -71,9 +78,11 @@
     g.putImageData(d, 0, 0);
     return c;
   }
-  async function ocr(images, prog) {
-    var T = await tess(); if (!T) throw new Error('The OCR engine could not be loaded - an internet connection is needed the first time OCR runs.');
-    var W = await worker(T), out = '';
+  var lastOcr = {pages: 0, blank: 0, how: '', err: ''};
+  async function ocr(images, prog, retried) {
+    var T = await tess(); if (!T) throw new Error('The OCR engine could not be loaded - an internet connection is needed the first time OCR runs (cdnjs.cloudflare.com or cdn.jsdelivr.net may be blocked).');
+    var W; try { W = await worker(T); } catch (e) { throw new Error('The OCR engine could not start (' + (e && e.message || e) + '). Reload the page and try again.'); }
+    var out = '';
     for (var i = 0; i < images.length; i++) {
       var img = prep(images[i]); curProg = function (f) { if (prog) prog((i + f) / images.length); };
       await W.setParameters({tessedit_pageseg_mode: '3'});
@@ -82,6 +91,34 @@
       out += best.text + '\n';
     }
     curProg = null;
+    /* 57.6: an engine left in a bad state by an earlier read returns nothing - start a fresh one and read once more */
+    if (!out.replace(/\s/g, '') && !retried) { try { var old = await workerP; workerP = null; if (old && old.terminate) await old.terminate(); } catch (e) { workerP = null; } return ocr(images, prog, true); }
+    return out;
+  }
+  /* 57.6: is a rendered page blank (all white or all transparent)? */
+  function blankCanvas(c) {
+    try { var w = Math.min(c.width, 400), h = Math.min(c.height, 520), t = document.createElement('canvas'); t.width = w; t.height = h; var g = t.getContext('2d', {willReadFrequently: true}); g.fillStyle = '#fff'; g.fillRect(0, 0, w, h); g.drawImage(c, 0, 0, w, h);
+      var d = g.getImageData(0, 0, w, h).data, dark = 0; for (var i = 0; i < d.length; i += 16) if (d[i] < 140) dark++; return dark < 25; } catch (e) { return false; }
+  }
+  /* 57.6: the page pictures inside a scanned PDF, taken straight from it (when drawing the page gives a blank image) */
+  async function pdfImages(pdf, page, L) {
+    var out = [];
+    try {
+      var ops = await page.getOperatorList(), OPS = L.OPS || {};
+      for (var i = 0; i < ops.fnArray.length; i++) {
+        if (ops.fnArray[i] !== OPS.paintImageXObject && ops.fnArray[i] !== OPS.paintJpegXObject) continue;
+        var id = ops.argsArray[i][0], img = await new Promise(function (res) { var done = false; try { page.objs.get(id, function (o) { done = true; res(o); }); } catch (e) { res(null); } setTimeout(function () { if (!done) res(null); }, 4000); });
+        if (!img) continue;
+        var c = document.createElement('canvas'), w = img.width, h = img.height; c.width = w; c.height = h; var g = c.getContext('2d');
+        if (img.bitmap) g.drawImage(img.bitmap, 0, 0);
+        else if (img.data) { var id2 = g.createImageData(w, h), src = img.data, dst = id2.data;
+          if (src.length === w * h * 4) dst.set(src);
+          else if (src.length === w * h * 3) { for (var a = 0, b = 0; a < src.length; a += 3, b += 4) { dst[b] = src[a]; dst[b + 1] = src[a + 1]; dst[b + 2] = src[a + 2]; dst[b + 3] = 255; } }
+          else { var rb = (w + 7) >> 3; for (var y = 0; y < h; y++) for (var x = 0; x < w; x++) { var bit = (src[y * rb + (x >> 3)] >> (7 - (x & 7))) & 1, v = bit ? 255 : 0, o = (y * w + x) * 4; dst[o] = dst[o + 1] = dst[o + 2] = v; dst[o + 3] = 255; } }
+          g.putImageData(id2, 0, 0); }
+        if (w > 300 && h > 300) out.push(c);
+      }
+    } catch (e) {}
     return out;
   }
   /* 56.1: a text layer counts only when it reads as text - scanned PDFs can carry encoded binary that is long but unreadable */
@@ -101,12 +138,26 @@
       if (prog) prog(p / pdf.numPages * 0.5);
     }
     if (readable(out)) return out;
-    var imgs = [];
-    for (var k = 1; k <= Math.min(pdf.numPages, 12); k++) {
-      var page = await pdf.getPage(k), vp = page.getViewport({scale: 2}), c = document.createElement('canvas');
-      c.width = vp.width; c.height = vp.height; await page.render({canvasContext: c.getContext('2d'), viewport: vp, intent: 'print'}).promise; imgs.push(c);
+    var imgs = [], blanks = 0, how = 'drawn pages';
+    for (var k = 1; k <= Math.min(pdf.numPages, 20); k++) {
+      var page = await pdf.getPage(k);
+      /* 57.6: a scanned page is one full-page picture - OCR the original scan (sharper and faster than drawing the page) */
+      var own = await pdfImages(pdf, page, L);
+      if (own.length === 1 && own[0].width >= 1000 && !blankCanvas(own[0])) { imgs.push(own[0]); how = 'the scanned pictures in the PDF'; if (prog) prog(0.5 + k / pdf.numPages * 0.05); continue; }
+      var vp = page.getViewport({scale: 2}), c = document.createElement('canvas');
+      c.width = vp.width; c.height = vp.height;
+      try { await page.render({canvasContext: c.getContext('2d'), viewport: vp, intent: 'print', background: 'rgb(255,255,255)'}).promise; } catch (e) {}
+      if (blankCanvas(c)) {   /* 57.6: a blank drawing - draw it again for the screen, then take the scanned picture straight out of the PDF */
+        try { var c2 = document.createElement('canvas'), vp2 = page.getViewport({scale: 2.5}); c2.width = vp2.width; c2.height = vp2.height; await page.render({canvasContext: c2.getContext('2d'), viewport: vp2, intent: 'display', background: 'rgb(255,255,255)'}).promise; if (!blankCanvas(c2)) { c = c2; how = 'pages drawn a second way'; } } catch (e) {}
+        if (blankCanvas(c)) { var pics = await pdfImages(pdf, page, L); if (pics.length) { imgs = imgs.concat(pics); how = 'pictures taken from the PDF'; continue; } blanks++; }
+      }
+      imgs.push(c);
+      if (prog) prog(0.5 + k / pdf.numPages * 0.05);
     }
-    return ocr(imgs, function (f) { if (prog) prog(0.5 + f / 2); });
+    lastOcr = {pages: pdf.numPages, blank: blanks, how: how, err: ''};
+    var txt = await ocr(imgs, function (f) { if (prog) prog(0.55 + f * 0.45); });
+    if (!txt.replace(/\s/g, '')) throw new Error('OCR found no text in the ' + pdf.numPages + ' page' + (pdf.numPages === 1 ? '' : 's') + ' of this PDF (' + (blanks ? blanks + ' page image' + (blanks === 1 ? ' was' : 's were') + ' blank' : 'the page images were ' + how) + '). Try: reload the page and drop it again; or open the PDF, take a screenshot of each page (Win+Shift+S) and paste them with "Paste text / several".');
+    return txt;
   }
   async function readText(file, prog) {
     var name = file.name || '', type = file.type || '';
@@ -605,6 +656,6 @@
     /* v57 phase 4: no polling - the inline library is placed when the page is ready and shortly after clicks, when the Documents panels appear */
     var it = 0; setTimeout(inline, 1500); document.addEventListener('click', function () { clearTimeout(it); it = setTimeout(inline, 300); }, true);
   }
-  window.MTDocs = {__v56: true, readText: readText, ocr: ocr, detect: detect, extract: extract, TYPES: TYPES, DEST: DEST, SECTIONS: SECTIONS, open: open, close: close, list: function () { return mem; }, add: add, send: send, queue: queue, EX: EX, openIncome: function (id) { var d = typeof id === 'object' ? id : find(id); if (d) openIncome(d); }, find: find, ready: function () { return ready || load(); }};
+  window.MTDocs = {__v56: true, readText: readText, ocr: ocr, detect: detect, extract: extract, TYPES: TYPES, DEST: DEST, SECTIONS: SECTIONS, open: open, close: close, list: function () { return mem; }, add: add, send: send, queue: queue, EX: EX, __pdfPictures: async function (file) { var L = await pdfLib(), pdf = await L.getDocument({data: await file.arrayBuffer()}).promise, out = []; for (var k = 1; k <= pdf.numPages; k++) out = out.concat(await pdfImages(pdf, await pdf.getPage(k), L)); return out; }, openIncome: function (id) { var d = typeof id === 'object' ? id : find(id); if (d) openIncome(d); }, find: find, ready: function () { return ready || load(); }};
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
 })();
