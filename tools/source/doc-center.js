@@ -58,13 +58,17 @@
         greyscale with the contrast stretched, and dark screens (light text on navy, as in this suite) are flipped to dark on white.
      2. One OCR worker is kept and reused, with spacing between columns kept (tables, condition grids, statements).
      3. If the first reading is unsure (confidence under 65), the page is read again as one block of text and the surer reading wins. */
-  var workerP = null, curProg = null;
-  function worker(T) {
-    if (!workerP) workerP = T.createWorker('eng', 1, {logger: function (m) { if (curProg && m.status === 'recognizing text') curProg(m.progress); }})
+  /* 57.14: up to three OCR workers read pages side by side (one per spare processor core); each is kept and reused. */
+  var pool = [], progs = [], curProg = null;
+  function poolSize() { return Math.max(1, Math.min(3, (navigator.hardwareConcurrency || 2) - 1)); }
+  function worker(T, k) {
+    k = k || 0;
+    if (!pool[k]) pool[k] = T.createWorker('eng', 1, {logger: function (m) { if (curProg && m.status === 'recognizing text') { progs[k] = m.progress; curProg(); } }})
       .then(function (w) { return w.setParameters({preserve_interword_spaces: '1'}).then(function () { return w; }); })
-      .catch(function (e) { workerP = null; throw e; });
-    return workerP;
+      .catch(function (e) { pool[k] = null; throw e; });
+    return pool[k];
   }
+  function dropWorker(k) { var p = pool[k]; pool[k] = null; if (p) p.then(function (w) { try { w.terminate(); } catch (e) {} }, function () {}); }
   function prep(src) {
     var w = src.naturalWidth || src.width, h = src.naturalHeight || src.height; if (!w || !h) return src;
     var scale = Math.min(4, Math.max(1, 2200 / w)); if (w * h * scale * scale > 24e6) scale = Math.max(1, Math.sqrt(24e6 / (w * h)));
@@ -81,27 +85,34 @@
   var lastOcr = {pages: 0, blank: 0, how: '', err: ''};
   async function ocr(images, prog, retried) {
     var T = await tess(); if (!T) throw new Error('The OCR engine could not be loaded - an internet connection is needed the first time OCR runs (cdnjs.cloudflare.com or cdn.jsdelivr.net may be blocked).');
-    var W; try { W = await worker(T); } catch (e) { throw new Error('The OCR engine could not start (' + (e && e.message || e) + '). Reload the page and try again.'); }
-    var out = '', skipped = 0;
+    var n = Math.min(poolSize(), images.length), texts = new Array(images.length), skipped = 0, next = 0, finished = 0;
+    try { await worker(T, 0); } catch (e) { throw new Error('The OCR engine could not start (' + (e && e.message || e) + '). Reload the page and try again.'); }
     /* 57.8: a page that hangs the engine is given up after 75 seconds - the engine is restarted and the next page goes on */
     var limit = function (pr, ms) { var t; return Promise.race([pr, new Promise(function (_, no) { t = setTimeout(function () { no(new Error('timeout')); }, ms); })]).then(function (v) { clearTimeout(t); return v; }, function (e) { clearTimeout(t); throw e; }); };
-    for (var i = 0; i < images.length; i++) {
-      var img = prep(images[i]); curProg = function (f) { if (prog) prog((i + f) / images.length); };
-      try {
-        await W.setParameters({tessedit_pageseg_mode: '3'});
-        var r = await limit(W.recognize(img), 75000), best = r.data;
-        if ((best.confidence || 0) < 65) { await W.setParameters({tessedit_pageseg_mode: '6'}); try { var r2 = await limit(W.recognize(img), 45000); if ((r2.data.confidence || 0) > (best.confidence || 0)) best = r2.data; } catch (e2) { if (String(e2 && e2.message) === 'timeout') throw e2; } }
-        out += best.text + '\n';
-      } catch (e) {
-        if (String(e && e.message) !== 'timeout') throw e;
-        skipped++; try { var hung = W; workerP = null; if (hung && hung.terminate) hung.terminate(); } catch (e3) { workerP = null; }
-        W = await worker(T);
+    curProg = function () { if (!prog) return; var f = 0; for (var q = 0; q < n; q++) f += progs[q] || 0; prog(Math.min(1, (finished + f) / images.length)); };
+    async function lane(k) {
+      var W = await worker(T, k);
+      while (next < images.length) {
+        var i = next++, img = prep(images[i]); progs[k] = 0;
+        try {
+          await W.setParameters({tessedit_pageseg_mode: '3'});
+          var r = await limit(W.recognize(img), 75000), best = r.data;
+          if ((best.confidence || 0) < 65) { await W.setParameters({tessedit_pageseg_mode: '6'}); try { var r2 = await limit(W.recognize(img), 45000); if ((r2.data.confidence || 0) > (best.confidence || 0)) best = r2.data; } catch (e2) { if (String(e2 && e2.message) === 'timeout') throw e2; } }
+          texts[i] = best.text;
+        } catch (e) {
+          if (String(e && e.message) !== 'timeout') throw e;
+          skipped++; dropWorker(k); W = await worker(T, k);
+        }
+        progs[k] = 0; finished++; curProg();
       }
     }
+    var lanes = []; for (var k = 0; k < n; k++) lanes.push(lane(k));
+    await Promise.all(lanes);
+    var out = texts.map(function (t) { return (t || '') + '\n'; }).join('');
     lastOcr.skipped = skipped;
     curProg = null;
-    /* 57.6: an engine left in a bad state by an earlier read returns nothing - start a fresh one and read once more */
-    if (!out.replace(/\s/g, '') && !retried) { try { var old = await workerP; workerP = null; if (old && old.terminate) await old.terminate(); } catch (e) { workerP = null; } return ocr(images, prog, true); }
+    /* 57.6: an engine left in a bad state by an earlier read returns nothing - start fresh ones and read once more */
+    if (!out.replace(/\s/g, '') && !retried) { for (var z = 0; z < pool.length; z++) dropWorker(z); return ocr(images, prog, true); }
     return out;
   }
   /* 57.6: is a rendered page blank (all white or all transparent)? */
