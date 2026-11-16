@@ -475,6 +475,11 @@ The release entries below have the details. In short:
 - **Tested** with a cream scan with specks, an SVG with a white background rectangle, an already-transparent PNG, and white ink on black: each came out with a transparent background and the ink kept.
 - Asset version 57.12.
 
+## Release 57.13 - built PDFs go straight to Ghost Calligrapher to sign
+
+- **Every PDF a page downloads** (letters, worksheets, reports, anything made with Download PDF) is also kept in this browser's recent files for **Ghost Calligrapher** (jcodomo.github.io/calligrapher2), which lists it under Recent files. One shared script, assets/ghost-bridge.js, on every page; the download itself is unchanged.
+- After a download a small card offers **Sign it** (opens the PDF in Ghost Calligrapher's Sign tool) or **Edit**. Nothing leaves the device: both sites share this browser's storage, and Ghost Calligrapher keeps the 10 newest files.
+
 ## Release 55.14b - self-employment, rental and more of the income worksheet; one look across the pages
 
 - **Self-employment follows the income worksheet** (sections A-E and Tables!J20:K31), proven against the workbook (16 of 16 cases). Fixed: K-1 amounts were multiplied by the ownership percentage a second time (a 10% partner's $10,748 K-1 counted as $1,075); with only one year of returns entered the income was halved; the 1120 net operating loss is added back and dividends are subtracted, as on the worksheet and Form 1084. Added: Schedule F (farm), Schedule D (recurring capital gains - the worksheet takes the larger year), Schedule C line 6 non-recurring income, 1065 line 4 income from other partnerships, business mileage decided on its own with the worksheet's rate table.
