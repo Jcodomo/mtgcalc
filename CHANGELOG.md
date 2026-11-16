@@ -636,3 +636,8 @@ All 25 pages load with no errors or missing files. Original Full Suite and the s
 - **Ghost button** in the bottom-left corner of every page: open the last PDF you built in Ghost Calligrapher's editor in a new tab, sign it there, or open the signature pad. The card shown after a download now says "Open in editor".
 - **Signature pad:** draw (smoothed ink that thins with speed, pen pressure when available) or type your name in a script face, pick the ink colour, then Keep, Save picture, or **Sign last PDF**, which opens the PDF in Ghost Calligrapher with that signature ready to place. Signatures are kept in Ghost Calligrapher's Saved signatures on this browser.
 - **Faster OCR:** scans are read by up to three OCR workers side by side (one per spare processor core), in page order, with the same 75-second hang guard and low-confidence second reading.
+
+## Release 57.15 - Income Calculator reference tables load again; engine check on Windows
+
+- **Income Calculator (both versions):** the page no longer stops with "__createBinding is not defined" while loading its reference tables (state transfer taxes, NY mortgage recording and mansion taxes, seller concession limits, states and counties). Since v57 the copied tables also came out empty; they now load, so the Document Builder on that page uses the same figures as the Loan Suite.
+- **tools/engine/install.mjs --check** ignores line endings, so a Windows checkout (CRLF) no longer reports the Full Suite engine as out of date when it is the current build.

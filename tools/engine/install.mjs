@@ -21,7 +21,9 @@ if (start < 0) throw new Error('engine script not found in tools/source/full-sui
 const end = html.indexOf('</script>', start);
 const current = html.slice(start + '<script>'.length, end);
 if (process.argv.includes('--check')) {
-  if (current !== min) { console.error('the Full Suite engine is not the current src/ build - run node tools/engine/install.mjs and rebuild'); process.exit(1); }
+  // a Windows checkout turns the page's line endings into CRLF, inside the engine's text too; that is not a different engine
+  const lf = (x) => x.replace(/\r\n/g, '\n');
+  if (lf(current) !== lf(min)) { console.error('the Full Suite engine is not the current src/ build - run node tools/engine/install.mjs and rebuild'); process.exit(1); }
   console.log('the Full Suite runs the current src/ engine (' + Math.round(min.length / 1024) + ' KB)');
 } else {
   fs.writeFileSync(page, html.slice(0, start + '<script>'.length) + min + html.slice(end));

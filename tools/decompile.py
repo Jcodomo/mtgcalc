@@ -175,7 +175,10 @@ def mt_data(OUT):
         assert body.endswith('})') and '["require","exports"]' in body[:80], mod
         blocks.append(body + ';')
     js = ('/* Mortgage Suite reference tables, copied from the Loan Suite engine at build time (tools/decompile.py mt_data). */\n'
-          '(function(){var M={};function define(n,d,f){var ex={};f(null,ex);M[n.split("/").pop()]=ex;}\n' + '\n'.join(blocks) +
+          '(function(){var M={};function define(n,d,f){var ex={},r=f(function(){return {}},ex);M[n.split("/").pop()]=r&&typeof r==="object"?r:ex;}\n'
+          "/* 57.15: the copied modules name the engine's TypeScript helpers; pages without the engine get stand-ins (the tables import nothing) */\n"
+          'var __createBinding=window.__createBinding||function(){},__setModuleDefault=window.__setModuleDefault||function(){},__importStar=window.__importStar||function(m){return m},__exportStar=window.__exportStar||function(){};\n'
+          + '\n'.join(blocks) +
           '\nwindow.MTData=M;})();\n')
     (OUT / 'assets' / 'mt-data.js').write_text(js, encoding='utf-8')
 
