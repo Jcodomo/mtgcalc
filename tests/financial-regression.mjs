@@ -16,11 +16,29 @@ const money = v => (v < 0 ? '-' : '') + '$' + Math.abs(v).toFixed(2);
 /* funds identity: what the borrower must bring = everything being paid for, less the loan, less credits that may be used, less the deposit already paid */
 const fundsNeeded = (o, creditUsable) => Math.max(0, o.loan.totalAcquisitionCost + o.cash.buyerClosingCosts - o.loan.maximumBaseLoan - creditUsable - o.cash.earnestMoneyDeposit);
 
+/* a plain conventional purchase in a given state, for the tax cases */
+const taxCase = (s, state, price) => { s.renovation = false; s.loanProgram = 'Conventional'; s.state = state; s.basePurchasePrice = price; s.asIsValue = price; s.finalDownPaymentPct = .3; s.baseDownPaymentPct = .3; };
+const taxLine = (o, re) => { const l = o.closing.lines.find(x => re.test(x.label)); return l ? l.amount : NaN; };
 const cases = [
   // ---------------------------------------------------------------- amortization
   {id: 'pi-normal', area: 'Amortization', name: 'P&I, $400,000 at 6.875%, 30 years', check: () => { const v = P.principalAndInterest(400000, .06875, 30); return [near(+v.toFixed(2), 2627.72), money(v) + ' (expected $2,627.72)']; }},
   {id: 'pi-zero-rate', area: 'Amortization', name: 'P&I at a 0% rate is principal / months', check: () => { const v = P.principalAndInterest(360000, 0, 30); return [near(v, 1000), money(v) + ' (expected $1,000.00)']; }},
   {id: 'pi-15yr', area: 'Amortization', name: 'P&I, $250,000 at 5.5%, 15 years', check: () => { const v = P.principalAndInterest(250000, .055, 15); return [near(+v.toFixed(2), 2042.71), money(v) + ' (expected $2,042.71)']; }},
+  // ---------------------------------------------------------------- transfer and mansion taxes (D6, 57.16)
+  // NY Tax Law 1402 / 1402-a: 0.4% transfer and 1% mansion tax statewide; the 0.65% transfer rate ($3M+ residential) and the
+  // supplemental mansion tiers ($2M+) apply only in New York City. NJ (A5804, July 10, 2025): graduated fee on the whole price, seller-paid.
+  {id: 'ny-mansion-outside-nyc', area: 'Transfer taxes', name: 'Westchester $2,500,000: 1% mansion tax, 0.4% transfer tax', known: 'D6 NYC-only tiers applied statewide',
+    check: () => { const o = run(s => { taxCase(s, 'New York', 2500000); s.nyCounty = 'Westchester'; s.isNYC = false; });
+      const m = taxLine(o, /Mansion.*\(buyer\)/), t = taxLine(o, /Transfer tax \(seller/); return [near(m, 25000) && near(t, 10000), `mansion ${money(m)} (expected $25,000.00), seller transfer ${money(t)} (expected $10,000.00)`]; }},
+  {id: 'ny-mansion-nyc', area: 'Transfer taxes', name: 'NYC $2,500,000: 1.25% mansion tax, 1.825% transfer tax', check: () => {
+    const o = run(s => { taxCase(s, 'New York', 2500000); s.isNYC = true; });
+    const m = taxLine(o, /Mansion.*\(buyer\)/), t = taxLine(o, /Transfer tax \(seller/); return [near(m, 31250) && near(t, 45625), `mansion ${money(m)} (expected $31,250.00), seller transfer ${money(t)} (expected $45,625.00)`]; }},
+  {id: 'ny-3m-outside-nyc', area: 'Transfer taxes', name: 'Nassau $3,000,000: transfer tax stays 0.4% outside NYC', known: 'D6 NYC-only tiers applied statewide',
+    check: () => { const o = run(s => { taxCase(s, 'New York', 3000000); s.nyCounty = 'Nassau'; s.isNYC = false; });
+      const t = taxLine(o, /Transfer tax \(seller/), m = taxLine(o, /Mansion.*\(buyer\)/); return [near(t, 12000) && near(m, 30000), `seller transfer ${money(t)} (expected $12,000.00), mansion ${money(m)} (expected $30,000.00)`]; }},
+  {id: 'nj-mansion-seller', area: 'Transfer taxes', name: 'NJ $2,200,000: 2% mansion fee paid by the seller, not the buyer', known: 'D6 NJ mansion fee moved to the seller in 2025',
+    check: () => { const o = run(s => taxCase(s, 'New Jersey', 2200000));
+      const b = taxLine(o, /Mansion.*\(buyer\)/), sl = taxLine(o, /Mansion.*seller/); return [near(b, 0) && near(sl, 44000), `buyer ${money(b)} (expected $0.00), seller ${money(sl)} (expected $44,000.00)`]; }},
   // ---------------------------------------------------------------- base vs total loan
   {id: 'fha-total-loan', area: 'Base vs total loan', name: 'FHA total loan = base loan + 1.75% UFMIP, P&I on the total', check: () => {
     const o = run(s => { s.renovation = false; s.basePurchasePrice = 400000; s.asIsValue = 400000; });

@@ -641,3 +641,12 @@ All 25 pages load with no errors or missing files. Original Full Suite and the s
 
 - **Income Calculator (both versions):** the page no longer stops with "__createBinding is not defined" while loading its reference tables (state transfer taxes, NY mortgage recording and mansion taxes, seller concession limits, states and counties). Since v57 the copied tables also came out empty; they now load, so the Document Builder on that page uses the same figures as the Loan Suite.
 - **tools/engine/install.mjs --check** ignores line endings, so a Windows checkout (CRLF) no longer reports the Full Suite engine as out of date when it is the current build.
+
+## Release 57.16 - transfer and mansion taxes brought up to date
+
+- **New York outside NYC:** the mansion tax is 1% from $1M at every price, and the transfer tax is 0.4%. The higher mansion tiers from $2M (the NYC supplemental tax, 1.25% to 3.9%) and the 0.65% transfer rate from $3M now apply only in New York City (Tax Law 1402 / 1402-a). Example: a $2,500,000 Westchester purchase now shows $25,000 mansion tax (was $31,250). The "what this would cost in New York" comparison uses New York outside NYC.
+- **New Jersey:** since July 10, 2025 (A5804) the mansion fee is paid by the seller and is graduated on the whole price: 1% $1M-$2M, 2% to $2.5M, 2.5% to $3M, 3% to $3.5M, 3.5% above. It no longer adds to the buyer's closing costs; the seller's share is shown for information.
+- **Vermont:** the property transfer tax is paid by the buyer, 1.25% plus the 0.22% clean water surcharge (1.47%); a principal residence pays 0.5% on the first $200,000 (not modelled - enter an override). The "$5M+ mansion tax" row, which Vermont does not have, is removed.
+- **Los Angeles (Measure ULA, seller-paid):** 4% from $5.4M and 5.5% from $10.9M (thresholds from July 1, 2026).
+- **Rhode Island:** the high-value note now gives the rule (an extra $3.75 per $500 above $824,000 in 2026, seller-paid).
+- The Document Builder passes the NYC flag to the mansion tax lookup. Regression cases added for Westchester, NYC, Nassau at $3M and New Jersey.

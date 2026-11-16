@@ -111,11 +111,11 @@
   function D() { var M = window.MTData || {}; if (!M.transferTaxes && window.__amdGet) { try { M = {transferTaxes: __amdGet('src/core/data/transferTaxes'), concessionLimits: __amdGet('src/core/data/concessionLimits'), luxuryTaxes: __amdGet('src/core/data/luxuryTaxes')}; } catch (e) {} } return M; }
   function transferTax(state, price, nyc) {
     var M = D(), T = M.transferTaxes, nm = stateName(state); if (!T || !nm) return null;
-    if (nm === 'New York' && T.nyTransferTaxRate) { var r = T.nyTransferTaxRate(price, !!nyc); return {rate: r, payer: 'Seller', buyerShare: 0, note: nyc ? 'NY State plus NYC real property transfer tax' : 'NY State transfer tax' + (price >= 3e6 ? ' (higher rate at $3M+ in NYC)' : '')}; }
+    if (nm === 'New York' && T.nyTransferTaxRate) { var r = T.nyTransferTaxRate(price, !!nyc); return {rate: r, payer: 'Seller', buyerShare: 0, note: nyc ? 'NY State plus NYC real property transfer tax' : 'NY State transfer tax (the 0.65% rate at $3M+ applies only in NYC)'}; }
     var row = T.lookupTransferTax ? T.lookupTransferTax(nm) : null; if (!row) return null;
     return {rate: row.rate || 0, payer: row.payer, buyerShare: row.buyerShare || 0, note: row.note || ''};
   }
-  function mansionTax(state, price) { var M = D(), L = M.luxuryTaxes; if (!L || !L.lookupLuxuryTaxRow) return null; var r = L.lookupLuxuryTaxRow(stateName(state), price); return r && r.rate ? r : null; }
+  function mansionTax(state, price, nyc) { var M = D(), L = M.luxuryTaxes; if (!L || !L.lookupLuxuryTaxRow) return null; var r = L.lookupLuxuryTaxRow(stateName(state), price, undefined, !!nyc);   /* 57.16: NY tiers from $2M are NYC only */ return r && r.rate ? r : null; }
   function concessionLimit(program, occ, ltv) { var M = D(), C = M.concessionLimits; var p = /fha/i.test(program) ? 'FHA' : /\bva\b/i.test(program) ? 'VA' : /usda/i.test(program) ? 'USDA' : 'Conventional';
     if (p === 'VA') return {limitPct: .04, note: 'VA: seller concessions up to 4% (closing costs and prepaids are not counted)'};
     if (p === 'USDA') return {limitPct: .06, note: 'USDA: up to 6%'};
@@ -315,7 +315,7 @@
       var conc = Math.round((drv === 'pct' ? price * p : a) * 100) / 100;
       var down = N(s.downPct) / 100, loan = price * (1 - down), ltv = price ? loan / price : 0, lim = concessionLimit(s.program, occNorm(s.occupancy), ltv), max = price * lim.limitPct;
       var rate0 = s.ttOn ? A.ttAt(s, basis) : 0, rate1 = s.ttOn ? A.ttAt(s, price) : 0, tt0 = basis * rate0, tt1 = price * rate1;
-      var m0 = mansionTax(s.state, basis), m1 = mansionTax(s.state, price);
+      var m0 = mansionTax(s.state, basis, s.nyc), m1 = mansionTax(s.state, price, s.nyc);
       return {base: basis, price: price, conc: conc, concPct: price ? conc / price : 0, drv: drv, top: top, manual: manual, ltv: ltv, loan: loan, limit: lim, max: max, over: conc - max,
         ttOn: !!s.ttOn, rate0: rate0, rate1: rate1, tt0: tt0, tt1: tt1, payer: payer, sellerShare: sellerShare, sellerTT0: tt0 * sellerShare, sellerTT1: tt1 * sellerShare, buyerTT1: tt1 * (1 - sellerShare),
         ttTable: tab ? tab.rate : null, ttTablePayer: tab ? tab.payer : '', ttNote: tab ? tab.note : '',
