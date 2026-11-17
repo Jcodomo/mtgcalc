@@ -163,7 +163,7 @@
       '<div class="gt"><button type="button" class="on" data-m="draw">Draw</button><button type="button" data-m="type">Type</button></div>' +
       '<input type="text" placeholder="Type your name" style="display:none">' +
       '<canvas></canvas>' +
-      '<div class="gr"><label>Ink <input type="color" value="#1b2a6b"></label><label>Smooth <input type="range" min="0" max="10" value="5"></label><span class="sp"></span>' +
+      '<div class="gr"><label>Ink <input type="color" value="#1b2a6b"></label><label>Smooth <input type="range" min="0" max="10" value="5"></label><label>Background <select data-bg><option value="white">White</option><option value="none">None</option></select></label><span class="sp"></span>' +
       '<button type="button" data-a="clear">Clear</button><button type="button" data-a="png">Save picture</button><button type="button" data-a="keep">Keep</button><button type="button" class="gp" data-a="sign">Sign last PDF ↗</button><button type="button" data-a="x">Close</button></div>' +
       '<div class="gn">Kept in Ghost Calligrapher\'s Saved signatures on this browser. Nothing is uploaded.</div></div>';
     document.body.appendChild(o);
@@ -230,9 +230,20 @@
     o.querySelector('[data-a=x]').onclick = close;
     o.onclick = function (e) { if (e.target === o) close(); };
     o.querySelector('[data-a=keep]').onclick = function () { if (keep()) { close(); } };
+    /* 57.17: the picture is just the signature (no guide line), on white unless "None" is picked; the choice is
+       shared with Ghost Calligrapher's picture background setting */
+    var bgSel = o.querySelector('[data-bg]'); bgSel.value = lsGet('cal2_pic_bg', 'white') === 'none' ? 'none' : 'white';
+    bgSel.onchange = function () { try { localStorage.setItem('cal2_pic_bg', JSON.stringify(bgSel.value)); } catch (e) {} };
     o.querySelector('[data-a=png]').onclick = function () {
       var s = svg(); if (!s) return;
-      var a = document.createElement('a'); a.download = 'signature.png'; a.href = cv.toDataURL('image/png'); aClick.call(a);
+      var im = new Image(), k = Math.max(2, 1200 / s.w);
+      im.onload = function () {
+        var c = document.createElement('canvas'); c.width = Math.round(s.w * k); c.height = Math.round(s.h * k);
+        var x = c.getContext('2d'); if (bgSel.value !== 'none') { x.fillStyle = '#ffffff'; x.fillRect(0, 0, c.width, c.height); }
+        x.drawImage(im, 0, 0, c.width, c.height);
+        var a = document.createElement('a'); a.download = 'signature.png'; a.href = c.toDataURL('image/png'); aClick.call(a);
+      };
+      im.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(s.svg.replace(/currentColor/g, ink.value));
     };
     o.querySelector('[data-a=sign]').onclick = function () {
       var id = keep(); if (!id) return;

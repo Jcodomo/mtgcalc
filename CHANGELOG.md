@@ -650,3 +650,7 @@ All 25 pages load with no errors or missing files. Original Full Suite and the s
 - **Los Angeles (Measure ULA, seller-paid):** 4% from $5.4M and 5.5% from $10.9M (thresholds from July 1, 2026).
 - **Rhode Island:** the high-value note now gives the rule (an extra $3.75 per $500 above $824,000 in 2026, seller-paid).
 - The Document Builder passes the NYC flag to the mansion tax lookup. Regression cases added for Westchester, NYC, Nassau at $3M and New Jersey.
+
+## Release 57.17 - signature pad pictures on white
+
+- **Signature pad → Save picture** saves just the signature, cropped, without the pad's guide line, on a white background by default; pick **Background: None** for a transparent PNG. The choice is shared with Ghost Calligrapher's picture background setting.
