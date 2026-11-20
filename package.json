@@ -11,7 +11,8 @@
     "test:model": "node tests/scenario-model.mjs && node tests/calc-fuzz.mjs 4000",
     "build:ui": "node tools/engine/build-ui.mjs",
     "test:ui": "node tools/engine/build-ui.mjs --check && node tests/quote-screen.mjs",
-    "install:engine": "node tools/engine/install.mjs"
+    "install:engine": "node tools/engine/install.mjs",
+    "changelog": "node tools/changelog-by-day.mjs"
   },
   "devDependencies": {
     "esbuild": "0.28.2",
