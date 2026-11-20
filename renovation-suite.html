@@ -8071,8 +8071,29 @@ define("src/standalone/dom", ["require", "exports"], function (require, exports)
     exports.append = append;
     exports.clear = clear;
     exports.qs = qs;
+    /* 57.19: free-form entry - number boxes take $1,234.56, 1,234, 15% and (1,200); date boxes take 9/15/2026, Sep 15 2026,
+       2026-09-15 or today. Browser number/date boxes rejected those. Typed dates are turned into YYYY-MM-DD before the page reads them. */
+    function looseDate(t) {
+        t = String(t || '').trim().toLowerCase().replace(/,/g, ' ').replace(/(\d)(st|nd|rd|th)\b/g, '$1').replace(/\s+/g, ' ');
+        const iso = (y, m, d) => { const x = new Date(y, m - 1, d); return x.getFullYear() === y && x.getMonth() === m - 1 && x.getDate() === d ? y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0') : null; };
+        const yy = (y) => (y < 100 ? 2000 + y : y), M = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'], now = new Date();
+        let m;
+        if (t === 'today') return iso(now.getFullYear(), now.getMonth() + 1, now.getDate());
+        if ((m = t.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/))) return iso(+m[1], +m[2], +m[3]);
+        if ((m = t.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2}|\d{4})$/))) return iso(yy(+m[3]), +m[1], +m[2]);
+        if ((m = t.match(/^(\d{2})(\d{2})(\d{4})$/))) return iso(+m[3], +m[1], +m[2]);
+        if ((m = t.match(/^([a-z]{3,})\.? (\d{1,2}) (\d{2}|\d{4})$/)) && M.indexOf(m[1].slice(0, 3)) >= 0) return iso(yy(+m[3]), M.indexOf(m[1].slice(0, 3)) + 1, +m[2]);
+        if ((m = t.match(/^(\d{1,2}) ([a-z]{3,})\.? (\d{2}|\d{4})$/)) && M.indexOf(m[2].slice(0, 3)) >= 0) return iso(yy(+m[3]), M.indexOf(m[2].slice(0, 3)) + 1, +m[1]);
+        return null;
+    }
+    window.__looseNum = function (v) { const t = String(v == null ? '' : v).trim(), neg = /^\(.*\)$|^-|-$/.test(t), n = parseFloat(t.replace(/[^0-9.]/g, '')); return isFinite(n) ? (neg ? -n : n) : NaN; };
     function h(tag, attrs = {}, ...children) {
         const el = document.createElement(tag);
+        if (tag === 'input' && (attrs.type === 'number' || attrs.type === 'date')) {
+            const isDate = attrs.type === 'date';
+            attrs = Object.assign({}, attrs, { type: 'text', autocomplete: 'off', inputmode: isDate ? null : 'decimal', placeholder: attrs.placeholder || (isDate ? 'MM/DD/YYYY' : null), min: null, max: null, step: null });
+            if (isDate) el.addEventListener('change', () => { const v = looseDate(el.value); if (v) el.value = v; });   /* runs before the page's own handler */
+        }
         for (const [k, v] of Object.entries(attrs)) {
             if (v === null || v === undefined || v === false)
                 continue;
@@ -8755,7 +8776,7 @@ define("src/standalone/app", ["require", "exports", "src/core/data/index", "src/
                                 step: col.type === 'percent' ? '0.001' : '1',
                                 value: col.type === 'percent' ? String(Number(raw !== null && raw !== void 0 ? raw : 0) * 100) : String(Number(raw !== null && raw !== void 0 ? raw : 0)),
                                 onchange: (e) => {
-                                    const v = Number(e.target.value);
+                                    const v = window.__looseNum(e.target.value);
                                     row[col.key] = col.type === 'percent' ? v / 100 : v;
                                     this.refresh();
                                 },
@@ -8870,7 +8891,7 @@ define("src/standalone/app", ["require", "exports", "src/core/data/index", "src/
                 onclick: () => {
                     if (!name.value)
                         return;
-                    this.store.saveBorrower({ name: name.value, email: email.value, phone: phone.value, creditScore: Number(score.value) || 0, note: '' });
+                    this.store.saveBorrower({ name: name.value, email: email.value, phone: phone.value, creditScore: window.__looseNum(score.value) || 0, note: '' });
                     name.value = '';
                     email.value = '';
                     phone.value = '';
@@ -8900,7 +8921,7 @@ define("src/standalone/app", ["require", "exports", "src/core/data/index", "src/
                         return;
                     this.store.saveProperty({
                         address: addr.value, zipCode: zip.value, state: st.value, county: '',
-                        units: 1, annualTaxes: Number(taxes.value) || 0, annualInsurance: 0, note: '',
+                        units: 1, annualTaxes: window.__looseNum(taxes.value) || 0, annualInsurance: 0, note: '',
                     });
                     addr.value = '';
                     zip.value = '';
@@ -9022,7 +9043,7 @@ define("src/standalone/main", ["require", "exports", "src/state/store", "src/ui/
 <script src="assets/sync-bridge.js"></script>
 
 <script src="assets/workflow-ui.js?v=55.12"></script>
-<script src="assets/mt-search.js?v=56.7"></script>
+<script src="assets/mt-search.js?v=57.19"></script>
 <script src="assets/ghost-bridge.js?v=57.17"></script>
 </body>
 </html>

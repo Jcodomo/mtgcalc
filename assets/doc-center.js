@@ -76,8 +76,12 @@
     var g = c.getContext('2d', {willReadFrequently: true}); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high'; g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(src, 0, 0, c.width, c.height);
     var d = g.getImageData(0, 0, c.width, c.height), p = d.data, n = p.length / 4, hist = new Uint32Array(256), sum = 0, k, y;
     for (k = 0; k < p.length; k += 4) { y = (0.299 * p[k] + 0.587 * p[k + 1] + 0.114 * p[k + 2]) | 0; p[k] = y; hist[y]++; sum += y; }
-    var lo = 0, hi = 255, acc = 0; for (k = 0; k < 256; k++) { acc += hist[k]; if (acc > n * 0.01) { lo = k; break; } } acc = 0; for (k = 255; k >= 0; k--) { acc += hist[k]; if (acc > n * 0.01) { hi = k; break; } }
-    var inv = sum / n < 110, span = Math.max(1, hi - lo);
+    /* 57.19: the ink end of the stretch is taken from the darkest 0.2% (the lightest 0.2% on a dark screen): a sparse page - a letter, a
+       short statement - has under 1% ink, and a 1% cut landed in the paper's grain, stretching that into speckle the reader saw as no text */
+    var pct = function (f, fromTop) { var a = 0, q; if (fromTop) { for (q = 255; q >= 0; q--) { a += hist[q]; if (a > n * f) return q; } return 255; } for (q = 0; q < 256; q++) { a += hist[q]; if (a > n * f) return q; } return 0; };
+    var inv = sum / n < 110, lo = pct(inv ? 0.01 : 0.002, false), hi = pct(inv ? 0.002 : 0.01, true);
+    if (hi - lo < 40) { lo = 0; hi = 255; }   /* nothing worth stretching */
+    var span = Math.max(1, hi - lo);
     for (k = 0; k < p.length; k += 4) { y = Math.max(0, Math.min(255, (p[k] - lo) * 255 / span)); if (inv) y = 255 - y; p[k] = p[k + 1] = p[k + 2] = y; p[k + 3] = 255; }
     g.putImageData(d, 0, 0);
     return c;

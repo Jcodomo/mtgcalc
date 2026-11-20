@@ -59,8 +59,24 @@
     var path = el.getAttribute('data-path') || el.getAttribute('data-k') || el.name || '';
     return {label: String(t[1] || t[0] || t[2] || t[3] || path).replace(/\s+/g, ' ').trim().slice(0, 90), extra: path.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[._]/g, ' ')};
   }
+  /* 57.19: a field inside a part of the page that is switched off (for example the Income Calculator's own screens kept
+     hidden inside the Loan Suite pages) cannot be shown, so choosing it did nothing - or switched the page to a tab that
+     is not there. Only fields that are on screen, or behind a tab, a fold or a builder that can be opened, are listed. */
+  function unreachable(el) {
+    if (el.offsetParent || el.getClientRects().length) return false;
+    for (var p = el; p && p !== document.body; p = p.parentElement) {
+      if (p.tagName === 'DETAILS') continue;
+      if (!p.hidden && getComputedStyle(p).display !== 'none') continue;
+      var tb = p.classList.contains('panel') && /^panel-/.test(p.id) ? document.querySelector('[data-tab="' + p.id.slice(6) + '"]') : null;   /* a tab counts only if its button is on the page */
+      var opens = (tb && tb.getClientRects().length && typeof window.switchTab === 'function') ||
+        (p.classList.contains('subpanel') && /^subpanel-\w+-\w+/.test(p.id) && typeof window.subTab === 'function') || p.id === 'mtB';
+      if (!opens) return true;
+    }
+    return false;
+  }
   function skip(el) {
     if (el.closest('#mtSearch, #mtPasteTray, .mtA-list, .no-search')) return true;
+    if (unreachable(el)) return true;
     var b = el.closest('#mtB'); return !!(b && !b.classList.contains('open'));      /* a closed builder is searched through its own entries */
   }
   function liveEntries() {
@@ -102,13 +118,30 @@
   /* pages may add their own entries (the v57 quote screen lists fields it has not built yet); each carries go() */
   var providers = [];
   function provided() { var out = []; providers.forEach(function (p) { try { (p() || []).forEach(function (e) { e.text = norm(e.text || e.title); out.push(e); }); } catch (x) {} }); return out; }
+  var liveCache = null, liveAt = 0;   /* the page's fields are gathered once per search session, not on every key */
   function search(q) {
     q = norm(q); if (!q) return [];
-    var words = q.split(' '), all = provided().concat(liveEntries()).concat(staticEntries().filter(function (e) { return !(e.kind === 'Page' && here(e.href) && !/#/.test(e.href)); }));
+    if (!liveCache || Date.now() - liveAt > 4000) { liveCache = liveEntries(); liveAt = Date.now(); }
+    var words = q.split(' '), all = provided().concat(liveCache).concat(staticEntries().filter(function (e) { return !(e.kind === 'Page' && here(e.href) && !/#/.test(e.href)); }));
     return all.map(function (e) { return {e: e, s: score(e, words, q)}; }).filter(function (x) { return x.s > 0; }).sort(function (a, b) { return b.s - a.s; }).slice(0, 30).map(function (x) { return x.e; });
   }
 
   /* ------------------------------------------------------------ going to a result */
+  /* 57.19: bring a result into view without disturbing the page. scrollIntoView also scrolls boxes that hide their
+     overflow (and scrolls sideways), which shifted or clipped page sections after a search. Only boxes meant to scroll,
+     and only up and down, are moved now. */
+  function scrollToEl(el) {
+    try {
+      for (var p = el.parentElement; p && p !== document.body && p !== document.documentElement; p = p.parentElement) {
+        var cs = getComputedStyle(p);
+        if (!/(auto|scroll)/.test(cs.overflowY) || p.scrollHeight <= p.clientHeight + 1) continue;
+        var pr = p.getBoundingClientRect(), er = el.getBoundingClientRect();
+        if (er.top < pr.top || er.bottom > pr.bottom) p.scrollTop += er.top - pr.top - Math.max(0, (p.clientHeight - er.height) / 2);
+      }
+      var r = el.getBoundingClientRect(), top = window.scrollY + r.top - Math.max(0, (window.innerHeight - r.height) / 2);
+      window.scrollTo({top: Math.max(0, top), left: window.scrollX, behavior: 'smooth'});
+    } catch (e) { try { el.scrollIntoView({block: 'center', inline: 'nearest'}); } catch (x) {} }
+  }
   function flash(el) { try { el.classList.add('mts-flash'); setTimeout(function () { el.classList.remove('mts-flash'); }, 1800); } catch (e) {} }
   function reveal(el) {
     /* open any folded section, switch to the tab panel that holds it */
@@ -129,10 +162,12 @@
       if (e.preset) setTimeout(function () { var ps = document.getElementById('mtBpreset'); if (ps) { ps.value = e.preset; ps.focus(); } }, 200);
       return;
     }
+    /* the page may have redrawn that part since the list was made: find the same field again */
+    if (e.el && !e.el.isConnected) { var again = liveEntries().filter(function (x) { return x.kind === e.kind && x.title === e.title && (e.value == null || x.value === e.value); })[0]; if (again) e = again; }
     if (!e.el || !e.el.isConnected) return;
     reveal(e.el);
     setTimeout(function () {
-      e.el.scrollIntoView({block: 'center', behavior: 'smooth'});
+      scrollToEl(e.el);
       if (e.kind === 'Option') {
         if (e.el.value !== e.value) { var before = e.el.options[e.el.selectedIndex] ? e.el.options[e.el.selectedIndex].textContent.trim() : ''; e.el.value = e.value; e.el.dispatchEvent(new Event('input', {bubbles: true})); e.el.dispatchEvent(new Event('change', {bubbles: true})); note('Set ' + labelFor(e.el).label + ' to "' + e.title + '"' + (before ? ' (was "' + before + '")' : '') + '.'); }
         else note(labelFor(e.el).label + ' is already "' + e.title + '".');
@@ -148,7 +183,7 @@
     if (document.getElementById('mtSearchCss')) return; var s = document.createElement('style'); s.id = 'mtSearchCss';
     s.textContent = '#mtSearch{position:fixed;inset:0;z-index:2147483400;background:rgba(3,10,26,.55);display:flex;align-items:flex-start;justify-content:center;padding:9vh 12px 12px}#mtSearch[hidden]{display:none}' +
       '#mtSearch .box{width:min(680px,100%);background:#0a1b38;border:1px solid #2b5590;border-radius:14px;box-shadow:0 24px 60px rgba(0,0,0,.5);overflow:hidden;font:14px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:#e6eefb}' +
-      '#mtSearch input{all:unset;box-sizing:border-box;width:100%;padding:14px 16px;font-size:16px;border-bottom:1px solid #1c3a66}#mtSearch ul{list-style:none;margin:0;padding:6px;max-height:62vh;overflow:auto}' +
+      '#mtSearch input{all:unset;box-sizing:border-box;width:100%;padding:14px 16px;font-size:16px;border-bottom:1px solid #1c3a66}#mtSearch ul{position:relative;list-style:none;margin:0;padding:6px;max-height:62vh;overflow:auto}' +
       '#mtSearch li{display:flex;gap:10px;align-items:baseline;padding:8px 10px;border-radius:9px;cursor:pointer}#mtSearch li[aria-selected=true],#mtSearch li:hover{background:#123a75}#mtSearch li em{font-style:normal;font-size:11px;font-weight:700;color:#0b1c3a;background:#9fc4ff;border-radius:999px;padding:1px 8px;flex:none}#mtSearch li span{flex:1;min-width:0}#mtSearch li small{color:#9db0c8;margin-left:6px}' +
       '#mtSearch .hint{padding:8px 16px;font-size:12px;color:#9db0c8;border-top:1px solid #1c3a66}#mtSearchBtn{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:2147483000;display:inline-flex;gap:8px;align-items:center;padding:7px 14px;border-radius:999px;border:1px solid #2b5590;background:#0a1b38;color:#cfe0f7;font:600 12.5px system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.35)}' +
       '#mtSearchBtn kbd{font:inherit;font-size:11px;color:#9db0c8}#mtSearchBtn:focus-visible,#mtSearch li:focus-visible{outline:2px solid #5aa2ff}.mts-flash{outline:3px solid #f0b357!important;outline-offset:2px;transition:outline-color .4s}#mtSearchNote{position:fixed;left:50%;bottom:58px;transform:translateX(-50%);z-index:2147483401;background:#0a1b38;color:#e6eefb;border:1px solid #2b5590;border-radius:10px;padding:8px 14px;font:13px system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}' +
@@ -176,9 +211,9 @@
       : (input.value.trim() ? '<li aria-disabled="true"><span>Nothing matches yet - try another word.</span></li>' : '');
     input.setAttribute('aria-activedescendant', items.length ? 'mts0' : '');
   }
-  function move(d) { if (!items.length) return; hi = (hi + d + items.length) % items.length; [].forEach.call(list.querySelectorAll('li[data-i]'), function (li, i) { li.setAttribute('aria-selected', String(i === hi)); if (i === hi) li.scrollIntoView({block: 'nearest'}); }); input.setAttribute('aria-activedescendant', 'mts' + hi); }
+  function move(d) { if (!items.length) return; hi = (hi + d + items.length) % items.length; [].forEach.call(list.querySelectorAll('li[data-i]'), function (li, i) { li.setAttribute('aria-selected', String(i === hi)); if (i === hi) { var lt = li.offsetTop, lb = lt + li.offsetHeight; if (lt < list.scrollTop) list.scrollTop = lt; else if (lb > list.scrollTop + list.clientHeight) list.scrollTop = lb - list.clientHeight; } }); input.setAttribute('aria-activedescendant', 'mts' + hi); }
   function esc(v) { return String(v == null ? '' : v).replace(/[&<>"]/g, function (c) { return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]; }); }
-  function open(q) { build(); prevFocus = document.activeElement; box.hidden = false; input.value = q || ''; draw(); input.focus(); input.select(); }
+  function open(q) { liveCache = null; build(); prevFocus = document.activeElement; box.hidden = false; input.value = q || ''; draw(); input.focus(); input.select(); }
   function close() { if (box && !box.hidden) { box.hidden = true; if (prevFocus && prevFocus.focus && prevFocus.isConnected) try { prevFocus.focus(); } catch (e) {} } }
   document.addEventListener('keydown', function (e) { if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.key === 'k' || e.key === 'K')) { e.preventDefault(); if (box && !box.hidden) close(); else open(''); } }, true);
   function button() { css(); if (document.getElementById('mtSearchBtn')) return; var b = document.createElement('button'); b.type = 'button'; b.id = 'mtSearchBtn'; b.className = 'no-print'; b.setAttribute('aria-label', 'Search pages, fields and options (Ctrl+K)');
@@ -191,7 +226,45 @@
     var mb = (h.match(/#mtbuild=([^&]+)/) || [])[1];
     if (mb) { var spec = {}; try { spec = JSON.parse(decodeURIComponent(mb)); } catch (e) {} var tries = 0; (function wait() { if (window.MTBuild) { MTBuild.open(spec.type, spec.style ? {style: spec.style} : null); if (spec.preset) setTimeout(function () { var ps = document.getElementById('mtBpreset'); if (ps) ps.value = spec.preset; }, 300); history.replaceState(null, '', location.pathname + location.search); } else if (tries++ < 40) setTimeout(wait, 250); })(); }
   }
-  function start() { button(); arrive(); }
+  /* 57.19: the bottom of the page holds up to four floating things - this Search button, the page bar, Documents and
+     Ghost - and on phones and tablets they sat on top of each other. Search now goes into the page bar as one more
+     item; Documents and Ghost sit side by side, above the bar wherever the bar runs under them. */
+  function dockCss() {
+    if (document.getElementById('mtDockCss')) return; var s = document.createElement('style'); s.id = 'mtDockCss';
+    s.textContent = '#mtgcalcPageNav #mtSearchBtn{position:static;transform:none;left:auto;bottom:auto;box-shadow:none;border:0;background:none;padding:5px 10px;border-radius:20px;font:600 11px/1.2 system-ui,sans-serif;color:var(--text,#cddced);gap:5px}' +
+      '#mtgcalcPageNav #mtSearchBtn:hover{background:#ffffff1a}#mtgcalcPageNav #mtSearchBtn kbd{display:none}' +
+      '@media(max-width:760px){#mtgcalcPageNav #mtSearchBtn{padding:7px 8px;font-size:0}#mtgcalcPageNav #mtSearchBtn svg{width:13px;height:13px}#mtSearchBtn kbd{display:none}}';
+    document.head.appendChild(s);
+  }
+  var docking = false;
+  function dock() {
+    if (docking) return; docking = true;
+    try {
+      dockCss();
+      var nav = document.getElementById('mtgcalcPageNav'), sb = document.getElementById('mtSearchBtn');
+      if (nav && sb && sb.parentElement !== nav) nav.insertBefore(sb, nav.firstChild);
+      var shown = function (x) { return x && x.isConnected && getComputedStyle(x).display !== 'none' && x.getBoundingClientRect().width > 0; };
+      var items = [document.getElementById('mtDocsBtn'), document.querySelector('.ghost-fab')].filter(shown);
+      var navR = nav && shown(nav) ? nav.getBoundingClientRect() : null, gap = 8, x = 16, bottom = 16, total = 0;
+      items.forEach(function (el) { total += el.getBoundingClientRect().width + gap; });
+      if (window.ResizeObserver) items.forEach(function (el) { if (!el.__mtDockRO) { el.__mtDockRO = new ResizeObserver(dockSoon); el.__mtDockRO.observe(el); } });   /* Documents' count changes its width */
+      if (navR && navR.left < x + total + gap) bottom = Math.round(window.innerHeight - navR.top + 10);   /* the bar runs under them: sit above it */
+      items.forEach(function (el) { el.style.left = x + 'px'; el.style.bottom = bottom + 'px'; x += el.getBoundingClientRect().width + gap; });
+      if (sb && !nav && items.length) {   /* no page bar: keep the floating Search clear of the left buttons */
+        var r = sb.getBoundingClientRect();
+        if (r.left < x + gap) { sb.style.left = 'auto'; sb.style.right = '16px'; sb.style.transform = 'none'; } else { sb.style.left = ''; sb.style.right = ''; sb.style.transform = ''; }
+      }
+      var need = items.length ? bottom + 48 : 0; if (need && parseFloat(getComputedStyle(document.body).paddingBottom) < need) document.body.style.paddingBottom = need + 'px';
+    } catch (e) {}
+    docking = false;
+  }
+  var dockT = 0; function dockSoon() { clearTimeout(dockT); dockT = setTimeout(dock, 80); }
+  function start() {
+    button(); arrive(); dock();
+    window.addEventListener('resize', dockSoon);
+    try { new MutationObserver(function (ms) { for (var i = 0; i < ms.length; i++) for (var j = 0; j < ms[i].addedNodes.length; j++) { var n = ms[i].addedNodes[j]; if (n.nodeType === 1 && (n.id === 'mtgcalcPageNav' || n.id === 'mtDocsBtn' || (n.classList && n.classList.contains('ghost-fab')))) { dockSoon(); return; } } }).observe(document.body, {childList: true}); } catch (e) {}
+    setTimeout(dock, 1500);
+  }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
   window.MTSearch = {open: open, close: close, search: search, register: function (fn) { providers.push(fn); return true; }};
 })();

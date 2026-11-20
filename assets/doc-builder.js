@@ -3277,11 +3277,14 @@
         var size = parseFloat(cs2.fontSize) * kf, f = pdfFont(cs2), col = rgbOf(cs2.color) || {r: 0, g: 0, b: 0}, ul = underlined(par, pg);
         mc.font = cs2.fontStyle + ' ' + cs2.fontWeight + ' ' + cs2.fontSize + ' ' + cs2.fontFamily;
         var mm = mc.measureText('Hg'), asc = mm.fontBoundingBoxAscent || parseFloat(cs2.fontSize) * 0.8, desc = mm.fontBoundingBoxDescent || parseFloat(cs2.fontSize) * 0.2;
+        /* 57.19: text styled as capitals (text-transform) is written in capitals, as it shows */
+        var tt = cs2.textTransform, cap = function (w) { return tt === 'uppercase' ? w.toUpperCase() : tt === 'lowercase' ? w.toLowerCase() : tt === 'capitalize' ? w.charAt(0).toUpperCase() + w.slice(1) : w; };
         var re = /\S+/g, m; while ((m = re.exec(node.data))) {
           rg.setStart(node, m.index); rg.setEnd(node, m.index + m[0].length);
           var rs = rg.getClientRects(); if (!rs.length) continue; var wr = rs[0]; if (wr.width < 0.1) continue;
           var base = Y(wr.top) + ((wr.height / k - (asc + desc)) / 2 + asc) * k;
-          ops.push({t: 'text', s: m[0], x: X(wr.left), base: base, w: wr.width * k, size: size, f: f, c: col, ul: ul, box: {x: X(wr.left), y: Y(wr.top), w: wr.width * k, h: wr.height * k}, css: mc.font});
+          var sp = /\s/.test(node.data.charAt(m.index + m[0].length));   /* a space follows: written too, so copied text keeps its word breaks */
+          ops.push({t: 'text', s: cap(m[0]), sp: sp, x: X(wr.left), base: base, w: wr.width * k, size: size, f: f, c: col, ul: ul, box: {x: X(wr.left), y: Y(wr.top), w: wr.width * k, h: wr.height * k}, css: mc.font});
         }
       }
       /* draw, one PDF page per letter-sized slice */
@@ -3315,7 +3318,7 @@
               out.addImage(c2.toDataURL('image/png'), 'PNG', o.box.x, o.box.y - top, o.box.w, o.box.h); continue;
             }
             var pw = pdfTextWidth(mc, s, o.f, o.size), cs = s.length ? (o.w - pw) / s.length : 0;   /* the PDF font is a close match: spacing between letters is nudged so each word keeps its exact width (and the spaces between words stay) */
-            out.text(s, o.x, o.base - top, {charSpace: Math.abs(cs) < o.size * 0.25 ? cs : 0});   /* always set: the PDF keeps the last letter spacing for the words after it */
+            out.text(o.sp ? s + ' ' : s, o.x, o.base - top, {charSpace: Math.abs(cs) < o.size * 0.25 ? cs : 0});   /* always set: the PDF keeps the last letter spacing for the words after it */
             if (o.ul) { out.setDrawColor(o.c.r, o.c.g, o.c.b); out.setLineWidth(Math.max(0.5, o.size * 0.06)); out.line(o.x, o.base + o.size * 0.12 - top, o.x + o.w, o.base + o.size * 0.12 - top); }
           }
         }

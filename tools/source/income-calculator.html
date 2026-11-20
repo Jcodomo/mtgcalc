@@ -1032,7 +1032,7 @@ body,#calc-root,#suite-root{min-width:0}
   </div>
 
   <!-- ---------------- Documents › Pay Stub Generator ---------------- -->
-  <div class="subpanel" id="subpanel-docs-paystub">
+  <div class="subpanel no-search" id="subpanel-docs-paystub">
   <div class="section-head">
     <div>
       <h2><svg class="icon icon-lg" style="color:#0f766e"><use href="#i-receipt"/></svg>New York Pay Stub Generator</h2>
@@ -4264,7 +4264,7 @@ function extractFields(type, text){
     const who = text.match(/^\s*([A-Z][A-Za-z.'\-]+(?:\s+[A-Z][A-Za-z.'\-]+){1,3})\s+x{3}-x{2}-\d{4}/mi)
              || text.match(/employee(?:\s*name)?\s*[:\-]\s*([A-Za-z][A-Za-z.'\- ]{2,44})/i);
     if (who) F.push({slot:'_borrower', label:'Borrower name (file header)',
-                     value:who[1].replace(/\s+/g,' ').trim(), src:who[0].trim(),
+                     value:who[1].split(/\s{2,}|\s+(?=(?:employee|emp\.?|id|ssn|social|pay|period|date|dept|department|address|file|check|location)\b)/i)[0].replace(/\s+/g,' ').trim(), src:who[0].trim(),
                      yearScoped:false, isText:true, apply:true});
 
     push('hireDate','Original hire date',
@@ -4405,7 +4405,7 @@ function extractFields(type, text){
     if (emp) F.push({slot:'employer', label:'Employer name', value:emp, src:emp,
                      yearScoped:false, isText:true, apply:false});
     const who = text.match(/employee(?:\s*name)?\s*[:\-]\s*([A-Za-z][A-Za-z.'\- ]{2,40})/i);
-    if (who) F.push({slot:'_borrower', label:'Borrower name (file header)', value:who[1].trim(),
+    if (who) F.push({slot:'_borrower', label:'Borrower name (file header)', value:who[1].split(/\s{2,}|\s+(?=(?:employee|emp\.?|id|ssn|social|pay|period|date|dept|department|address|file|check|location)\b)/i)[0].trim(),
                      src:who[0].trim(), yearScoped:false, isText:true, apply:false});
     const g = amountFor(L, /(gross|total)\s*(pay|earnings)/i);
     if (g) F.push({slot:'_grossYTD', label:'Gross pay (reference only)', value:g.value, src:g.src,
@@ -8278,10 +8278,10 @@ window.__mtgcalcBridge = {
 <script src="mt-mnd.js?v=56.0"></script>
 <script src="mt-addr.js?v=56.5"></script>
 <script src="mt-paste.js?v=56.7"></script>
-<script src="mt-search.js?v=56.7"></script>
-<script src="doc-center.js?v=56.8"></script>
+<script src="mt-search.js?v=57.19"></script>
+<script src="doc-center.js?v=57.19"></script>
 <script src="mt-data.js?v=56.1"></script>
-<script src="mt-build-lazy.js?v=57.0"></script>
+<script src="mt-build-lazy.js?v=57.19"></script>
 <script src="ic-simple.js?v=57.2"></script>
 </body>
 </html>
