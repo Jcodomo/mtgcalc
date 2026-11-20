@@ -517,6 +517,7 @@
     '.mtd-prog{height:4px;border-radius:4px;background:var(--mtd-line);overflow:hidden;margin-top:6px}.mtd-prog i{display:block;height:100%;background:var(--mtd-acc);width:0;transition:width .2s}',
     '@media (max-width:600px){.mtd-in{padding:14px 14px 24px}.mtd-db thead{display:none}.mtd-db tr{display:grid;grid-template-columns:28px 1fr;gap:4px 8px;padding:8px 0;border-top:1px solid var(--mtd-line)}.mtd-db td{border:0;padding:0}.mtd-db td:nth-child(n+3){grid-column:2}.mtd-db input[type=text]{width:100%}}',
     /* inline panel on the Documents pages */
+    '.mtd-biz{margin:0 0 8px;padding:6px 10px;border-radius:8px;background:var(--mtd-soft);font-size:12.5px}.mtd-biz b{color:var(--mtd-acc)}',
     '.mtd.inline{border:1px solid var(--mtd-line);border-radius:14px;margin:0 0 16px;background:rgba(6,20,46,.55)}html[data-mt-mode="light"] .mtd.inline{background:#fff;color:#13263d;--mtd-mute:#5b6b7e;--mtd-line:#d9e2ec;--mtd-acc:#1f6fd6}html[data-mt-mode="light"] .mtd.inline select,html[data-mt-mode="light"] .mtd.inline input[type=text]{background:#fff}'
   ].join('\n');
   function toast(msg) {
@@ -533,6 +534,31 @@
       return '<optgroup label="' + esc(g[0]) + '">' + g[1].map(function (d) { return '<option value="' + d[0] + '"' + (d[0] === sel ? ' selected' : '') + '>' + esc(d[1]) + '</option>'; }).join('') + '</optgroup>';
     }).join('');
   }
+  /* 57.21: income documents for the same business or employer (two years of returns, a W-2 and a pay stub) */
+  var bizGroups = {};
+  function bizOf(d) {
+    if (!window.MTBizId || !d.text) return null;
+    if (d._bizT !== d.docType || !d._biz) { try { d._biz = MTBizId.ident(d.text, d.docType); d._bizT = d.docType; } catch (e) { d._biz = null; } }
+    return d._biz;
+  }
+  function groupDocs() {
+    bizGroups = {};
+    if (!window.MTBizId) return;
+    MTBizId.group(mem.filter(function (d) { return (TYPE[d.docType] || TYPE.other).income && !d.error; }), bizOf).forEach(function (g) {
+      if (g.items.length < 2) return;
+      g.items.sort(function (a, b) { return ((b._biz || {}).year || 0) - ((a._biz || {}).year || 0); });
+      g.items.forEach(function (d) { bizGroups[d.id] = g; });
+    });
+  }
+  function bizLine(d) {
+    var g = bizGroups[d.id]; if (!g) return '';
+    var yrs = g.items.map(function (x) { return (x._biz || {}).year; }).filter(Boolean).filter(function (y, i, a) { return a.indexOf(y) === i; });
+    return '<p class="mtd-biz">Same ' + (g.ident.role === 'employer' ? 'employer' : 'business') + ' as ' + (g.items.length - 1) + ' other document' + (g.items.length > 2 ? 's' : '') + ': <b>' + esc(g.ident.name || g.ident.ein) + '</b>' + (yrs.length ? ' · ' + yrs.join(', ') : '') + '</p>';
+  }
+  function bizButton(d) {
+    var g = bizGroups[d.id]; if (!g || g.items[0] !== d) return '';
+    return '<button type="button" class="mtd-btn" data-a="incomeall" data-id="' + d.id + '">Read all ' + g.items.length + ' together</button>';
+  }
   function docHtml(d) {
     var T = TYPE[d.docType] || TYPE.other, inc = !!T.income, rows = d.rows || [], st = status[d.id] || {};
     var head = '<div class="mtd-dh"><div class="nm">' + esc(d.name) + '<small>' + new Date(d.added).toLocaleDateString() + ' · ' + Math.round((d.size || 0) / 1024) + ' KB' + (d.page ? ' · added on ' + esc(d.page) : '') + '</small></div>' +
@@ -542,7 +568,8 @@
     if (progress[d.id] != null) body = '<div class="mtd-db"><div class="mtd-st">Reading… scanned pages use OCR and can take a little while.</div><div class="mtd-prog"><i style="width:' + Math.round(progress[d.id] * 100) + '%"></i></div></div>';
     else if (d.error) body = '<div class="mtd-db"><div class="mtd-st bad">' + esc(d.error) + '</div></div>';
     else if (inc) body = '<div class="mtd-db"><p class="mtd-st" style="margin:0 0 8px">Income documents are read by the Income Calculator\'s own worksheet reader, where each figure is reviewed against its worksheet.</p>' +
-      '<div class="mtd-acts"><button type="button" class="mtd-btn pri" data-a="income" data-id="' + d.id + '">' + (PAGE === 'income' ? 'Read it on the Documents tab' : 'Open in the Income Calculator') + '</button></div></div>';
+      bizLine(d) +
+      '<div class="mtd-acts"><button type="button" class="mtd-btn pri" data-a="income" data-id="' + d.id + '">' + (PAGE === 'income' ? 'Read it on the Documents tab' : 'Open in the Income Calculator') + '</button>' + bizButton(d) + '</div></div>';
     else if (!rows.length) body = '<div class="mtd-db"><p class="mtd-st" style="margin:0">No values recognised for a ' + esc(T.label.toLowerCase()) + '. Pick another type above if this is a different document' + (d.text && d.text.replace(/\s/g, '').length < 40 ? ' - very little text could be read from it' : '') + '.</p></div>';
     else body = '<div class="mtd-db"><table><thead><tr><th style="width:28px"></th><th>On the document</th><th>Value</th><th>Send to</th></tr></thead><tbody>' + rows.map(function (r) {
         return '<tr><td><input type="checkbox" data-a="on" data-id="' + d.id + '" data-r="' + r.id + '"' + (r.on ? ' checked' : '') + ' aria-label="Send ' + esc(r.label) + '"></td>' +
@@ -553,6 +580,7 @@
     return '<article class="mtd-doc" data-doc="' + d.id + '">' + head + body + '</article>';
   }
   function panelHtml(inline) {
+    groupDocs();
     var list = mem.filter(function (d) { return view.sec === 'all' || (TYPE[d.docType] || TYPE.other).sec === view.sec; });
     return '<div class="mtd-in"><div class="mtd-head"><div><h2>Documents</h2><p>Shared by every page of the suite and kept in this browser only. Upload once; send the values to the Loan Suite and the Income Calculator.</p></div>' +
       '<div style="display:flex;gap:8px;align-items:center">' + (window.MTBuild ? '<button type="button" class="mtd-btn" data-a="build">Build a document</button>' : '') + (inline ? '' : '<button type="button" class="mtd-x" data-a="close" aria-label="Close documents">×</button>') + '</div></div>' +
@@ -589,14 +617,16 @@
     }
   }
   function openIncome(d) {
+    var list = Array.isArray(d) ? d : [d];
     if (PAGE === 'income') {
       var hf = G('handleFiles'); if (typeof hf !== 'function') { toast('The Documents tab reader is not available on this page.'); return; }
       try { window.switchTab && window.switchTab('docs'); } catch (e) {}
       close();
-      var file = d.blob instanceof File ? d.blob : new File([d.blob], d.name, {type: d.mime || ''});
-      hf([file]); return;
+      /* oldest year first, so the worksheet's columns fill in order */
+      list = list.slice().sort(function (a, b) { return ((a._biz || {}).year || 0) - ((b._biz || {}).year || 0); });
+      hf(list.map(function (x) { return x.blob instanceof File ? x.blob : new File([x.blob], x.name, {type: x.mime || ''}); })); return;
     }
-    location.href = 'income-calculator.html?mtdoc=' + encodeURIComponent(d.id);
+    location.href = 'income-calculator.html?mtdoc=' + list.map(function (x) { return encodeURIComponent(x.id); }).join(',');
   }
   function wire(el) {
     el.addEventListener('click', function (e) {
@@ -608,6 +638,7 @@
       else if (a === 'del' && d) { if (confirm('Remove "' + d.name + '" from the document library in this browser?')) drop(d.id).then(paint); }
       else if (a === 'send' && d) { var msg = send(d); status[d.id] = {text: msg, kind: /could not/.test(msg) ? 'bad' : 'ok'}; paint(); }
       else if (a === 'income' && d) openIncome(d);
+      else if (a === 'incomeall' && d) { var g = bizGroups[d.id]; openIncome(g ? g.items : d); }
     });
     el.addEventListener('change', function (e) {
       var t = e.target, a = t.dataset && t.dataset.a, d = t.dataset && t.dataset.id ? find(t.dataset.id) : null;
@@ -671,7 +702,7 @@
       /* a document sent from another page to the calculator's reader */
       var q = new URLSearchParams(location.search), id = q.get('mtdoc');
       if (id && PAGE === 'income') {
-        var d = find(id); var tries = 0;
+        var ds = id.split(',').map(find).filter(Boolean), d = ds.length > 1 ? ds : ds[0]; var tries = 0;
         (function go() { if (typeof G('handleFiles') === 'function' && window.switchTab) { if (d) openIncome(d); return; } if (tries++ < 60) setTimeout(go, 150); })();
       }
     });

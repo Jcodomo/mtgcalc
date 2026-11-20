@@ -15,6 +15,16 @@
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]; }); }
   function get(o, path) { return String(path).split('.').reduce(function (a, k) { return a == null ? undefined : a[k]; }, o); }
   var IS_PAGE = !!window.MT_ENCOMPASS_PAGE;
+  /* 57.21: Encompass is the third view of the Full Suite page, beside Simple and Advanced - one header, one live summary,
+     and switching between the three is instant. loan-suite-encompass.html is the same page opened on this view. */
+  var VKEY = 'mt.v57.view', PKEY = 'mt.v57.view.prev';
+  function ss(k, v) { try { if (v === undefined) return sessionStorage.getItem(k); sessionStorage.setItem(k, v); } catch (e) {} return null; }
+  var HOST = IS_PAGE || /full-suite|loan-suite-quote/.test(location.pathname);
+  var BASE_PATH = IS_PAGE ? 'full-suite.html' : location.pathname.split('/').pop() || 'full-suite.html';
+  var BASE_TITLE = IS_PAGE ? 'Full Suite · Mortgage Suite' : document.title, ENC_TITLE = 'Encompass view · Loan Suite';
+  if (IS_PAGE) { var was = ss(VKEY); if (was && was !== 'encompass') ss(PKEY, was); ss(VKEY, 'encompass'); }
+  else if (HOST && ss(VKEY) === 'encompass') ss(VKEY, ss(PKEY) || 'simple');
+  function isEnc() { return HOST && ss(VKEY) === 'encompass'; }
 
   /* ---------- this-browser-only boxes (not used by the calculator), kept per scenario ---------- */
   function lkey() { var s = suite(), id = (s && s.activeInputs && s.activeInputs.id) || 'file'; return 'mt.encompass.v1:' + id; }
@@ -170,6 +180,19 @@
       row('Mortgage payments reserve (months)', inp('reno.paymentReserveMonths', 'int')) + (kind === 'k' ? row('Energy improvements', inp('reno.energyImprovements', 'money')) : '') +
       row('As-is value', inp('asIsValue', 'money')) + row('After-repair value', inp('afterRepairValue', 'money')) +
       row('Renovation type', inp('renovationScope', 'select', {options: ['Auto']})));
+    /* 57.21: the rest of the Renovation page - draws, fees and options - on the same loan file, so either screen can be used */
+    var more = two(
+      row('Set the number of draws myself', inp('draws.manualOverride', 'check')) + row('Number of draws', inp('draws.manualDrawCount', 'int', {cls: 's'})) +
+      row('Inspection fee per draw', inp('draws.inspectionFeePerDraw', 'money')) + row('Title update fee per draw', inp('draws.titleFeePerDraw', 'money')) +
+      row('Initial material release', inp('draws.initialMaterialRelease', 'money')) + row('Draw fees follow the draw count', inp('reno.syncDrawFees', 'check')),
+      row('Supplemental origination fee', inp('reno.supplementalOriginationOverride', 'money', {ph: 'calculated'})) + row('Discount points on rehab', inp('reno.discountPointsRehabPct', 'pct', {cls: 's'})) +
+      row('Utilities off at the property', inp('reno.utilitiesOff', 'check')) +
+      row('Supplemental origination', inp('renovationOut.supplementalOrigination', 'out')) + row('Soft costs', inp('renovationOut.softCosts', 'out')) +
+      row('Suggested draws', inp('renovationOut.suggestedDrawCount', 'out', {f: 'int'})));
+    var ds = (o.renovationOut && o.renovationOut.drawSchedule) || [];
+    var sched = ds.length ? '<div class="mte-tw"><table class="mte-t"><thead><tr><th>Draw</th><th>Stage</th><th class="n">Release</th><th class="n">Inspection</th><th class="n">Title</th><th class="n">Released so far</th><th class="n">Holdback left</th></tr></thead><tbody>' +
+      ds.map(function (r) { return '<tr><td>' + esc(r.draw) + '</td><td>' + esc(r.stage) + '</td><td class="n">' + money(r.releaseAmount) + '</td><td class="n">' + money(r.inspectionFee) + '</td><td class="n">' + money(r.titleFee) + '</td><td class="n">' + money(r.cumulativeRelease) + '</td><td class="n">' + money(r.remainingHoldback) + '</td></tr>'; }).join('') + '</tbody></table></div>' : '';
+    inputs += sub('Draws, fees and options') + more + (sched ? sub('Draw schedule') + sched : '');
     var sums = '<div class="mte-grid3">' + row('Contingency', inp('renovationOut.contingencyReserve', 'out')) + row('Rehab escrow holdback', inp('renovationOut.escrowHoldback', 'out')) +
       row('Released at closing', inp('renovationOut.releasedAtClosing', 'out')) + row('Payment reserve', inp('renovationOut.paymentReserve', 'out')) +
       row('Total renovation', inp('renovationOut.finalRenovationAmount', 'out', {cls: 'em'})) + row('Draws', inp('renovationOut.drawCount', 'out', {f: 'int'})) +
@@ -179,7 +202,9 @@
     if (kind === 'k') Object.keys(mmw).filter(function (k) { return /^section/.test(k) && Array.isArray(mmw[k]); }).forEach(function (k) {
       ws += sub('Section ' + k.slice(7)) + '<div class="mte-dot">' + mmw[k].map(function (r) { return '<div class="mte-dotr"><span class="r">' + esc(r.ref || '') + '</span><span class="l">' + esc(r.label || '') + '</span><span class="mte-out">' + (typeof r.amount === 'number' ? (Math.abs(r.amount) < 2 && r.amount % 1 ? (r.amount * 100).toFixed(3) + '%' : money(r.amount)) : esc(r.amount == null ? '' : r.amount)) + '</span></div>'; }).join('') + '</div>';
     });
-    return sec(kind === 'k' ? 'k203' : 'homestyle', title, inputs + sub('Results') + sums + ws + '<div class="mte-note">' + (kind === 'k' ? 'Shown because the loan is FHA with renovation.' : 'Shown because the loan is Conventional with renovation (HomeStyle).') + '</div>');
+    return sec(kind === 'k' ? 'k203' : 'homestyle', title, inputs + sub('Results') + sums + ws + '<div class="mte-note">' + (kind === 'k' ? 'Shown because the loan is FHA with renovation.' : 'Shown because the loan is Conventional with renovation (HomeStyle).') +
+      ' The same figures as the Renovation page - a change on either one shows on the other, in this tab and in any other open tab.</div>',
+      '<button type="button" class="mte-mini" data-reno-page="1" title="The Renovation page of the Advanced view, same loan file">Open the Renovation page</button>');
   }
   function formFees() {
     var o = outs(), lines = (o.closing && o.closing.lines) || [];
@@ -281,7 +306,9 @@
   function css() {
     if ($('mtEncCss')) return; var st = document.createElement('style'); st.id = 'mtEncCss';
     st.textContent =
-      'body.mt-enc #screen-body>*:not(#mtEnc){display:none!important}' +
+      'body.mt-enc #screen-body>*:not(#mtEnc){display:none!important}html:not(.mt-enc-view) #mtEnc{display:none!important}' +
+      'html.mt-enc-view #suite-root #root>.topbar,html.mt-enc-view #suite-root #root>.chrome,html.mt-enc-view #v34Bar,html.mt-enc-view #suite-root .v44-metric-strip,html.mt-enc-view #suite-root .v20-kpis,html.mt-enc-view #suite-root #v44PunchIn,html.mt-enc-view #suite-root #mtTop,html.mt-enc-view #v36SuiteFooter,html.mt-enc-view #q57dock,html.mt-enc-view #lseNav{display:none!important}' +
+      'html.mt-enc-view #suite-root .cols-main{padding-top:14px}' +
       '#mtEnc{--e-line:#23406b;--e-bar:linear-gradient(180deg,rgba(127,178,255,.18),rgba(127,178,255,.08));--e-in:rgba(9,22,44,.65);color:#e6eefb;font-size:12.5px}' +
       '#mtEnc .mte-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 0 10px}#mtEnc .mte-top h2{margin:0;font-size:15px;letter-spacing:.02em}#mtEnc .mte-top small{color:#9db0c8;font-weight:400;margin-left:8px}' +
       '#mtEnc .mte-views{display:flex;border:1px solid var(--e-line);border-radius:8px;overflow:hidden}#mtEnc .mte-views a,#mtEnc .mte-views b{padding:6px 12px;color:#9db0c8;text-decoration:none;font-weight:600;font-size:12px}#mtEnc .mte-views b{background:#123a75;color:#fff}#mtEnc .mte-views a:hover{background:rgba(127,178,255,.1);color:#e6eefb}' +
@@ -290,10 +317,10 @@
       '#mtEnc .mte-forms button{display:block;width:100%;text-align:left;border:0;background:none;color:#cfdcef;padding:6px 10px;font:inherit;font-size:12.5px;cursor:pointer;border-bottom:1px solid rgba(35,64,107,.45)}#mtEnc .mte-forms button.sub{padding-left:22px;font-size:12px;color:#9db0c8}#mtEnc .mte-forms button.on{background:#123a75;color:#fff}#mtEnc .mte-forms button:hover{background:rgba(127,178,255,.1)}' +
       '#mtEnc .mte-sec{border:1px solid var(--e-line);border-radius:8px;margin:0 0 12px;overflow:hidden;background:rgba(9,22,44,.35);scroll-margin-top:10px}' +
       '#mtEnc .mte-bar{display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:var(--e-bar);border-bottom:1px solid var(--e-line);font-weight:700;font-size:12.5px;color:#d7e6fb}' +
-      '#mtEnc .mte-secb{padding:8px 10px}#mtEnc .mte-two{display:grid;grid-template-columns:1fr 1fr;gap:0 16px}#mtEnc .mte-two>div+div{border-left:1px solid rgba(35,64,107,.6);padding-left:14px}' +
+      '#mtEnc .mte-secb{padding:8px 10px}#mtEnc .mte-two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0 16px}#mtEnc .mte-two>div+div{border-left:1px solid rgba(35,64,107,.6);padding-left:14px}' +
       '#mtEnc .mte-grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0 14px}' +
       '#mtEnc .mte-sub{font-weight:700;color:#bcd3f5;margin:8px 0 4px;font-size:12px;display:flex;justify-content:space-between;align-items:center}' +
-      '#mtEnc .mte-row{display:grid;grid-template-columns:minmax(92px,42%) 1fr;align-items:center;gap:6px;min-height:27px;margin:0!important}#mtEnc label{margin:0!important;text-transform:none!important;letter-spacing:0!important}#mtEnc .mte-row>label{color:#9db0c8;font-size:12px;line-height:1.2}' +
+      '#mtEnc .mte-row{display:grid;grid-template-columns:minmax(92px,42%) minmax(0,1fr);align-items:center;gap:6px;min-height:27px;margin:0!important}#mtEnc label{margin:0!important;text-transform:none!important;letter-spacing:0!important}#mtEnc .mte-row>label{color:#9db0c8;font-size:12px;line-height:1.2}' +
       '#mtEnc .mte-v{display:flex;align-items:center;gap:5px;min-width:0}#mtEnc .mte-v i{color:#9db0c8;font-style:normal}' +
       '#mtEnc .mte-in{height:24px;min-width:0;width:100%;max-width:150px;box-sizing:border-box;background:var(--e-in);border:1px solid #2b5590;border-radius:3px;color:#e6eefb;font:inherit;font-size:12.5px;padding:1px 5px}#mtEnc .mte-in.w{max-width:none}#mtEnc .mte-in.s{max-width:72px}#mtEnc .mte-in.n{text-align:right;font-variant-numeric:tabular-nums}' +
       '#suite-root #screen-body #mtEnc .mte-ck{height:15px!important;width:15px!important;min-height:0!important;padding:0!important;margin:0!important}#suite-root #screen-body #mtEnc .mte-in,#suite-root #screen-body #mtEnc select.mte-in{height:24px!important;min-height:0!important;padding:1px 5px!important;font-size:12.5px!important;line-height:20px!important;border-radius:3px!important;box-shadow:none!important;margin:0!important}#suite-root #screen-body #mtEnc select.mte-in{padding:0 2px!important}#mtEnc .mte-in:focus{outline:2px solid #7fb2ff;outline-offset:0}#mtEnc .mte-ck{width:15px;height:15px;accent-color:#7fb2ff}' +
@@ -304,8 +331,8 @@
       '#mtEnc .mte-dot{display:grid;gap:2px}#mtEnc .mte-dotr{display:grid;grid-template-columns:38px 1fr auto;align-items:center;gap:8px;padding:2px 0;border-bottom:1px dotted rgba(35,64,107,.5)}#mtEnc .mte-dotr .r{font-weight:700;color:#bcd3f5}#mtEnc .mte-dotr .l{color:#cfdcef}#mtEnc .mte-dotr.em .l{font-weight:700}#mtEnc .mte-dotr.big .l{font-weight:800;color:#fff}#mtEnc .mte-dotr.big .mte-out{font-weight:800;color:#7ff0b1;font-size:13.5px}' +
       '#mtEnc .mte-decl{display:grid;grid-template-columns:1fr 92px 92px;gap:8px;align-items:center;padding:4px 0;border-bottom:1px solid rgba(35,64,107,.4)}#mtEnc .mte-decl.hd{font-weight:700;color:#bcd3f5;border-bottom:1px solid var(--e-line)}#mtEnc .mte-decl .q{color:#cfdcef}' +
       '#mtEnc [data-when].mte-hide{display:none}' +
-      '@media(max-width:900px){#mtEnc .mte-wrap{grid-template-columns:1fr}#mtEnc .mte-forms{position:static;display:flex;flex-wrap:wrap}#mtEnc .mte-forms .h{width:100%}#mtEnc .mte-forms button{width:auto;border:0;border-right:1px solid rgba(35,64,107,.45)}#mtEnc .mte-forms button.sub{display:none}}' +
-      '@media(max-width:640px){#mtEnc .mte-two,#mtEnc .mte-grid3{grid-template-columns:1fr}#mtEnc .mte-two>div+div{border-left:0;padding-left:0}#mtEnc .mte-decl{grid-template-columns:1fr 70px 70px}}';
+      '@media(max-width:900px){#mtEnc .mte-wrap{grid-template-columns:minmax(0,1fr)}#mtEnc .mte-forms{position:static;display:flex;flex-wrap:wrap}#mtEnc .mte-forms .h{width:100%}#mtEnc .mte-forms button{width:auto;border:0;border-right:1px solid rgba(35,64,107,.45)}#mtEnc .mte-forms button.sub{display:none}}' +
+      '@media(max-width:640px){#mtEnc .mte-two,#mtEnc .mte-grid3{grid-template-columns:minmax(0,1fr)}#mtEnc .mte-two>div+div{border-left:0;padding-left:0}#mtEnc .mte-decl{grid-template-columns:1fr 70px 70px}}';
     document.head.appendChild(st);
   }
   function visibleForms() { return FORMS.filter(function (f) { return !f[3] || f[3](); }); }
@@ -326,14 +353,16 @@
     if (!root) { root = document.createElement('div'); root.id = 'mtEnc'; }
     if (root.parentNode !== host || host.firstElementChild !== root) host.insertBefore(root, host.firstChild);
     document.body.classList.add('mt-enc');
-    root.innerHTML = '<div class="mte-top"><h2>Loan file · Encompass view<small>same loan file as Simple and Advanced - live summary on the right</small></h2>' +
-      '<div class="mte-views"><b>Encompass</b><a href="quick.html" title="Quick, simple view of this file">Simple</a><a href="loan-suite-quote.html" title="The full suite">Advanced</a></div></div>' +
+    var a = document.activeElement, keep = a && root.contains(a) ? {p: a.getAttribute('data-p'), l: a.getAttribute('data-l'), s: a.selectionStart, e: a.selectionEnd} : null;
+    var y = window.scrollY;
+    root.innerHTML = '<div class="mte-top"><h2>Loan file · Encompass view<small>same loan file as Simple and Advanced (switch at the top) - live summary on the right</small></h2></div>' +
       '<div class="mte-wrap"><nav class="mte-forms">' + navHtml() + '</nav><div class="mte-form">' + formHtml() + '</div></div>';
     lastForm = current; lastSig = sigNow();
     fillAll(true); wire();
+    if (keep && (keep.p || keep.l)) { var f = root.querySelector(keep.p ? '[data-p="' + keep.p + '"]' : '[data-l="' + keep.l + '"]'); if (f) { f.focus({preventScroll: true}); try { if (keep.s != null) f.setSelectionRange(keep.s, keep.e); } catch (x) {} window.scrollTo(0, y); } }
     return true;
   }
-  function sigNow() { var p = prog(), o = outs(); return [p.fha, p.conv, p.reno, current, ((o.closing && o.closing.lines) || []).length, ((o.escrowOut && o.escrowOut.rows) || []).length, JSON.stringify((o.escrowOut || {}).rows || []).length].join('|'); }
+  function sigNow() { var p = prog(), o = outs(); return [p.fha, p.conv, p.reno, current, JSON.stringify((o.renovationOut || {}).drawSchedule || []).length, JSON.stringify(o.mmw || {}).length, ((o.closing && o.closing.lines) || []).length, ((o.escrowOut && o.escrowOut.rows) || []).length, JSON.stringify((o.escrowOut || {}).rows || []).length].join('|'); }
   function scopeOptions() {
     var p = prog(), sel = root && root.querySelectorAll('select[data-p="renovationScope"]'); if (!sel) return;
     var opts = p.fha ? ['Auto', '203(k) Limited', '203(k) Standard'] : p.conv ? ['Auto', 'HomeStyle'] : ['Auto'];
@@ -378,6 +407,7 @@
         if (parent) { if (current !== parent) { current = parent; render(true); } var t = $('mte-' + id); if (t) t.scrollIntoView({behavior: 'smooth', block: 'start'}); return; }
         current = id; try { sessionStorage.setItem('mt.encompass.form', id); } catch (x) {} render(true); root.scrollIntoView({block: 'start'}); return;
       }
+      if (e.target.closest('[data-reno-page]')) { openRenovationPage(); return; }
       if (e.target.closest('[data-copy]')) {   /* co-borrower address and housing from the borrower */
         L.b1 = L.b1 || {}; var b0 = L.b0 || {}; ['addr', 'city', 'yrs', 'mos', 'housing', 'rent', 'phone'].forEach(function (k) { if (b0[k] != null) L.b1[k] = b0[k]; }); lsave(); fillAll(true);
       }
@@ -385,22 +415,83 @@
   }
   function render(force) { if (force || !root || !root.isConnected) build(); else if (sigNow() !== lastSig) build(); else fillAll(false); }
 
-  /* ---------- dock link on every page; the view itself on loan-suite-encompass.html ---------- */
-  function start() {
-    if (!IS_PAGE) return;
+  /* ---------- the view: built when Encompass is chosen, hidden (not removed) for Simple and Advanced ---------- */
+  var started = false;
+  function startView() {
+    if (started) return; started = true;
     var n = 0;
     (function wait() {
       var s = suite();
       if (s && $('screen-body')) {
-        build();
-        try { s.subscribe(function () { clearTimeout(wait.t); wait.t = setTimeout(function () { render(false); }, 120); }); } catch (e) {}
+        if (isEnc()) build();
+        try { s.subscribe(function () { if (!isEnc()) return; clearTimeout(wait.t); wait.t = setTimeout(function () { render(false); }, 120); }); } catch (e) {}
         /* the suite can redraw its screen: put the view back if it disappears */
-        setInterval(function () { if (!document.hidden && (!root || !root.isConnected || $('screen-body').firstElementChild !== root)) build(); }, 1500);
+        setInterval(function () { if (isEnc() && !document.hidden && (!root || !root.isConnected || $('screen-body').firstElementChild !== root)) build(); }, 1500);
         return;
       }
-      if (++n < 120) setTimeout(wait, 150);
+      if (++n < 160) setTimeout(wait, 120);
     })();
   }
-  window.MTEncompass = {render: function () { render(true); }, show203k: show203k, showHomeStyle: showHomeStyle};
+  function apply() {
+    var enc = isEnc();
+    document.documentElement.classList.toggle('mt-enc-view', enc);
+    if (document.body) document.body.classList.toggle('mt-enc', enc);
+    if (enc) { css(); startView(); if (started && suite() && $('screen-body')) render(true); }
+    else { var v = ss(VKEY); if (v) ss(PKEY, v); }
+    var want = enc ? 'loan-suite-encompass.html' : BASE_PATH;
+    if (location.pathname.split('/').pop() !== want) { try { history.replaceState(history.state, '', want + location.search + location.hash); } catch (e) {} }
+    document.title = enc ? ENC_TITLE : BASE_TITLE;
+    try { window.MTDock && window.MTDock.setActive(enc ? 'enc' : 'full'); } catch (e) {}
+    var b = document.querySelector('#q57view [data-v="encompass"]'); if (b) b.setAttribute('aria-pressed', String(enc));
+  }
+  /* switch views; a quick cross-fade where the browser has view transitions */
+  function setView(v) {
+    var run = function () { window.dispatchEvent(new CustomEvent('mt57:view', {detail: v})); apply(); };
+    if (document.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches) { try { document.startViewTransition(run); return; } catch (e) {} }
+    run();
+  }
+  function openRenovationPage() {
+    setView('advanced');
+    setTimeout(function () {
+      var s = suite();
+      try { if (window.LOS55 && LOS55.Nav && LOS55.Nav.go) LOS55.Nav.go('s:renovation'); else if (s && s.setMode) s.setMode('renovation'); } catch (e) { try { s.setMode('renovation'); } catch (x) {} }
+      window.scrollTo(0, 0);
+    }, 60);
+  }
+  function hostStart() {
+    if (!HOST) return;
+    var tg = document.createElement('style'); tg.id = 'mtEncToggleCss';
+    tg.textContent = '#q57view{flex:none}@media(max-width:520px){#q57view{margin-left:6px!important}#q57view button{padding:5px 8px!important;font-size:12px!important}}';
+    (document.head || document.documentElement).appendChild(tg);
+    /* the Encompass button beside Simple and Advanced at the top of the page */
+    var tries = 0;
+    (function addButton() {
+      var f = $('q57view');
+      if (!f) { if (tries++ < 150) setTimeout(addButton, 100); else apply(); return; }
+      if (!f.querySelector('[data-v="encompass"]')) {
+        var b = document.createElement('button'); b.type = 'button'; b.dataset.v = 'encompass'; b.textContent = 'Encompass';
+        b.title = 'Encompass-style 1003 forms - same loan file, live summary on the right';
+        f.appendChild(b);
+      }
+      apply();
+    })();
+    /* Simple / Advanced / Encompass: switch in place with the cross-fade */
+    window.addEventListener('click', function (e) {
+      var b = e.target.closest && e.target.closest('#q57view [data-v]');
+      if (!b) return;
+      e.preventDefault(); e.stopPropagation();
+      if (b.dataset.v !== ss(VKEY)) setView(b.dataset.v);
+    }, true);
+    window.addEventListener('mt57:view', function () { setTimeout(apply, 0); });
+    /* the dock's Full Suite and Encompass links are this same page: switch without reloading it */
+    window.addEventListener('click', function (e) {
+      var a = e.target.closest && e.target.closest('#mtgcalcPageNav a'); if (!a || !$('q57view')) return;
+      var h = a.getAttribute('href') || '';
+      if (/loan-suite-encompass\.html/.test(h)) { e.preventDefault(); e.stopImmediatePropagation(); if (!isEnc()) setView('encompass'); window.scrollTo(0, 0); }
+      else if (/full-suite\.html/.test(h) && isEnc()) { e.preventDefault(); e.stopImmediatePropagation(); setView(ss(PKEY) && ss(PKEY) !== 'encompass' ? ss(PKEY) : 'simple'); }
+    }, true);
+  }
+  function start() { hostStart(); }
+  window.MTEncompass = {render: function () { render(true); }, show203k: show203k, showHomeStyle: showHomeStyle, setView: setView, isOpen: isEnc};
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();

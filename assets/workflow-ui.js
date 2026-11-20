@@ -40,8 +40,42 @@
     /* in-page Renovation / Max mortgage switch repeats the sub-tabs above it */
     'html[data-v50] body #suite-root nav#v35LinkedSubnav,html body #suite-root nav#v35LinkedSubnav.v35-linked-subtabs{display:none!important}' +
     /* Live Summary carries the same hint twice */
-    '#suite-root .rail .v39-rail>.body>.note,body .rail .v39-rail>.body>.note{display:none!important}';
+    '#suite-root .rail .v39-rail>.body>.note,body .rail .v39-rail>.body>.note{display:none!important}' +
+    /* 57.21: page changes cross-fade; the dock, Documents and Ghost buttons stay put */
+    '@view-transition{navigation:auto}' +
+    '::view-transition-old(root),::view-transition-new(root){animation-duration:.16s}' +
+    '#mtgcalcPageNav{view-transition-name:mt-dock}#mtDocsBtn{view-transition-name:mt-docs}.ghost-fab{view-transition-name:mt-ghost}' +
+    '@media(prefers-reduced-motion:reduce){::view-transition-group(*),::view-transition-old(*),::view-transition-new(*){animation:none!important}}';
   document.head.appendChild(css);
+
+  /* 57.21: faster page changes - each page in the dock is fetched ahead while the browser is idle, a page's scripts
+     when the pointer rests on its link, and a dock page opens on press rather than on release. */
+  const fetched = new Set();
+  function prefetch(url, as) {
+    try {
+      const u = new URL(url, location.href); if (u.origin !== location.origin) return;
+      const key = u.pathname + u.search; if (fetched.has(key) || u.pathname === location.pathname) return; fetched.add(key);
+      const l = document.createElement('link'); l.rel = 'prefetch'; l.href = u.pathname + u.search; if (as) l.as = as; document.head.appendChild(l);
+    } catch (_) {}
+  }
+  const deep = new Set();
+  function prefetchDeep(url) {
+    let u; try { u = new URL(url, location.href); } catch (_) { return; }
+    if (u.origin !== location.origin || !/\.html$/.test(u.pathname) || deep.has(u.pathname) || u.pathname === location.pathname) return;
+    deep.add(u.pathname); prefetch(u.pathname, 'document');
+    if (navigator.connection && (navigator.connection.saveData || /2g/.test(navigator.connection.effectiveType || ''))) return;
+    fetch(u.pathname, {credentials: 'same-origin'}).then((r) => r.ok ? r.text() : '').then((html) => {
+      (html.match(/<script[^>]+src="([^"]+)"/g) || []).forEach((t) => { const m = t.match(/src="([^"]+)"/); if (m) prefetch(new URL(m[1], u).href, 'script'); });
+    }).catch(() => {});
+  }
+  window.MTPrefetch = prefetchDeep;
+  const idle = window.requestIdleCallback || ((f) => setTimeout(f, 1200));
+  window.addEventListener('load', () => setTimeout(() => idle(() => pages.forEach(([, , url]) => prefetch(url, 'document'))), 1500), {once: true});
+  document.addEventListener('pointerover', (e) => {
+    const a = e.target.closest && e.target.closest('a[href]'); if (!a || a.target === '_blank') return;
+    clearTimeout(prefetchDeep.t); prefetchDeep.t = setTimeout(() => prefetchDeep(a.href), 70);
+  }, {passive: true});
+  document.addEventListener('touchstart', (e) => { const a = e.target.closest && e.target.closest('a[href]'); if (a) prefetchDeep(a.href); }, {passive: true});
 
   function propertyLine() {
     const j = (k) => { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (_) { return null; } };
@@ -54,14 +88,24 @@
     if (document.getElementById('mtgcalcPageNav')) return;
     const nav = document.createElement('nav'); nav.id = 'mtgcalcPageNav'; nav.setAttribute('aria-label', 'Mortgage tools');
     nav.innerHTML = pages.map(([id, label, url, icon]) => `<a href="${url}" title="${label}" ${id === active ? 'aria-current="page"' : ''}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${icon}"/></svg><span>${label}</span></a>`).join('');
+    /* open on press: about a tenth of a second sooner than waiting for the click */
+    nav.addEventListener('pointerdown', (event) => {
+      if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || event.pointerType === 'touch') return;
+      const link = event.target.closest('a'); if (!link || link.hasAttribute('aria-current')) return;
+      const go = new MouseEvent('click', {bubbles: true, cancelable: true});
+      if (link.dispatchEvent(go)) location.href = link.href;
+      nav.__pressed = Date.now();
+    });
     nav.addEventListener('click', (event) => {
       const link = event.target.closest('a'); if (!link) return;
+      if (event.isTrusted && nav.__pressed && Date.now() - nav.__pressed < 1500) { event.preventDefault(); return; }
       try { window.MtgcalcSync && window.MtgcalcSync.syncNow(); } catch (_) {}
       /* 57.10: Property opens on the address in use - the loan file's property, else the last address picked anywhere */
       if (/property\.html/.test(link.getAttribute('href')) && !/property\.html/.test(path)) { try { const line = propertyLine(); if (line) { link.href = 'property.html?a=' + encodeURIComponent(line); return; } } catch (_) {} }
       try { const token = window.LOS55 && LOS55.Shared && LOS55.Shared.token(); if (token) link.href = link.getAttribute('href').split('#')[0] + '#los55=' + token; } catch (_) {}
     });
     document.body.appendChild(nav);
+    window.MTDock = {setActive(id) { nav.querySelectorAll('a').forEach((a, i) => { if (pages[i][0] === id) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); }); }, pages};
     // Hide while scrolling down so it never sits over a field; show on scroll up or at the end.
     let last = window.scrollY, ticking = false;
     window.addEventListener('scroll', () => {

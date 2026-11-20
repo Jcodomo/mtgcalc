@@ -4666,10 +4666,16 @@ async function handleFiles(files){
       if (AUTO_APPLY){
         made.forEach(doc=>{
           if (!REC_KIND[docType(doc.type).kind]) return;
-          doc.target = defaultTarget(doc.type);   /* recomputed per segment so each gets its own record */
+          const placed = placeDoc(doc);   /* 57.21: the same business or employer as an earlier document goes on its worksheet */
           applyDoc(doc.id, true);
+          if (stampDoc(placed)){
+            const nm = recName(placed.kind, placed.rec) || 'an earlier document';
+            doc.note += ` · same ${placed.kind==='w2'?'employer':'business'} as ${nm}` + (placed.id.year ? ` - filed as ${placed.id.year}` : '');
+            toast(`Recognised as the same ${placed.kind==='w2'?'employer':'business'}: ${nm}` + (placed.id.year ? ` (${placed.id.year} added to its worksheet)` : ''));
+          }
         });
-        toast(made.length>1
+        try { const rk = docType(made[0].type).kind; ({w2:renderW2, schc:renderSchC, corp:renderCorp})[rk] && ({w2:renderW2, schc:renderSchC, corp:renderCorp})[rk](); } catch(_) {}
+        if (!made.some(x=>/ · same (employer|business) as/.test(x.note||''))) toast(made.length>1
           ? `${made.length} employers imported and applied — verify every figure against the report`
           : 'Imported and applied — verify every figure against the document');
       }
@@ -4702,6 +4708,68 @@ function defaultTarget(type){
   if (!REC_KIND[kind]) return '';           /* 'none' and 'aus' have no worksheet record */
   const empty = (S[kind]||[]).find(r=>isEmptyRec(kind,r));
   return empty ? kind+'|'+empty.id : kind+'|NEW';
+}
+/* 57.21: two years of returns for one business, or a W-2 and a pay stub from one employer, go on one worksheet -
+   each year in its own column. The business is recognised by its EIN or its name (MTBizId, assets/mt-bizid.js). */
+function docIdent(d){
+  if (d.ident) return d.ident;
+  let id = {};
+  try {
+    if (window.MTBizId){
+      const emp = (d.fields.find(f=>f.slot==='employer')||{}).value || (d.type==='wvoe' ? String(d.name).split(' — ')[1] : '');
+      const yr  = (d.fields.find(f=>f.slot==='_year')||{}).value;
+      id = MTBizId.ident(d.text, d.type, {name: emp, year: yr});
+    }
+  } catch(_) { id = {}; }
+  d.ident = id; return id;
+}
+const recName = (k,r) => k==='w2' ? r.employer : r.name;
+function hasYearData(y){ return !!y && Object.keys(y).some(k=>k!=='yr' && N(y[k])); }
+function blankLike(y, yr){ const z={}; Object.keys(y||{}).forEach(k=>z[k]=0); if ('yr' in (y||{}) || yr) z.yr = yr; return z; }
+/* the column for this tax year; moves the older years along when a newer year arrives */
+function columnFor(k, rec, yr, type){
+  if (!yr) return 'y1';
+  if (k==='w2'){
+    if (type==='paystub' || type==='wvoe') { rec.colYear = rec.colYear || {}; if (!rec.colYear.y1) rec.colYear.y1 = yr; return 'y1'; }
+    const cy = rec.colYear = rec.colYear || {}, cols = ['y1','y2','y3'];
+    const at = cols.find(c=>cy[c]===yr); if (at) return at;
+    if (!cy.y1 && !hasYearData(rec.y1)) { cy.y1 = yr; return 'y1'; }
+    const top = cy.y1 || new Date().getFullYear();
+    if (yr < top){ const c = cols[Math.min(2, top - yr)]; cy[c] = yr; return c; }
+    rec.y3 = rec.y2; rec.y2 = rec.y1; rec.y1 = blankLike(rec.y2); cy.y3 = cy.y2; cy.y2 = cy.y1; cy.y1 = yr; return 'y1';
+  }
+  if (!rec.y1 || !rec.y2) return 'y1';
+  if (N(rec.y1.yr)===yr) return 'y1';
+  if (N(rec.y2.yr)===yr) return 'y2';
+  if (yr > N(rec.y1.yr)){
+    if (hasYearData(rec.y1)){ rec.y2 = rec.y1; rec.y1 = blankLike(rec.y2, yr); rec.y1.yr = yr; }
+    else { rec.y1.yr = yr; if (!hasYearData(rec.y2)) rec.y2.yr = yr - 1; }
+    return 'y1';
+  }
+  if (!hasYearData(rec.y2) || yr < N(rec.y2.yr)){ rec.y2.yr = yr; return 'y2'; }
+  rec.y2.yr = yr; return 'y2';
+}
+/* picks the worksheet (an existing one for the same business, else a new one) and the year column */
+function placeDoc(d){
+  const kind = docType(d.type).kind;
+  if (!REC_KIND[kind] || kind==='sche') { d.target = defaultTarget(d.type); return null; }
+  if (!d.fields.some(f => f.apply && f.slot && !f.readonly)) { d.target = defaultTarget(d.type); return null; }
+  const id = docIdent(d), list = S[kind] || [];
+  let rec = (id.key || id.ein) && window.MTBizId ? list.find(r => MTBizId.same(id, {name: recName(kind,r), key: r.bizKey || MTBizId.norm(recName(kind,r)), ein: r.ein})) : null;
+  const matched = !!rec;
+  if (!rec) rec = list.find(r=>isEmptyRec(kind,r) && !r.bizKey);
+  if (!rec){ rec = ({w2:newW2, schc:newSchC, corp:newCorp})[kind](); list.push(rec); }
+  d.yearCol = columnFor(kind, rec, N(id.year), d.type);
+  d.target = kind+'|'+rec.id;
+  return {rec, kind, id, matched};
+}
+function stampDoc(p){
+  if (!p) return;
+  const {rec, kind, id, matched} = p;
+  if (id.ein && !rec.ein) rec.ein = id.ein;
+  if (id.key && !rec.bizKey) rec.bizKey = id.key;
+  if (id.name && !recName(kind,rec)) { if (kind==='w2') rec.employer = id.name; else rec.name = id.name; }
+  return matched;
 }
 /* The only document kinds that map onto a worksheet record. Anything else — a 1040
    read for cross-check, a DU/LPA findings report — has no record to be applied to. */
@@ -8272,7 +8340,7 @@ window.__mtgcalcBridge = {
 </script>
 <script src="assets/income-enhancements.js?v=57.12"></script>
 <script src="assets/sync-bridge.js?v=57.12"></script>
-<script src="assets/workflow-ui.js?v=57.12"></script>
+<script src="assets/workflow-ui.js?v=57.21"></script>
 <script src="assets/income-features.js?v=57.12"></script><script src="assets/mt-dates.js?v=57.20"></script>
 <script src="assets/income-extras.js?v=57.12"></script>
 <script src="assets/mt-live.js?v=57.12"></script>
@@ -8281,7 +8349,8 @@ window.__mtgcalcBridge = {
 <script src="assets/mt-addr.js?v=57.12"></script>
 <script src="assets/mt-paste.js?v=57.12"></script>
 <script src="assets/mt-search.js?v=57.20"></script>
-<script src="assets/doc-center.js?v=57.19"></script>
+<script src="assets/mt-bizid.js?v=57.21"></script>
+<script src="assets/doc-center.js?v=57.21"></script>
 <script src="assets/mt-data.js?v=57.16"></script>
 <script src="assets/mt-build-lazy.js?v=57.19"></script>
 <script src="assets/ic-simple.js?v=57.12"></script>

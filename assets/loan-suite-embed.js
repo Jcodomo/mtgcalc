@@ -94,7 +94,7 @@
       if (document.getElementById('lseNav')) return;
       var nav = document.createElement('nav'); nav.id = 'lseNav'; nav.setAttribute('aria-label', 'Mortgage Suite pages');
       nav.innerHTML = '<div class="lse-row lse-groups"><a class="lse-g on" aria-current="page" href="income-calculator.html">Income Calculator</a>' +
-        '<a class="lse-g" href="loan-suite-quote.html">Loan Suite</a><a class="lse-g lse-all" href="index.html">Home</a><a class="lse-g" href="full-suite.html">Full Suite</a></div>';
+        '<a class="lse-g" href="loan-suite-quote.html">Loan Suite</a></div>';
       bar.parentNode.insertBefore(nav, bar.nextSibling);
     })(0);
     return;
@@ -180,7 +180,7 @@
     var groups = E.groups.map(function (g) {
       var first = E.pages.filter(function (p) { return p.group === g.id; })[0];
       return '<a class="lse-g' + (g.id === me.group ? ' on' : '') + '" href="' + first.file + '"' + (g.id === me.group ? ' aria-current="true"' : '') + '>' + g.label + '</a>';
-    }).join('') + '<a class="lse-g lse-all" href="index.html">Home</a><a class="lse-g" href="income-calculator.html">Income Calculator</a><a class="lse-g" href="full-suite.html">Full Suite</a>';
+    }).join('');   /* 57.21: Home, Income and Full Suite are in the page dock at the bottom - not repeated here */
     /* 56.0: pages folded into the File page (Setup, Renovation) are reached by scrolling it, not from the page row */
     var pages = E.pages.filter(function (p) { return p.group === me.group && (p.nav !== false || p.id === me.id); }).map(function (p) {
       return '<a class="lse-p' + (p.id === me.id ? ' on' : '') + '" href="' + p.file + '"' + (p.id === me.id ? ' aria-current="page"' : '') + '>' + p.title + '</a>';
