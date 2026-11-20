@@ -4,7 +4,7 @@ Every change, by the day it was released (newest first), then by section of the 
 the full release notes are in [CHANGELOG.md](CHANGELOG.md). The same list is on the site: https://jcodomo.github.io/mtgcalc/changelog.html
 This file is built from CHANGELOG.md with `npm run changelog`.
 
-## 2026-11-20 - Release 57.19, 57.20, 57.21
+## 2026-11-20 - Release 57.19, 57.20, 57.21, 57.22
 
 ### Loan Suite & calculations
 - (57.21) **Encompass is now the third view of the Full Suite: Simple | Advanced | Encompass**, in the same switch at the top. It no longer opens the older Loan Suite menu (File, Loan, Costs, Underwriting, Results, Home, Income Calculator, Full Suite, Quote & Setup, Setup) under the header; the header, page bar and live summary are the same as Simple and Advanced. Switching between the three views is instant (no page load), with a short cross-fade; the page bar's Full Suite and Encompass links switch in place too. loan-suite-encompass.html still opens straight on the Encompass view.
@@ -21,6 +21,7 @@ This file is built from CHANGELOG.md with `npm run changelog`.
 - (57.19) **Calculation stress test** (tests/calc-fuzz.mjs, part of npm test): 4,000 random loan files across every program, renovation on and off, odd and extreme figures - no crashes, no NaN, and P&I, the payment total, taxes and insurance, FHA UFMIP and total loan, cash to close and the credit and range rules all match formulas worked out independently.
 
 ### Income Calculator
+- (57.22) **A W-2 for a finished year is no longer read as year-to-date pay.** When the reader put a 2025 W-2 in a job's first column ("Most recent / YTD"), the worksheet divided it by the months elapsed this year (88,000 over 10.7 months = $8,250 a month instead of $7,333.33). A W-2 in the first column now dates that column's YTD at December 31 of its year; when a newer pay stub arrives, the W-2 years move to Prior year and Two years prior and the stub's year-to-date figures take the first column.
 - (57.21) **Two years of returns for one business are recognised as the same business.** Dropping several income documents into the Income Calculator's Documents tab - two years of Schedule C, K-1s or 1120-S, or W-2s and a pay stub from one employer - puts them on one worksheet, each year in its own column (2025 in the most recent year, 2024 in the prior year), instead of one worksheet per document. The business is recognised by its EIN, or its name with spacing, punctuation and LLC / Inc / Corp set aside ("Bright Path Consulting LLC" and "Bright Path Consulting, L.L.C." match). When a newer year arrives after an older one, the years move along. The document library shows "Same business as N other documents" with the years, and **Read all together** reads them in order.
 - (57.20) **AI Income (preview, not connected):** the planned Income Calculator module - drop income documents, use your own Claude API key, get an income report PNG and JSON. Structure only: the request builder, report schema, draft prompt, validation and PNG / JSON output from a sample report. No API is called and no key is stored.
 - (57.19) **Standalone Income Calculator:** opening a document builder from search loads it from assets/ (it showed "could not be loaded").

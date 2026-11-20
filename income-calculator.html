@@ -4730,13 +4730,19 @@ function blankLike(y, yr){ const z={}; Object.keys(y||{}).forEach(k=>z[k]=0); if
 function columnFor(k, rec, yr, type){
   if (!yr) return 'y1';
   if (k==='w2'){
-    if (type==='paystub' || type==='wvoe') { rec.colYear = rec.colYear || {}; if (!rec.colYear.y1) rec.colYear.y1 = yr; return 'y1'; }
-    const cy = rec.colYear = rec.colYear || {}, cols = ['y1','y2','y3'];
-    const at = cols.find(c=>cy[c]===yr); if (at) return at;
-    if (!cy.y1 && !hasYearData(rec.y1)) { cy.y1 = yr; return 'y1'; }
+    /* the first column is year-to-date through the pay-period date: a W-2 there is a full year, so its YTD date is
+       Dec 31 of that year; a newer pay stub moves the W-2 years along. A VOE's rows carry their own columns. */
+    if (type==='wvoe') return 'y1';
+    const full = type!=='paystub', cy = rec.colYear = rec.colYear || {}, cols = ['y1','y2','y3'];
+    const years = () => { if (rec.y2 && cy.y2) rec.y2.yr = cy.y2; if (rec.y3 && cy.y3) rec.y3.yr = cy.y3; };
+    const at = cols.find(c=>cy[c]===yr);
+    if (at){ if (at==='y1' && full) rec.ytdThru = yr+'-12-31'; return at; }
+    if (!cy.y1 && !hasYearData(rec.y1)){ cy.y1 = yr; if (full) rec.ytdThru = yr+'-12-31'; years(); return 'y1'; }
     const top = cy.y1 || new Date().getFullYear();
-    if (yr < top){ const c = cols[Math.min(2, top - yr)]; cy[c] = yr; return c; }
-    rec.y3 = rec.y2; rec.y2 = rec.y1; rec.y1 = blankLike(rec.y2); cy.y3 = cy.y2; cy.y2 = cy.y1; cy.y1 = yr; return 'y1';
+    if (yr < top){ const c = cols[Math.min(2, top - yr)]; cy[c] = yr; years(); return c; }
+    rec.y3 = rec.y2; rec.y2 = rec.y1; rec.y1 = blankLike(rec.y2); cy.y3 = cy.y2; cy.y2 = cy.y1; cy.y1 = yr;
+    rec.ytdThru = full ? yr+'-12-31' : ISO(new Date());
+    years(); return 'y1';
   }
   if (!rec.y1 || !rec.y2) return 'y1';
   if (N(rec.y1.yr)===yr) return 'y1';
