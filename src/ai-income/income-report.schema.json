@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Income report",
+  "description": "What the AI Income module expects back: every income source with its documents, method and arithmetic, and the monthly qualifying total.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["reportVersion", "agency", "borrowers", "totalMonthlyQualifying", "warnings", "conditions"],
+  "properties": {
+    "reportVersion": { "type": "string", "description": "Schema version, \"1\"" },
+    "agency": { "type": "string", "enum": ["Fannie Mae", "Freddie Mac", "FHA", "VA", "Non-QM"] },
+    "applicationDate": { "type": "string", "description": "YYYY-MM-DD" },
+    "borrowers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "sources", "monthlyQualifying"],
+        "properties": {
+          "name": { "type": "string" },
+          "sources": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["type", "employerOrPayer", "method", "monthly", "documents", "steps"],
+              "properties": {
+                "type": { "type": "string", "enum": ["Salary", "Hourly", "Overtime", "Bonus", "Commission", "Self-employment (Schedule C)", "S corporation", "Partnership", "C corporation", "Rental (Schedule E)", "Social Security", "Pension / retirement", "Disability", "Alimony / child support", "Military", "Other"] },
+                "employerOrPayer": { "type": "string" },
+                "method": { "type": "string", "description": "e.g. \"24-month average of overtime (YTD + 2 years)\"" },
+                "monthly": { "type": "number", "description": "Monthly qualifying amount for this source, in dollars" },
+                "trend": { "type": "string", "enum": ["Increasing", "Stable", "Declining", "Not enough history", "Not applicable"] },
+                "documents": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["fileName", "kind"],
+                    "properties": {
+                      "fileName": { "type": "string" },
+                      "kind": { "type": "string", "description": "Pay stub, W-2 2025, 1040 Schedule C 2024, ..." },
+                      "period": { "type": "string" }
+                    }
+                  }
+                },
+                "steps": {
+                  "type": "array",
+                  "description": "The arithmetic, one line each, so it can be checked by hand",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["label", "amount"],
+                    "properties": {
+                      "label": { "type": "string" },
+                      "amount": { "type": "number" },
+                      "formula": { "type": "string" },
+                      "source": { "type": "string", "description": "Where the figure was read: file, page, box or line" }
+                    }
+                  }
+                },
+                "notes": { "type": "string" }
+              }
+            }
+          },
+          "monthlyQualifying": { "type": "number" }
+        }
+      }
+    },
+    "totalMonthlyQualifying": { "type": "number" },
+    "warnings": { "type": "array", "items": { "type": "string" }, "description": "Declines, gaps, figures that don't match between documents" },
+    "conditions": { "type": "array", "items": { "type": "string" }, "description": "Documents or explanations still needed" }
+  }
+}

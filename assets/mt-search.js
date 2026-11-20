@@ -44,7 +44,10 @@
     ['loan-suite-documents-ocr.html', 'Loan Suite - Documents & OCR', 'documents ocr read figures ai import paste screenshot'],
     ['loan-suite-documents-worksheets.html', 'Loan Suite - Documents & Worksheets', 'worksheets documents ai prompts'],
     ['doc-organizer.html', 'Doc Organizer', 'organize rename split merge zip documents borrower dates duplicates'],
-    ['changelog.html', "What's new", 'changelog changes release notes updates new features fixes what is new history']];
+    ['changelog.html', "What's new", 'changelog changes release notes updates new features fixes what is new history'],
+    ['loan-suite-taxes-proration.html', 'Transfer Tax Calculator', 'transfer tax calculator mansion tax deed stamps recording who pays seller buyer state nyc'],
+    ['loan-suite-encompass.html', 'Encompass view (1003)', 'encompass los 1003 urla borrower information transaction details declarations details of transaction 203k worksheet homestyle'],
+    ['ai-income.html', 'AI Income (preview)', 'ai income claude api income report png json drag drop documents automatic income calculation']];
   var BUILDER_WORDS = {addendum: 'addendum amendment rider contract seller concession credit transfer tax price closing date', lease: 'lease rental agreement tenant landlord rent deposit', estimate: 'contractor estimate bid quote invoice scope renovation',
     pl: 'profit and loss p&l income statement self-employed', schc: 'schedule c cash flow self-employed 1084', pay: 'pay statement pay stub paystub earnings withholding', gift: 'gift letter donor gift of equity',
     le: 'loan estimate draft le closing cost details cash to close', commit: 'commitment letter conditions approval', mi: 'mortgage insurance mip pmi renovation fees draw fees'};

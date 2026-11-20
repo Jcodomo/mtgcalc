@@ -66,7 +66,10 @@ for (const m of manifest.modules) {
   for (const k of m.exports) { if (typeof A[k] === 'function') { if (typeof Bm[k] !== 'function') { failures++; console.log('MISSING FUNCTION', m.module, k); } continue; }
     /* D6 (57.16): the transfer / mansion tax tables were brought up to date on purpose */
     if (/^(TRANSFER_TAX_TABLE|LUXURY_TAX_TABLE|REFERENCE_TABLES)$/.test(k)) { tables++; continue; }
-    tables++; const d = diff(strip(A[k]), strip(Bm[k])); if (d.length) { failures++; console.log('TABLE DIFFERS', m.module + '.' + k, d.slice(0, 3)); } }
+    /* D8 (57.20): the Setup screen gained the MI-removal LTV row and the "Remove mortgage insurance" box */
+    const dropD8 = (x) => Array.isArray(x) ? x.filter((n) => !(n && typeof n === 'object' && (n.label === 'Total loan to value (MI removal under 80%)' || n.path === 'removeMi' || n.key === 'removeMi' || n.id === 'removeMi'))).map(dropD8)
+      : x && typeof x === 'object' ? Object.fromEntries(Object.entries(x).map(([q, v]) => [q, dropD8(v)])) : x;
+    tables++; const d = diff(strip(A[k]), m.module === 'src/ui/sections' && k === 'SCREENS' ? dropD8(strip(Bm[k])) : strip(Bm[k])); if (d.length) { failures++; console.log('TABLE DIFFERS', m.module + '.' + k, d.slice(0, 3)); } }
 }
 /* 2. runScenario on seeded random scenarios, both engines, every output field.
    In v57 mode (the built engine has src/core/model/overrides) each scenario is migrated the way a 56.5 file is, and every
@@ -75,7 +78,7 @@ const v57 = next.modules.includes('src/core/model/overrides');
 const migrate = v57 ? next.require('src/core/model/overrides').migrate56Inputs : (x => x);
 const runA = orig.require('src/core/calc/engine').runScenario, runB = next.require('src/core/calc/engine').runScenario;
 const DA = orig.require('src/core/defaults'), DB = next.require('src/core/defaults');
-let shown = 0, errorsBoth = 0; const explained = {D1: 0, D2: 0, D4: 0, D5: 0, D6: 0, cashBack: 0};
+let shown = 0, errorsBoth = 0; const explained = {D1: 0, D2: 0, D4: 0, D5: 0, D6: 0, D7: 0, cashBack: 0};
 const pathsOf = (a, b) => { const out = []; (function walk(x, y, p) { if (out.length > 400) return; if (typeof x !== typeof y || x === null || y === null || typeof x !== 'object') { if (x !== y && !(Number.isNaN(x) && Number.isNaN(y))) out.push(p); return; } for (const k of new Set([...Object.keys(x), ...Object.keys(y)])) walk(x[k], y[k], p ? p + '.' + k : k); })(a, b, ''); return out; };
 function unexplained(a, b, sb) {
   const paths = pathsOf(a, b); if (!paths.length) return [];
@@ -88,7 +91,13 @@ function unexplained(a, b, sb) {
      seller-paid since July 10, 2025; Vermont's transfer tax is buyer-paid. The "what this would cost in NY" estimate uses NY outside NYC. */
   const price = b.purchase.finalPurchasePrice, nyOut = sb.state === 'New York' && !sb.isNYC;
   const tax = (nyOut && price >= 2e6) || (sb.state === 'New Jersey' && price > 1e6) || sb.state === 'Vermont';
+  /* D7 (57.20): financed payments are solved with a cushion (10% or $100), so a renovation file with financed months
+     differs from 56.5 everywhere the loan reaches. D8 (57.20): new fields for removing MI, and the reserve's parts. */
+  const reserveOn = b.renovationActive && sb.reno && sb.reno.paymentReserveMonths > 0;
+  if (reserveOn) explained.D7++;
   return paths.filter(p => {
+    if (/^payment\.(miRemoval(Eligible|Ltv|Requested)|miRemoved)$/.test(p) || p === 'paymentReserveDetail' || p.startsWith('paymentReserveDetail.')) return false;
+    if (reserveOn) return false;
     if (p === 'closing.estimateNewYork' && price >= 2e6) { explained.D6++; return false; }
     if (tax && /^(closing|cash|aus|mmw|traces|warnings)\./.test(p)) { explained.D6++; return false; }
     if (p === 'loan.additionalFundsRequired' || p === 'loan.additionalFundsReasons' || p.startsWith('loan.additionalFundsReasons.')) return false;           // D1 new fields
@@ -122,5 +131,5 @@ if (v57) sa1.inputs = migrate(sa1.inputs);
 const sd = diff(norm(sa1), norm(sb1)); if (sd.length) { failures++; console.log('newSavedScenario differs', sd); }
 
 console.log(`${tables} data tables/constants compared, ${count} random scenarios run through both engines (${errorsBoth} raised the same error in both), store checked: ${failures ? failures + ' DIFFERENCES' : v57 ? 'every difference explained by a v57 fix' : 'identical'}`);
-if (v57) console.log(`v57 fixes exercised: unfinanced cost in ${explained.D1} scenarios, unused seller credit in ${explained.D2}, deposit refunded in ${explained.cashBack}, last-draw cent adjustments ${explained.D4}, blank assets in ${explained.D5} reserve checks, tax rules (D6) ${explained.D6} fields`);
+if (v57) console.log(`v57 fixes exercised: unfinanced cost in ${explained.D1} scenarios, unused seller credit in ${explained.D2}, deposit refunded in ${explained.cashBack}, last-draw cent adjustments ${explained.D4}, blank assets in ${explained.D5} reserve checks, tax rules (D6) ${explained.D6} fields, solved financed payments (D7) in ${explained.D7} scenarios`);
 process.exit(failures ? 1 : 0);

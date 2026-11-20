@@ -38,7 +38,14 @@ export function calculatePayment({inputs, program, loan, finalPurchasePrice, ren
   const pmiSuggested = program.pmiEnabled ? suggestPmiRate(creditTier, nonNegative(inputs.finalDownPaymentPct)) : 0;
   const pmiEntered = overrideValue(inputs, 'pmiOverrideRate'), pmiOverride = pmiEntered !== null;
   const pmiRate = program.pmiEnabled ? (pmiOverride ? (pmiEntered as number) : pmiSuggested) : 0;
-  const monthlyPmi = program.pmiEnabled ? round(loan.maximumBaseLoan * pmiRate / 12, 2) : 0;
+  /* 57.20 (D8): Conventional - when the total loan (after renovations) is under 80% of the after-repair value (or value),
+     mortgage insurance can be removed. Only when the borrower's file says so (removeMi ticked, never by default) and only
+     while the loan stays under 80%; otherwise MI is charged as usual. */
+  const miValue = program.renovationActive ? (nonNegative(inputs.afterRepairValue) || finalPurchasePrice + renovationAmount) : (nonNegative(inputs.asIsValue) || finalPurchasePrice);
+  const miRemovalLtv = safeDivide(loan.totalLoan, miValue, 0);
+  const miRemovalEligible = !!program.pmiEnabled && miValue > 0 && miRemovalLtv > 0 && miRemovalLtv < 0.8;
+  const miRemoved = miRemovalEligible && inputs.removeMi === true;
+  const monthlyPmi = program.pmiEnabled && !miRemoved ? round(loan.maximumBaseLoan * pmiRate / 12, 2) : 0;
 
   /* taxes and insurance: entered annually or monthly; a combined monthly override replaces both. Blank = no override;
      an entered $0 is used and flagged for review. */
@@ -67,7 +74,7 @@ export function calculatePayment({inputs, program, loan, finalPurchasePrice, ren
       [money('Base loan', program.pmiEnabled ? loan.maximumBaseLoan : 0), pct('Annual PMI rate', pmiRate)], monthlyPmi, {
         resultFormat: 'currency',
         overridesApplied: program.pmiEnabled && pmiOverride ? [`Manual PMI rate override ${(100 * inputs.pmiOverrideRate).toFixed(3)}%`] : [],
-        notes: program.pmiEnabled ? ['PMI is an ESTIMATE. The actual rate requires an insurer quote.'] : []});
+        notes: program.pmiEnabled ? (miRemoved ? [`MI removed: total loan is ${(100 * miRemovalLtv).toFixed(2)}% of value, under 80%`] : ['PMI is an ESTIMATE. The actual rate requires an insurer quote.']) : []});
     trace.record('totalMonthlyPayment', 'Total monthly payment', 'Payment = P&I + MI + Taxes + Insurance + HOA',
       [money('Principal & interest', pi), money('FHA MIP', monthlyMip), money('Conventional PMI', monthlyPmi), money('Taxes + insurance used', taxesAndInsurance), money('HOA / other monthly', hoa)], total, {
         resultFormat: 'currency', overridesApplied: usingTiOverride ? [`Combined monthly taxes + insurance override of ${tiOverride.toFixed(2)} replaces the separate fields`] : []});
@@ -77,7 +84,7 @@ export function calculatePayment({inputs, program, loan, finalPurchasePrice, ren
 
   return {principalAndInterest: pi, monthlyFhaMip: monthlyMip, monthlyPmi, pmiRateUsed: pmiRate, pmiSuggestedRate: pmiSuggested, fhaMipRateUsed: mipRate, fhaMipSuggestedRate: mipSuggested,
     monthlyTaxes, monthlyInsurance, usingTiOverride, monthlyTaxesAndInsuranceUsed: taxesAndInsurance, hoaMonthly: hoa, totalMonthlyPayment: total, paymentLow: low, paymentHigh: high,
-    paymentSpread: spread, pmiCancelValue, currentLtv, creditTier};
+    paymentSpread: spread, pmiCancelValue, currentLtv, creditTier, miRemovalEligible, miRemoved, miRemovalLtv, miRemovalRequested: inputs.removeMi === true};
 }
 
 export default {principalAndInterest, paymentSpread, calculatePayment};

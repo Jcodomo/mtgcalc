@@ -110,7 +110,7 @@ const nice = (iso) => new Date(iso + 'T12:00:00').toLocaleDateString('en-US', { 
 const html = `<!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
+<meta charset="utf-8"><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%233d84e6'/%3E%3Cpath d='M7 23 C 12 10, 20 10, 25 9' stroke='white' stroke-width='2.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E" />
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>What's new - Mortgage Suite</title>
 <meta name="description" content="Every change to the Mortgage Suite, day by day and by section.">

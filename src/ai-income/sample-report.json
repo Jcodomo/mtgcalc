@@ -1,0 +1,91 @@
+{
+  "reportVersion": "1",
+  "agency": "Fannie Mae",
+  "applicationDate": "2026-11-20",
+  "borrowers": [
+    {
+      "name": "Sample Borrower",
+      "sources": [
+        {
+          "type": "Hourly",
+          "employerOrPayer": "Acme Manufacturing Inc.",
+          "method": "Current hourly rate x 40 hours x 52 weeks / 12",
+          "monthly": 5633.33,
+          "trend": "Not applicable",
+          "documents": [
+            {
+              "fileName": "paystub-oct.pdf",
+              "kind": "Pay stub",
+              "period": "10/12/2026 - 10/25/2026"
+            }
+          ],
+          "steps": [
+            {
+              "label": "Hourly rate",
+              "amount": 32.5,
+              "source": "paystub-oct.pdf, earnings table, Regular rate"
+            },
+            {
+              "label": "Annual base",
+              "amount": 67600,
+              "formula": "32.50 x 40 x 52"
+            },
+            {
+              "label": "Monthly base",
+              "amount": 5633.33,
+              "formula": "67,600 / 12"
+            }
+          ]
+        },
+        {
+          "type": "Overtime",
+          "employerOrPayer": "Acme Manufacturing Inc.",
+          "method": "24-month average (2025 W-2 overtime + 2026 year to date)",
+          "monthly": 380.53,
+          "trend": "Stable",
+          "documents": [
+            {
+              "fileName": "paystub-oct.pdf",
+              "kind": "Pay stub",
+              "period": "YTD to 10/25/2026"
+            },
+            {
+              "fileName": "w2-2025.pdf",
+              "kind": "W-2 2025"
+            }
+          ],
+          "steps": [
+            {
+              "label": "2025 overtime",
+              "amount": 4300,
+              "source": "w2-2025.pdf, employer breakdown"
+            },
+            {
+              "label": "2026 overtime year to date",
+              "amount": 4387.5,
+              "source": "paystub-oct.pdf, Overtime YTD"
+            },
+            {
+              "label": "Months covered",
+              "amount": 22.83,
+              "formula": "12 + 10.83"
+            },
+            {
+              "label": "Monthly average",
+              "amount": 380.53,
+              "formula": "(4,300 + 4,387.50) / 22.83"
+            }
+          ]
+        }
+      ],
+      "monthlyQualifying": 6013.86
+    }
+  ],
+  "totalMonthlyQualifying": 6013.86,
+  "warnings": [
+    "Sample data - not a real calculation."
+  ],
+  "conditions": [
+    "Written verification of employment showing overtime is likely to continue."
+  ]
+}
