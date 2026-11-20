@@ -654,3 +654,9 @@ All 25 pages load with no errors or missing files. Original Full Suite and the s
 ## Release 57.17 - signature pad pictures on white
 
 - **Signature pad → Save picture** saves just the signature, cropped, without the pad's guide line, on a white background by default; pick **Background: None** for a transparent PNG. The choice is shared with Ghost Calligrapher's picture background setting.
+
+## Release 57.18 - Document Builder PDFs are clean text, not pictures
+
+- **Download PDF writes real text, lines and boxes** (like printing to PDF), read from the laid-out pages: sharp at any zoom, selectable and searchable text, files of 4-50 KB instead of large page pictures, and no compression marks or grey haze. Logos and drawn signatures still go in as pictures; check boxes are drawn as boxes. If anything unexpected fails, the older picture method is used instead.
+- **Words keep their spacing:** each word is placed at its exact position and measured as the PDF draws it (no kerning), so pairs like "Tenant will" and "PAYMENT TERMS" no longer run together.
+- **Lease signature lines are black** (they were blue).

@@ -810,7 +810,7 @@
   var CSS_LEASE2 = 'h1.sh{text-align:center;font-size:15pt;letter-spacing:.05em;margin:0 0 .15in}p{font-size:10.5pt;line-height:1.4;margin:0 0 .1in}ol.sh{padding-left:.3in;margin:0 0 .15in}ol.sh li,ol.mo li{font-size:10.5pt;line-height:1.4;margin:0 0 .07in}.ml{color:#555;font-size:9pt}' +
     '.sg2{display:grid;grid-template-columns:1fr 1fr;gap:.15in .4in;margin-top:.25in}.sx{font-size:10pt}.sxl{border-bottom:1px solid #000;height:28px;margin-bottom:2px}.sxd{font-size:8.5pt;color:#555;margin-top:3px}' +
     '.mh{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #2d5a27;padding-bottom:6px;margin-bottom:12px}.mt{font-size:18pt;font-weight:700;color:#2d5a27}.md{font-size:10pt;color:#444}table.kt{width:100%;border-collapse:collapse;font-size:9.5pt;margin-bottom:12px}table.kt th{background:#eaf2e8;color:#2d5a27;text-align:left;padding:5px 7px;border:1px solid #c9dcc5;width:1.15in;vertical-align:top}table.kt td{padding:5px 7px;border:1px solid #c9dcc5;vertical-align:top}h2.mh2{font-size:11.5pt;color:#2d5a27;margin:6px 0 6px;text-transform:uppercase;letter-spacing:.06em}ol.mo{padding-left:.28in;margin:0}';
-  var CSS_LEASE = '.pg{padding:.75in .85in .7in}h1{text-align:center;font-size:17pt;margin:0 0 .2in}p{margin:0 0 .09in;line-height:1.32;font-size:11.5pt}p.sh{margin-top:.14in}p.ind{margin-left:.35in}p.ind2{margin-left:.55in}.fl{display:inline-block;border-bottom:1px solid #000;font-size:8.5pt;padding:0 3px;vertical-align:baseline;line-height:1.3}u{text-underline-offset:2px}table.sg{width:100%;margin-top:.2in;font-size:11.5pt;border-collapse:collapse}table.sg td{padding:6px 10px 14px 0;width:50%;line-height:1.7}.bl{display:inline-block;width:1.7in;border-bottom:2px solid #2f6fd6;vertical-align:baseline}';
+  var CSS_LEASE = '.pg{padding:.75in .85in .7in}h1{text-align:center;font-size:17pt;margin:0 0 .2in}p{margin:0 0 .09in;line-height:1.32;font-size:11.5pt}p.sh{margin-top:.14in}p.ind{margin-left:.35in}p.ind2{margin-left:.55in}.fl{display:inline-block;border-bottom:1px solid #000;font-size:8.5pt;padding:0 3px;vertical-align:baseline;line-height:1.3}u{text-underline-offset:2px}table.sg{width:100%;margin-top:.2in;font-size:11.5pt;border-collapse:collapse}table.sg td{padding:6px 10px 14px 0;width:50%;line-height:1.7}.bl{display:inline-block;width:1.7in;border-bottom:1px solid #000;vertical-align:baseline}';
 
   /* ======================================================= CONTRACTOR ESTIMATE */
   var TRADES = ['Kitchen', 'Bathroom', 'Roofing', 'Electrical', 'Plumbing', 'HVAC', 'Windows and doors', 'Flooring', 'Painting', 'Siding / exterior', 'Gutters and downspouts', 'Masonry', 'Foundation / structural', 'Drywall / plaster', 'Insulation', 'Trim and carpentry', 'Stairs and railings', 'Appliances', 'Decks / porches', 'Walks and driveways', 'Landscaping / site work', 'Demolition and debris', 'Lead paint / health and safety', 'Well / septic', 'Permits and plans', 'Other'];
@@ -3226,14 +3226,114 @@
   /* ---------------------------------------------------------- PDF and opening */
   /* the Loan Suite pages define an AMD loader; UMD libraries would register with it instead of as globals, so hide it while they load */
   function loadScript(src) { return new Promise(function (res) { var d = window.define; window.define = undefined; var s = document.createElement('script'); s.src = src; var done = function (ok) { window.define = d; res(ok); }; s.onload = function () { done(true); }; s.onerror = function () { done(false); }; document.head.appendChild(s); }); }
+  /* 57.18: Download PDF writes the document as real text, lines and boxes (like printing to PDF), read from the laid-out
+     pages: sharp at any zoom, selectable text, small files, no compression marks. Pictures (logos, drawn signatures) go
+     in as pictures. If anything unexpected fails, the older picture-of-the-page method is used instead. */
+  function rgbOf(c) { var m = String(c || '').match(/rgba?\(([^)]+)\)/); if (!m) return null; var v = m[1].split(',').map(function (x) { return parseFloat(x); }); return {r: v[0], g: v[1], b: v[2], a: v.length > 3 ? v[3] : 1}; }
+  function pdfFont(cs) {
+    var fam = (cs.fontFamily || '').toLowerCase(), face = /courier|consolas|mono/.test(fam) ? 'courier' : /georgia|times|serif|garamond|cambria|book/.test(fam) && !/sans/.test(fam) ? 'times' : 'helvetica';
+    var bold = (parseInt(cs.fontWeight, 10) || 400) >= 600, it = /italic|oblique/.test(cs.fontStyle);
+    return {face: face, style: bold && it ? 'bolditalic' : bold ? 'bold' : it ? 'italic' : 'normal'};
+  }
+  var WINANSI = /^[\x20-\x7e\xa0-\xff–—‘’‚“”„†‡•…‰€™ŒœŠšŸŽžƒˆ˜]*$/;
+  function underlined(el, stop) { for (var e = el; e && e !== stop; e = e.parentElement) { var d = (e.ownerDocument.defaultView.getComputedStyle(e).textDecorationLine || ''); if (/underline/.test(d)) return true; } return false; }
+  /* the true width of a word in the PDF's standard font (jsPDF's own measure is off for bold), from the matching system font:
+     Arial = Helvetica, Times New Roman = Times, Courier New = Courier */
+  function pdfTextWidth(mc, s, f, size) {
+    var fam = f.face === 'times' ? '"Times New Roman", Times, serif' : f.face === 'courier' ? '"Courier New", Courier, monospace' : 'Arial, Helvetica, sans-serif';
+    mc.font = (/italic/.test(f.style) ? 'italic ' : '') + (/bold/.test(f.style) ? 'bold ' : '') + '100px ' + fam;
+    mc.fontKerning = 'none';   /* PDF text has no kerning (the page does: "Te", "AY" sit tighter), so the word is measured as the PDF will draw it */
+    return mc.measureText(s).width * size / 100;
+  }
+  async function vectorPdf(J, pgs) {
+    var out = new J({unit: 'pt', format: 'letter', compress: true}), W = 612, H = 792, first = true, mc = document.createElement('canvas').getContext('2d');
+    for (var pi = 0; pi < pgs.length; pi++) {
+      var pg = pgs[pi], win = pg.ownerDocument.defaultView, R = pg.getBoundingClientRect(), k = W / R.width, kf = W / pg.offsetWidth;   /* k: positions (the preview may be scaled), kf: font sizes */
+      var slices = Math.max(1, Math.ceil(R.height * k / H - 0.01)), ops = [];
+      var X = function (x) { return (x - R.left) * k; }, Y = function (y) { return (y - R.top) * k; };
+      /* boxes: backgrounds and borders */
+      Array.prototype.forEach.call([pg].concat(Array.prototype.slice.call(pg.querySelectorAll('*'))), function (el) {
+        var cs = win.getComputedStyle(el); if (cs.display === 'none' || cs.visibility === 'hidden' || +cs.opacity === 0) return;
+        var r = el.getBoundingClientRect(); if (!r.width && !r.height) return;
+        var bg = rgbOf(cs.backgroundColor); if (bg && bg.a > 0.05 && el !== pg) ops.push({t: 'rect', x: X(r.left), y: Y(r.top), w: r.width * k, h: r.height * k, c: bg});
+        [['Top', r.left, r.top, r.right, r.top], ['Bottom', r.left, r.bottom, r.right, r.bottom], ['Left', r.left, r.top, r.left, r.bottom], ['Right', r.right, r.top, r.right, r.bottom]].forEach(function (s) {
+          var w = parseFloat(cs['border' + s[0] + 'Width']) || 0, st = cs['border' + s[0] + 'Style'], c = rgbOf(cs['border' + s[0] + 'Color']);
+          if (w <= 0 || st === 'none' || st === 'hidden' || !c || c.a < 0.05) return;
+          var off = w * k / 2 * (s[0] === 'Top' || s[0] === 'Left' ? 1 : -1), hz = s[0] === 'Top' || s[0] === 'Bottom';
+          ops.push({t: 'line', x1: X(s[1]), y1: Y(s[2]) + (hz ? off : 0), x2: X(s[3]), y2: Y(s[4]) + (hz ? off : 0), xo: hz ? 0 : off, w: w * kf, c: c, dash: st === 'dashed' ? [3, 2] : st === 'dotted' ? [1, 1.5] : null});
+        });
+        var tag = el.tagName.toLowerCase();
+        if ((tag === 'img' || tag === 'canvas' || tag === 'svg') && r.width > 1) ops.push({t: 'img', el: el, x: X(r.left), y: Y(r.top), w: r.width * k, h: r.height * k, r: r});
+        if (tag === 'li' && cs.listStyleType && cs.listStyleType !== 'none') {
+          var idx = Array.prototype.indexOf.call(el.parentElement.children, el) + 1, mark = /decimal/.test(cs.listStyleType) ? idx + '.' : /circle/.test(cs.listStyleType) ? 'o' : '•';
+          var lr = el.getClientRects()[0]; if (lr) ops.push({t: 'text', s: mark, x: X(lr.left) - (parseFloat(cs.fontSize) * kf) * (mark.length > 1 ? 1.4 : 0.9), base: Y(lr.top) + (parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.2) * k * 0.5 + parseFloat(cs.fontSize) * kf * 0.35, size: parseFloat(cs.fontSize) * kf, f: pdfFont(cs), c: rgbOf(cs.color)});
+        }
+      });
+      /* text: word by word at its laid-out position */
+      var tw = pg.ownerDocument.createTreeWalker(pg, 4), node, rg = pg.ownerDocument.createRange();
+      while ((node = tw.nextNode())) {
+        var par = node.parentElement; if (!par || /^(script|style)$/i.test(par.tagName)) continue;
+        var cs2 = win.getComputedStyle(par); if (cs2.visibility === 'hidden' || cs2.display === 'none') continue;
+        var size = parseFloat(cs2.fontSize) * kf, f = pdfFont(cs2), col = rgbOf(cs2.color) || {r: 0, g: 0, b: 0}, ul = underlined(par, pg);
+        mc.font = cs2.fontStyle + ' ' + cs2.fontWeight + ' ' + cs2.fontSize + ' ' + cs2.fontFamily;
+        var mm = mc.measureText('Hg'), asc = mm.fontBoundingBoxAscent || parseFloat(cs2.fontSize) * 0.8, desc = mm.fontBoundingBoxDescent || parseFloat(cs2.fontSize) * 0.2;
+        var re = /\S+/g, m; while ((m = re.exec(node.data))) {
+          rg.setStart(node, m.index); rg.setEnd(node, m.index + m[0].length);
+          var rs = rg.getClientRects(); if (!rs.length) continue; var wr = rs[0]; if (wr.width < 0.1) continue;
+          var base = Y(wr.top) + ((wr.height / k - (asc + desc)) / 2 + asc) * k;
+          ops.push({t: 'text', s: m[0], x: X(wr.left), base: base, w: wr.width * k, size: size, f: f, c: col, ul: ul, box: {x: X(wr.left), y: Y(wr.top), w: wr.width * k, h: wr.height * k}, css: mc.font});
+        }
+      }
+      /* draw, one PDF page per letter-sized slice */
+      for (var sl = 0; sl < slices; sl++) {
+        if (!first) out.addPage(); first = false;
+        var top = sl * H, inS = function (y) { return y >= top - 2 && y < top + H + 2; };
+        for (var oi = 0; oi < ops.length; oi++) {
+          var o = ops[oi];
+          if (o.t === 'rect' && inS(o.y + o.h / 2)) { out.setFillColor(o.c.r, o.c.g, o.c.b); out.rect(o.x, o.y - top, o.w, o.h, 'F'); }
+          else if (o.t === 'line' && inS((o.y1 + o.y2) / 2)) { out.setDrawColor(o.c.r, o.c.g, o.c.b); out.setLineWidth(o.w); if (o.dash) out.setLineDashPattern(o.dash, 0); out.line(o.x1 + o.xo, o.y1 - top, o.x2 + o.xo, o.y2 - top); if (o.dash) out.setLineDashPattern([], 0); }
+          else if (o.t === 'img' && inS(o.y + o.h / 2)) {
+            try {
+              var cv = document.createElement('canvas'), sc = 3; cv.width = Math.max(1, Math.round(o.r.width * sc)); cv.height = Math.max(1, Math.round(o.r.height * sc)); var g = cv.getContext('2d');
+              if (o.el.tagName.toLowerCase() === 'svg') { var xml = new XMLSerializer().serializeToString(o.el), im = new Image(); im.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(xml); await im.decode(); g.drawImage(im, 0, 0, cv.width, cv.height); }
+              else g.drawImage(o.el, 0, 0, cv.width, cv.height);
+              out.addImage(cv.toDataURL('image/png'), 'PNG', o.x, o.y - top, o.w, o.h);
+            } catch (e) {}
+          } else if (o.t === 'text' && inS(o.base)) {
+            out.setTextColor(o.c.r, o.c.g, o.c.b); out.setFont(o.f.face, o.f.style); out.setFontSize(o.size);
+            var s = o.s;
+            if (/[☐☑☒]/.test(s)) {   /* ballot boxes: drawn as boxes (not in the PDF's standard fonts) */
+              var bx = o.x + o.size * 0.08, bs = o.size * 0.72, by = o.base - bs * 0.95;
+              out.setDrawColor(o.c.r, o.c.g, o.c.b); out.setLineWidth(o.size * 0.06); out.rect(bx, by - top, bs, bs);
+              if (/[☑☒]/.test(s)) { out.line(bx + bs * 0.18, by + bs * 0.18 - top, bx + bs * 0.82, by + bs * 0.82 - top); out.line(bx + bs * 0.82, by + bs * 0.18 - top, bx + bs * 0.18, by + bs * 0.82 - top); }
+              s = s.replace(/[☐☑☒]/g, ''); if (!s) continue;
+              out.text(s, o.x + o.size * 0.95, o.base - top, {charSpace: 0}); continue;
+            }
+            if (!WINANSI.test(s)) {   /* characters the standard fonts don't have: this word goes in as a sharp picture */
+              var c2 = document.createElement('canvas'), z = 4; c2.width = Math.ceil(o.box.w / k * z); c2.height = Math.ceil(o.box.h / k * z); var g2 = c2.getContext('2d');
+              g2.scale(z, z); g2.font = o.css; g2.fillStyle = 'rgb(' + o.c.r + ',' + o.c.g + ',' + o.c.b + ')'; g2.textBaseline = 'alphabetic'; g2.fillText(s, 0, (o.base - o.box.y) / k);
+              out.addImage(c2.toDataURL('image/png'), 'PNG', o.box.x, o.box.y - top, o.box.w, o.box.h); continue;
+            }
+            var pw = pdfTextWidth(mc, s, o.f, o.size), cs = s.length ? (o.w - pw) / s.length : 0;   /* the PDF font is a close match: spacing between letters is nudged so each word keeps its exact width (and the spaces between words stay) */
+            out.text(s, o.x, o.base - top, {charSpace: Math.abs(cs) < o.size * 0.25 ? cs : 0});   /* always set: the PDF keeps the last letter spacing for the words after it */
+            if (o.ul) { out.setDrawColor(o.c.r, o.c.g, o.c.b); out.setLineWidth(Math.max(0.5, o.size * 0.06)); out.line(o.x, o.base + o.size * 0.12 - top, o.x + o.w, o.base + o.size * 0.12 - top); }
+          }
+        }
+      }
+    }
+    out.__vector = true;
+    return out;
+  }
   async function pdf() {
     var btn = document.querySelector('#mtB [data-a="pdf"]'); if (btn) { btn.textContent = 'Building PDF…'; btn.disabled = true; }
     try {
       if (!window.html2canvas) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
       if (!(window.jspdf && window.jspdf.jsPDF) && !window.jsPDF) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
       var J = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF; if (!window.html2canvas || !J) throw new Error('The PDF tools could not be loaded - use Print and choose Save as PDF.');
-      var doc = $('mtBframe').contentDocument, pgs = Array.prototype.slice.call(doc.querySelectorAll('.pg')), out = new J({unit: 'pt', format: 'letter'}), W = 612, H = 792, first = true;
-      for (var i = 0; i < pgs.length; i++) {
+      var doc = $('mtBframe').contentDocument, pgs = Array.prototype.slice.call(doc.querySelectorAll('.pg')), out = null, W = 612, H = 792, first = true;
+      try { if (doc.fonts && doc.fonts.ready) await doc.fonts.ready; out = await vectorPdf(J, pgs); } catch (ve) { out = null; }
+      if (!out) out = new J({unit: 'pt', format: 'letter'});
+      for (var i = 0; !out.__vector && i < pgs.length; i++) {
         var cv = await html2canvas(pgs[i], {scale: 2, backgroundColor: '#ffffff', logging: false, windowWidth: 816}), ph = Math.round(cv.width * H / W);
         for (var y = 0; y < cv.height - 4; y += ph) {
           var sl = document.createElement('canvas'); sl.width = cv.width; sl.height = Math.min(ph, cv.height - y); sl.getContext('2d').fillStyle = '#fff'; sl.getContext('2d').fillRect(0, 0, sl.width, sl.height); sl.getContext('2d').drawImage(cv, 0, y, cv.width, sl.height, 0, 0, cv.width, sl.height);
