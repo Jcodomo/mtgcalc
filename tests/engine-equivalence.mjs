@@ -78,7 +78,7 @@ const v57 = next.modules.includes('src/core/model/overrides');
 const migrate = v57 ? next.require('src/core/model/overrides').migrate56Inputs : (x => x);
 const runA = orig.require('src/core/calc/engine').runScenario, runB = next.require('src/core/calc/engine').runScenario;
 const DA = orig.require('src/core/defaults'), DB = next.require('src/core/defaults');
-let shown = 0, errorsBoth = 0; const explained = {D1: 0, D2: 0, D4: 0, D5: 0, D6: 0, D7: 0, cashBack: 0};
+let shown = 0, errorsBoth = 0; const explained = {D1: 0, D2: 0, D4: 0, D5: 0, D6: 0, D7: 0, D9: 0, cashBack: 0};
 const pathsOf = (a, b) => { const out = []; (function walk(x, y, p) { if (out.length > 400) return; if (typeof x !== typeof y || x === null || y === null || typeof x !== 'object') { if (x !== y && !(Number.isNaN(x) && Number.isNaN(y))) out.push(p); return; } for (const k of new Set([...Object.keys(x), ...Object.keys(y)])) walk(x[k], y[k], p ? p + '.' + k : k); })(a, b, ''); return out; };
 function unexplained(a, b, sb) {
   const paths = pathsOf(a, b); if (!paths.length) return [];
@@ -95,7 +95,16 @@ function unexplained(a, b, sb) {
      differs from 56.5 everywhere the loan reaches. D8 (57.20): new fields for removing MI, and the reserve's parts. */
   const reserveOn = b.renovationActive && sb.reno && sb.reno.paymentReserveMonths > 0;
   if (reserveOn) explained.D7++;
+  /* D9 (57.23): loan-to-cost is rounded to 6 places, the FHA MIP band is read at 4 places and the PMI band follows the real
+     LTV (the base loan against the lesser of the cost and the appraised value), so a file on a band edge or with a low
+     appraisal prices its mortgage insurance differently - and everything the payment reaches follows. */
+  const miBand = a.payment.pmiSuggestedRate !== b.payment.pmiSuggestedRate || a.payment.fhaMipSuggestedRate !== b.payment.fhaMipSuggestedRate;
+  if (miBand) explained.D9++;
   return paths.filter(p => {
+    if (p === 'loan.loanToCost' && Math.abs(getP(a, p) - getP(b, p)) < 1e-6) return false;
+    /* the reserve-free first pass prices its own MI the same way: same loan, a payment that differs by no more than MI can */
+    if (p === 'preliminary.monthlyPayment' && a.preliminary.baseLoan === b.preliminary.baseLoan && Math.abs(getP(a, p) - getP(b, p)) <= b.preliminary.baseLoan * 0.025 / 12) { explained.D9++; return false; }
+    if (miBand && /^(payment|aus|mmw|traces|warnings|value|cash|closing|bpsOut)\./.test(p)) return false;
     if (/^payment\.(miRemoval(Eligible|Ltv|Requested)|miRemoved)$/.test(p) || p === 'paymentReserveDetail' || p.startsWith('paymentReserveDetail.')) return false;
     if (reserveOn) return false;
     if (p === 'closing.estimateNewYork' && price >= 2e6) { explained.D6++; return false; }
@@ -131,5 +140,5 @@ if (v57) sa1.inputs = migrate(sa1.inputs);
 const sd = diff(norm(sa1), norm(sb1)); if (sd.length) { failures++; console.log('newSavedScenario differs', sd); }
 
 console.log(`${tables} data tables/constants compared, ${count} random scenarios run through both engines (${errorsBoth} raised the same error in both), store checked: ${failures ? failures + ' DIFFERENCES' : v57 ? 'every difference explained by a v57 fix' : 'identical'}`);
-if (v57) console.log(`v57 fixes exercised: unfinanced cost in ${explained.D1} scenarios, unused seller credit in ${explained.D2}, deposit refunded in ${explained.cashBack}, last-draw cent adjustments ${explained.D4}, blank assets in ${explained.D5} reserve checks, tax rules (D6) ${explained.D6} fields, solved financed payments (D7) in ${explained.D7} scenarios`);
+if (v57) console.log(`v57 fixes exercised: unfinanced cost in ${explained.D1} scenarios, unused seller credit in ${explained.D2}, deposit refunded in ${explained.cashBack}, last-draw cent adjustments ${explained.D4}, blank assets in ${explained.D5} reserve checks, tax rules (D6) ${explained.D6} fields, solved financed payments (D7) in ${explained.D7} scenarios, mortgage-insurance band on the real LTV (D9) in ${explained.D9}`);
 process.exit(failures ? 1 : 0);

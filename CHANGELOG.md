@@ -706,3 +706,12 @@ All 25 pages load with no errors or missing files. Original Full Suite and the s
 - **Smooth transitions on every page:** page changes cross-fade on all 38 pages (the dock, Documents and Ghost buttons stay put), Income Calculator tabs fade in, and the document builder and Documents library ease open (assets/mt-motion.css, loaded in each page's head so it works before the first paint; off with the system's Reduce motion).
 - **Guideline search** (guidelines.html, Guidelines in the dock): Fannie Mae, Freddie Mac, FHA and VA guideline search from Guideline Lookup, run on this computer. Every Ctrl+K search also offers "Search the guidelines for ..." The optional AI key is kept only while the tab is open unless you tick Remember. Rebuild with `node tools/guidelines-sync.mjs <guideline-lookup folder>`.
 - **Faster pages:** the address helper read the label of every input on the page after each change (up to 1.2 s frozen on the Loan Suite's Advanced page); it now skips number boxes, checks each input once and works in idle moments. The Loan Suite's background tasks run in short slices. Loan Suite pages had 0.25-1.6 s of freezes while opening; now none longer than 50 ms.
+
+## Release 57.25 - calculation and document-reading fixes found by the deep test matrix (started as 57.23)
+
+- **FHA MIP band:** a loan sized at exactly 95% stays in the 95%-or-less band (the loan-to-cost ratio is rounded to 6 places, so rounding the loan to cents cannot push it into the next band).
+- **Conventional PMI** is priced at the loan's real LTV (base loan against the lesser of cost and appraised value), so a low appraisal is no longer priced at the down payment percent.
+- **Seller concession bands:** 75.005% LTV falls in the 75.01-90% band (6%), not in the gap between bands (3%).
+- **W-2 reading:** each box is read from its own label (box 1 and box 2 often share a line); a W-2 for a finished year is not read as year-to-date pay; "Cat. No." and form numbers are not read as amounts.
+- **Same business:** "Elm Street Bakery" is recognised as a business name, while "Number, street, and room or suite no." is treated as form instructions.
+- **New tests:** tests/deep-matrix.mjs (every state, program, renovation, unit count and occupancy; 149,208 checks) and tests/bizid-matrix.mjs (8,994 checks), both passing.

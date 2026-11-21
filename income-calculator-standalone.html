@@ -4473,7 +4473,8 @@ function taxMoneyOn(line, from){
   while ((m = re.exec(s))) {
     const digits = m[1].replace(/,/g, ''), after = s.charAt(m.index + m[0].length), before = s.slice(Math.max(0, m.index - 10), m.index);
     if (/(\bline|\blines|\bform|forms?\)?|\bschedule|\bsection|\bbox|\bcode|\bpart|w-|\bstep)\s*$/i.test(before)) continue;   /* "line 29", "Form 8829", "section 179" */
-    const strong = m[1].indexOf(',') >= 0 || !!m[2] || digits.length >= 3 || (!!m[3] && digits.length >= 2 && !/^\s*[A-Z]/.test(s.slice(m.index + m[0].length, m.index + m[0].length + 3)));
+    if (/^[A-Za-z]/.test(after) || /cat\.?\s*no\.?\s*$/i.test(before)) continue;   /* 57.23: "Cat. No. 11334P", "24b" */
+    const strong = m[1].indexOf(',') >= 0 || !!m[2] || digits.length >= 3 || (m[0].charAt(0) === '(' && /\)\.?$/.test(m[0])) || (!!m[3] && digits.length >= 2 && !/^\s*[A-Z]/.test(s.slice(m.index + m[0].length, m.index + m[0].length + 3)));
     const year = /^(19|20)\d{2}$/.test(digits) && m[1].indexOf(',') < 0 && !m[2];
     if (strong && !year && after !== '%') { const v = toNum(m[0].replace(/\.$/, '')); if (isFinite(v)) out.push(v); }
   }
@@ -4499,6 +4500,20 @@ function amountForTax(L, re){
 }
 function findLine(L, re, from){ for(let i=from||0;i<L.length;i++) if(re.test(L[i])) return {line:L[i], idx:i}; return null; }
 /* last money value on a matching line, falling back to the next line */
+/* 57.23: a W-2 box - the first amount after its label on the same line (box 1 and box 2 often share a line), else the
+   amount in the same column on the next line (a row of box labels, then a row of amounts) */
+function boxFor(L, re){
+  const hit = findLine(L, re); if (!hit) return null;
+  const m = hit.line.match(re), at = m ? m.index + m[0].length : 0;
+  const same = taxMoneyOn(hit.line, at);
+  if (same.length) return {value: same[0], src: hit.line};
+  const next = L[hit.idx + 1]; if (next == null) return null;
+  const vals = taxMoneyOn(next, 0); if (!vals.length) return null;
+  const starts = [], bre = /(?:^|\s)(\d{1,2}[a-z]?)\s+[A-Za-z]/g; let b;
+  while ((b = bre.exec(hit.line))) starts.push(b.index);
+  const col = Math.max(0, starts.filter(i => i <= (m ? m.index : 0)).length - 1);
+  return {value: vals[Math.min(col, vals.length - 1)], src: hit.line + ' / ' + next};
+}
 function amountFor(L, re){
   const hit = findLine(L, re); if(!hit) return null;
   let v = moneyOn(hit.line);
@@ -4737,9 +4752,9 @@ function extractFields(type, text){
   }
   else if (type==='w2'){
     push('base','Box 1 — Wages, tips, other compensation',
-         amountFor(L, /wages,?\s*tips,?\s*other|^\s*1\s+wages/i));
-    push('_ss','Box 3 — Social security wages (reference)', amountFor(L,/social security wages/i));
-    push('_med','Box 5 — Medicare wages (reference)',       amountFor(L,/medicare wages/i));
+         boxFor(L, /wages,?\s*tips,?\s*other(?:\s*comp(?:ensation|\.)?)?|^\s*1\s+wages/i));
+    push('_ss','Box 3 — Social security wages (reference)', boxFor(L,/social security wages/i));
+    push('_med','Box 5 — Medicare wages (reference)',       boxFor(L,/medicare wages(?:\s*and\s*tips)?/i));
     const eo = text.match(/employer'?s?\s*name[^\n]*\n?\s*([A-Za-z][A-Za-z0-9&.,'\- ]{4,58})/i);
     if (eo) F.push({slot:'employer', label:'Employer name', value:eo[1].trim(), src:eo[0].replace(/\s+/g,' ').trim(),
                     yearScoped:false, isText:true, apply:false});
@@ -4779,7 +4794,7 @@ function extractFields(type, text){
     if (type==='k1_1065') push('guar','Part III Line 4c — Guaranteed payments', amountForTax(L,/guaranteed payment/i));
     push('dist', type==='k1_1065' ? 'Line 19 — Distributions' : 'Line 16d — Distributions',
          amountForTax(L,/distribution/i));
-    const om = text.match(/(?:profit|ownership|stock owned|shareholder)[^\n%]{0,40}?(\d{1,3}(?:\.\d+)?)\s*%/i);
+    const om = text.match(/(?:profit|ownership|stock owned|shareholder|allocation percentage)[^\n%]{0,40}?(\d{1,3}(?:\.\d+)?)\s*%/i);
     if (om) F.push({slot:'_own', label:'Ownership percentage', value:parseFloat(om[1]),
                     src:om[0].replace(/\s+/g,' ').trim(), yearScoped:false, apply:true});
     push('depr','Depreciation (Sch K / attachment)', amountForTax(L,/depreciation/i));

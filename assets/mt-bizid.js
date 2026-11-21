@@ -9,7 +9,8 @@
     return String(s || '').toLowerCase().replace(/\./g, '').replace(/&/g, ' and ').replace(/[^a-z0-9 ]+/g, ' ')
       .replace(SUFFIX, ' ').replace(/\s+/g, ' ').trim();
   }
-  var INSTR = /\b(instructions?|see |enter |if no |leave blank|check if|form |line |attach|omb|department of the treasury|internal revenue|go to|www\.|for paperwork|cat\. ?no|identification number|address|city or town|zip code|ssn|social security|street)\b/i;
+  var INSTR = /\b(instructions?|see |enter |if no |leave blank|check if|form |line |attach|omb|department of the treasury|internal revenue|go to|www\.|for paperwork|cat\. ?no|identification number|address(?:,|\s+and\b|\s*$)|city or town|zip code|ssn|social security|(?:number,?\s*)?street(?:,|\s+and\b|\s+address\b|\s*$))\b/i;
+  /* 57.23: "Elm Street Bakery" is a name; "Number, street, and room or suite no." is an instruction */
   function good(s) {
     s = String(s || '').trim();
     if (s.length < 3 || s.length > 70) return false;

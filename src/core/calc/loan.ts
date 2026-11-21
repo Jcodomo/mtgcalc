@@ -81,7 +81,8 @@ export function calculateLoan({inputs, program, purchase, finalRenovationAmount,
   const ufmip = program.ufmipEnabled ? round(maximumBaseLoan * nonNegative(inputs.ufmipRate), 2) : 0;
   const totalLoan = round(maximumBaseLoan + ufmip, 2);
   const fhaLimitStatus = program.fhaLimitsEnabled ? (amountOverFhaLimit > 0 ? `LOAN EXCEEDS FHA LIMIT by ${amountOverFhaLimit.toLocaleString('en-US', {style: 'currency', currency: 'USD', maximumFractionDigits: 0})}` : 'Within selected FHA loan limit') : 'N/A - Conventional financing';
-  const loanToCost = safeDivide(maximumBaseLoan, totalAcquisition, 0);
+  /* 57.23: rounded to 6 places so rounding the loan to cents cannot push an exact 95% into the next band */
+  const loanToCost = round(safeDivide(maximumBaseLoan, totalAcquisition, 0), 6);
   const finalValue = program.renovationActive ? (nonNegative(inputs.afterRepairValue) || totalAcquisition) : (nonNegative(inputs.asIsValue) || purchase.finalPurchasePrice);
   const ltvOnFinalValue = safeDivide(maximumBaseLoan, finalValue, 0);
   const arvLtv = safeDivide(totalLoan, nonNegative(inputs.afterRepairValue), 0);

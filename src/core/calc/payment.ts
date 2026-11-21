@@ -26,6 +26,7 @@ export function calculatePayment({inputs, program, loan, finalPurchasePrice, ren
 
   /* FHA annual MIP: the planning table's rate unless a rate is entered. Blank = calculate; 0% is not allowed for FHA and
      is rejected with a warning (overrides.ts), so the calculated rate applies. */
+  /* 57.23: loan.loanToCost is rounded to 6 places (loan.ts), so a loan sized at exactly 95% stays in the 95%-or-less band */
   const mipSuggestion = suggestFhaMipRate(loan.maximumBaseLoan, loan.loanToCost, undefined, num(inputs.termYears, 30));
   const mipSuggested = program.fhaMipEnabled ? mipSuggestion.rate : 0;
   const mipEntered = overrideValue(inputs, 'fhaMipOverrideRate'), mipOverride = mipEntered !== null;
@@ -35,7 +36,15 @@ export function calculatePayment({inputs, program, loan, finalPurchasePrice, ren
   /* conventional PMI: suggested from credit tier and down payment unless a rate is entered. Blank = calculate; an entered 0%
      means no monthly PMI (lender-paid, or no MI required). */
   const creditTier = creditTierFromScore(nonNegative(inputs.creditScore));
-  const pmiSuggested = program.pmiEnabled ? suggestPmiRate(creditTier, nonNegative(inputs.finalDownPaymentPct)) : 0;
+  /* 57.23: the PMI band follows the loan's real LTV - the base loan against the lesser of the cost and the appraised value
+     (the as-is value, or the as-completed value on a renovation) - so a low appraisal is priced at its true LTV, not at the
+     down payment percent. On an ordinary file this is exactly the down payment percent. */
+  const miCost = program.renovationActive ? nonNegative(loan.totalAcquisitionCost) : nonNegative(finalPurchasePrice);
+  const miAppraised = program.renovationActive ? nonNegative(inputs.afterRepairValue) : nonNegative(inputs.asIsValue);
+  const miBasis = miAppraised > 0 && miCost > 0 ? Math.min(miCost, miAppraised) : miCost;
+  const pmiLtv = miBasis > 0 ? loan.maximumBaseLoan / miBasis : 1 - nonNegative(inputs.finalDownPaymentPct);
+  const pmiEquity = Math.min(nonNegative(inputs.finalDownPaymentPct), Math.max(0, round(1 - pmiLtv, 4)));
+  const pmiSuggested = program.pmiEnabled ? suggestPmiRate(creditTier, pmiEquity) : 0;
   const pmiEntered = overrideValue(inputs, 'pmiOverrideRate'), pmiOverride = pmiEntered !== null;
   const pmiRate = program.pmiEnabled ? (pmiOverride ? (pmiEntered as number) : pmiSuggested) : 0;
   /* 57.20 (D8): Conventional - when the total loan (after renovations) is under 80% of the after-repair value (or value),
