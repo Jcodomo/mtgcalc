@@ -186,6 +186,7 @@ kbd{font:600 11px ui-monospace,Consolas,monospace;border:1px solid var(--line-2)
   <select id="sWeb"><option value="0">No: answer from the local excerpts only (fewer tokens)</option><option value="1">Yes: allow web search (more tokens)</option></select>
   <label>Max answer length (tokens)</label>
   <input id="sMax" type="text" value="700">
+  <label class="keep"><input type="checkbox" id="sMini"> Smarter meaning search with the MiniLM language model (a 23 MB download, once; it runs on this computer and your searches are not sent anywhere)</label>
   <div class="act" style="margin-top:16px"><button class="btn pri" id="sSave">Save</button><button class="btn" id="sClose">Close</button></div>
   <p class="note">The key is kept only while this tab is open, unless you tick Remember (then it stays in this browser's storage). It is sent only to api.anthropic.com. Do not tick Remember on a shared computer.</p>
 </div></dialog>
@@ -322,11 +323,11 @@ function run(q,agSel,opts={}){
   P.toks.forEach((t,ix)=>{
     let hit=add(t,1);
     /* a word that is in the guides only once or twice, one letter away from a word used everywhere, is a typing mistake */
-    if(hit&&t.length>=7){ const df=post.get(t).length/2; if(df<=1){ const sg=suggestWord(t); if(sg&&post.get(sg).length/2>=40*df){ didMean.push([t,sg]); fixed[t]=sg; add(sg,lastEd<=1?1:.85); } } }
+    if(hit&&t.length>=7&&!realWord(t)){ const df=post.get(t).length/2; if(df<=1){ const sg=suggestWord(t); if(sg&&post.get(sg).length/2>=40*df){ didMean.push([t,sg]); fixed[t]=sg; add(sg,lastEd<=1?1:.85); } } }
     { const own=post.get(t), sib=stems.get(stem(t)); if(sib&&sib.length>1&&(!own||own.length/2<40)){ const o=sib.filter(w=>w!==t).sort((a,b)=>post.get(b).length-post.get(a).length).slice(0,4); o.forEach(w=>{ if(add(w,.3/Math.sqrt(o.length))) hit=true; }); } }
     if(SYN[t]) for(const s of SYN[t]) for(const w of tok(s)) add(w,.35);
     if(!hit||(opts.prefix&&ix===P.toks.length-1)){ if(t.length>=2){ const ex=expandPrefix(t); for(const w of ex){ if(w!==t){add(w,.5); hit=true;} } } }
-    if(!hit){ const sg=suggestWord(t); if(sg){ didMean.push([t,sg]); fixed[t]=sg; add(sg,lastEd<=1?1:.85); hit=true;} else miss.push(t); }
+    if(!hit){ const sg=realWord(t)?null:suggestWord(t); if(sg){ didMean.push([t,sg]); fixed[t]=sg; add(sg,lastEd<=1?1:.85); hit=true;} else miss.push(t); }
   });
   // corrected spellings stand in for the typed words from here on (title match, word pairs, highlighting)
   if(Object.keys(fixed).length) P.toks=P.toks.map(t=>fixed[t]||t);
@@ -366,15 +367,17 @@ function run(q,agSel,opts={}){
   res.sort((a,b)=>b[1]-a[1]);
   // meaning search, merged in by Reciprocal Rank Fusion (as qdrant's page search does): a passage that means the same as
   // the question ranks even when it uses other words. Not for one-word or section-code searches, where the words decide.
-  let sem=null;
-  if(opts.sem!==false&&!P.codeLike&&P.toks.length>=2&&semLoad()){
-    sem=semRank(P.toks.concat((P.exp||[]).slice(0,6)));
-    if(sem&&(opts.semWeight!=null?opts.semWeight:(isQuestion(P.raw)||res.length<5?SEM_W:0))>0){
-      const order=[]; for(let i=0;i<N;i++) if(sem.best[i]>(sc[i]>0?0.2:SEM_ONLY)&&allowed(D[i],agSel,P)) order.push(i);   /* a page found only by meaning must be a close match */
+  /* the MiniLM model's reading of the question when it is there (data/minilm.js + the model), else the LSA built from the guides */
+  let sem=null; const qv=opts.sem===false?null:(opts.qv||QV.get(qkey(P.raw))), mini=!!(qv&&miniLoad());
+  if(opts.sem!==false&&!P.codeLike&&P.toks.length>=2&&(mini||semLoad())){
+    sem=mini?miniRank(qv):semRank(P.toks.concat((P.exp||[]).slice(0,6)));
+    const Wd=mini?MINI_W:SEM_W, only=mini?MINI_ONLY:SEM_ONLY, fl=mini?MINI_FL:0.2;
+    if(sem&&(opts.semWeight!=null?opts.semWeight:(isQuestion(P.raw)||res.length<5?Wd:(mini?MINI_W2:0)))>0){
+      const order=[]; for(let i=0;i<N;i++) if(sem.best[i]>(sc[i]>0?fl:only)&&allowed(D[i],agSel,P)) order.push(i);   /* a page found only by meaning must be a close match */
       order.sort((a,b)=>sem.best[b]-sem.best[a]);
       /* scores, not only places, are merged: a page that clearly wins on its words keeps its lead */
-      const W=opts.semWeight!=null?opts.semWeight:(isQuestion(P.raw)||res.length<5?SEM_W:0), fused=new Map(), top=res.length?res[0][1]:1;
-      const sTop=order.length?sem.best[order[0]]:1, fl=0.2, sn=(i)=>Math.max(0,(sem.best[i]-fl)/Math.max(1e-6,sTop-fl));
+      const W=opts.semWeight!=null?opts.semWeight:(isQuestion(P.raw)||res.length<5?Wd:(mini?MINI_W2:0)), fused=new Map(), top=res.length?res[0][1]:1;
+      const sTop=order.length?sem.best[order[0]]:1, sn=(i)=>Math.max(0,(sem.best[i]-fl)/Math.max(1e-6,sTop-fl));
       res.slice(0,300).forEach(([i,s])=>fused.set(i,s/top+W*sn(i)));
       order.slice(0,200).forEach((i)=>{ if(!fused.has(i)) fused.set(i,W*sn(i)); });
       const lex=new Map(res.map(([i,s])=>[i,s])), out=[...fused].sort((a,b)=>b[1]-a[1]), f0=out.length?out[0][1]:1;
@@ -398,6 +401,33 @@ function allowed(d,agSel,P){
 }
 /* ============ meaning search (data/semantic.js, built by build_semantic.js) ============ */
 let SEM=null, SEM_W=0.5, SEM_ONLY=0.6;
+/* MiniLM: passages read once by build_minilm.mjs (data/minilm.js); the page reads the question with the same model.
+   QV holds the questions already read (text -> 384 numbers). MINI_W: weight for questions; MINI_W2: for keyword searches. */
+let MINI=null, MINI_W=2, MINI_W2=0, MINI_ONLY=0.5, MINI_FL=0.15, MINI_TW=0.3; const QV=new Map();
+function miniSig(){ let h=5381; for(const d of D){ const s=d.t||''; for(let i=0;i<s.length;i++) h=((h*33)^s.charCodeAt(i))>>>0; } return h; }
+function miniText(q){ const r=run(q,new Set(['Fannie','Freddie','FHA','VA','Other']),{sem:false}); let s=String(q);
+  if(r.did) for(const [a,b] of r.did) if(!/[0-9]/.test(a)) s=s.replace(new RegExp('(^|[^a-z0-9])'+esre(a)+'(?![a-z0-9])','gi'),(m,p)=>p+b);
+  /* shorthand the guides spell out (crypto: virtual currency; dti: debt-to-income) is spelled out for the model too */
+  const ex=[]; for(const w of tok(s)) if(SYN[w]) for(const x of SYN[w]) if(ex.length<4&&!ex.includes(x)) ex.push(x);
+  return ex.length?s+' ('+ex.join(', ')+')':s; }
+/* an everyday English word the guides do not use (kids, visa, fired) is left as typed, not made into a guide word (bids,
+   via, filed): MiniLM's list of 21,000 whole words, in data/minilm.js. Without it every unknown word may be corrected. */
+let ENG=null; function realWord(w){ if(!ENG){ const s=window.GL&&window.GL.mini&&window.GL.mini.words; if(!s) return false; ENG=new Set(s.split(' ')); }
+  const one=(p)=>ENG.has(p)||(p.length>4&&(ENG.has(p.replace(/(es|s|ed|d|ing)$/,''))||ENG.has(p.replace(/s$/,''))));
+  return w.split(/[-']/).filter(Boolean).every(one); }
+function qkey(s){ return String(s).trim().toLowerCase().replace(/\s+/g,' '); }
+function miniLoad(){ if(MINI) return MINI; const s=window.GL&&window.GL.mini; if(!s) return null;
+  if(s.n!=null&&(s.n!==N||s.sig!==miniSig())){ console.warn('data/minilm.js is for another copy of the guides: run node build_minilm.mjs'); return null; }
+  MINI={dim:s.dim, model:s.model, P:new Int8Array(b64u8(s.P).buffer), T:s.T?new Int8Array(b64u8(s.T).buffer):null, doc:new Int32Array(b64u8(s.doc).buffer), at:new Int32Array(b64u8(s.at).buffer)}; return MINI; }
+function miniRank(qv){ const S=MINI, K=S.dim, n=S.doc.length, P=S.P; let nq=0; for(let k=0;k<K;k++) nq+=qv[k]*qv[k]; nq=Math.sqrt(nq)*127||1;
+  const best=new Float32Array(N).fill(-1), at=new Int32Array(N).fill(-1);
+  const b2=new Float32Array(N).fill(-1);
+  for(let c=0;c<n;c++){ let s=0; const o=c*K; for(let k=0;k<K;k++) s+=qv[k]*P[o+k]; s/=nq; const d=S.doc[c]; if(s>best[d]){ b2[d]=best[d]; best[d]=s; at[d]=S.at[c]; } else if(s>b2[d]) b2[d]=s; }
+  /* a long section has many passages and so many chances: it is scored by its two closest passages, a short one by its one */
+  for(let d=0;d<N;d++) if(b2[d]>-1) best[d]=(best[d]+b2[d])/2;
+  /* and its title, read on its own, counts for 30% */
+  if(S.T&&S.T.length>=N*K) for(let d=0;d<N;d++){ if(best[d]<=-1) continue; let s=0; const o=d*K; for(let k=0;k<K;k++) s+=qv[k]*S.T[o+k]; best[d]=(1-MINI_TW)*best[d]+MINI_TW*s/nq; }
+  return {best,at,mini:true}; }
 function b64u8(b){ if(typeof atob==='function'){ const s=atob(b), u=new Uint8Array(s.length); for(let i=0;i<s.length;i++) u[i]=s.charCodeAt(i); return u; } return new Uint8Array(Buffer.from(b,'base64')); }
 function semLoad(){ if(SEM) return SEM; const s=window.GL&&window.GL.sem; if(!s) return null;
   SEM={K:s.K, tix:new Map(s.terms.map((w,i)=>[w,i])), idf:s.idf, W:new Int8Array(b64u8(s.W).buffer), Ws:new Float32Array(b64u8(s.Ws).buffer), P:new Int8Array(b64u8(s.P).buffer), doc:new Int32Array(b64u8(s.doc).buffer), at:new Int32Array(b64u8(s.at).buffer)};
@@ -435,7 +465,7 @@ function cite(d){return AGCOL[d.a]+' '+(d.s?d.s+' - ':'')+d.t+' - '+d.u}
 
 function stats(){ const c={}; D.forEach(d=>c[d.a]=(c[d.a]||0)+1); const parts=Object.entries(c).map(([k,v])=>`${AGCOL[k]||k}: ${v.toLocaleString()} ${k==='FHA'?'pages':'sections'}`);
   const built=Object.values(META).map(m=>m.built).filter(Boolean).sort().pop();
-  $('#stats').innerHTML='Indexed locally &mdash; '+(parts.join(' &middot; ')||'nothing loaded')+(built?' &middot; built '+built:'')+(SEM?' &middot; meaning search on ('+SEM.doc.length.toLocaleString()+' passages)':'')+' &middot; tokens used: '+(tokUsed.in+tokUsed.out).toLocaleString();
+  $('#stats').innerHTML='Indexed locally &mdash; '+(parts.join(' &middot; ')||'nothing loaded')+(built?' &middot; built '+built:'')+(FE?' &middot; meaning search: MiniLM model ('+MINI.doc.length.toLocaleString()+' passages)':MSTATE==='loading'?' &middot; meaning search on, loading the MiniLM model…':SEM?' &middot; meaning search on ('+SEM.doc.length.toLocaleString()+' passages)':'')+' &middot; tokens used: '+(tokUsed.in+tokUsed.out).toLocaleString();
   let w=''; if(!c.Fannie) w+='Fannie Mae data not found. Run <b>refresh.bat</b> (or <code>python crawl_fannie.py</code> then <code>python build_index.py</code>) to download the Selling Guide copy. ';
   if(!c.FHA) w+='FHA data not found. Run <b>refresh.bat</b> to download HUD 4000.1. ';
   $('#warn').innerHTML=w?'<div class="warn">'+w+'</div>':''; }
@@ -527,17 +557,31 @@ $('#results').addEventListener('click',e=>{ const o=e.target.closest('[data-open
 $$('.chip').forEach(b=>{ b.classList.toggle('on',agSel.has(b.dataset.ag)); b.onclick=()=>{ const a=b.dataset.ag; if(agSel.has(a)&&agSel.size>1) agSel.delete(a); else agSel.add(a); b.classList.toggle('on',agSel.has(a)); LS.set('gl-ag',[...agSel]); render($('#q').value); }; });
 $$('#mode button').forEach(b=>b.onclick=()=>setMode(b.dataset.m));
 $('#bTheme').onclick=()=>{ const r=document.documentElement; const dark=r.dataset.theme?r.dataset.theme==='dark':matchMedia('(prefers-color-scheme:dark)').matches; r.dataset.theme=dark?'light':'dark'; LS.set('gl-theme',r.dataset.theme); try{localStorage.setItem('gl-theme',r.dataset.theme)}catch(e){} };
-$('#bSet').onclick=()=>{ $('#sKey').value=cfg.key; $('#sKeep').checked=KEY.kept(); $('#sModel').value=cfg.model; $('#sAuto').value=cfg.auto; $('#sWeb').value=cfg.web; $('#sMax').value=cfg.max; $('#dlg').showModal(); };
+$('#bSet').onclick=()=>{ $('#sKey').value=cfg.key; $('#sKeep').checked=KEY.kept(); $('#sModel').value=cfg.model; $('#sAuto').value=cfg.auto; $('#sWeb').value=cfg.web; $('#sMax').value=cfg.max; $('#sMini').checked=miniOn(); $('#dlg').showModal(); };
 $('#sClose').onclick=()=>$('#dlg').close();
-$('#sSave').onclick=()=>{ cfg={key:$('#sKey').value.trim(),model:$('#sModel').value,auto:$('#sAuto').value,web:$('#sWeb').value,max:+$('#sMax').value||700}; KEY.set(cfg.key,$('#sKeep').checked); LS.set('gl-cfg',Object.assign({},cfg,{key:undefined})); $('#dlg').close(); renderPanels(); };
+$('#sSave').onclick=()=>{ cfg={key:$('#sKey').value.trim(),model:$('#sModel').value,auto:$('#sAuto').value,web:$('#sWeb').value,max:+$('#sMax').value||700}; KEY.set(cfg.key,$('#sKeep').checked); LS.set('gl-cfg',Object.assign({},cfg,{key:undefined})); const mo=$('#sMini').checked; if(mo!==miniOn()){ LS.set('gl-mini',mo?1:0); if(mo) loadMeaning(); else { FE=null; QV.clear(); MSTATE='off'; stats(); render($('#q').value); } } $('#dlg').close(); renderPanels(); };
 $('#q').focus();
 $('#stats').textContent='Building search index…';
 setTimeout(()=>{ build(); stats(); setMode(mode); const p=new URLSearchParams(location.search).get('q'); if(p){$('#q').value=p;go();} loadMeaning(); },20);
 /* meaning search: data/semantic.js (2 MB) loads in the background after the page is ready; questions are then matched by
    meaning as well as by words. It is built from the guides on this computer; nothing is downloaded from anywhere else. */
-function loadMeaning(){ if(window.GL&&GL.sem) return; const f=document.querySelector('script[src*="fannie.js"]'); if(!f) return;
-  const go2=()=>{ const sc=document.createElement('script'); sc.src=f.src.replace(/fannie\.js(\?.*)?$/,'semantic.js$1'); sc.onload=()=>{ semLoad(); stats(); const q=$('#q').value; if(q.trim()) render(q); }; document.head.appendChild(sc); };
+function loadMeaning(){ const f=document.querySelector('script[src*="fannie.js"]'); if(!f) return;
+  const add=(name,cb)=>{ const sc=document.createElement('script'); sc.src=f.src.replace(/fannie\.js(\?.*)?$/,name+'$1'); sc.onload=cb; sc.onerror=()=>{ if(name==='minilm.js'){ MSTATE='off'; stats(); } }; document.head.appendChild(sc); };
+  const again=()=>{ const q=$('#q').value; if(q.trim()) render(q); };
+  const go2=()=>{ if(!(window.GL&&GL.sem)) add('semantic.js',()=>{ semLoad(); stats(); again(); });
+    if(miniOn()&&!FE&&MSTATE!=='loading'){ MSTATE='loading'; stats(); const m=()=>{ if(miniLoad()) modelLoad().then(()=>{ stats(); again(); }); else { MSTATE='off'; stats(); } }; if(window.GL&&GL.mini) m(); else add('minilm.js',m); } };
   (window.requestIdleCallback||((cb)=>setTimeout(cb,600)))(go2,{timeout:2500}); }
+/* MiniLM (all-MiniLM-L6-v2) through transformers.js: the code from jsDelivr and the model from Hugging Face, both kept by the
+   browser after the first time. Only the model is downloaded; the questions are read on this computer and not sent anywhere.
+   Turned off in Settings, or if it cannot load (offline), the meaning search built from the guides is used instead. */
+const TJS='https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2/dist/transformers.min.js';
+let FE=null, FE0=null, MSTATE='off', feP=null;   /* FE: in use; FE0: loaded (kept when the setting is turned off and on again) */
+function miniOn(){ return LS.get('gl-mini',1)!==0; }
+function modelLoad(){
+  if(!feP) feP=import(TJS).then(async(T)=>{ T.env.allowLocalModels=false; const fe=await T.pipeline('feature-extraction',MINI.model,{dtype:'q8',device:'wasm'}); await fe('warm up',{pooling:'mean',normalize:true}); FE0=fe; })
+    .catch((e)=>{ console.warn('MiniLM model not loaded, using the built-in meaning search:',e&&e.message); MSTATE='failed'; feP=null; });
+  return feP.then(()=>{ if(FE0&&miniOn()){ FE=FE0; MSTATE='on'; } }); }
+async function embedQ(q){ const o=await FE(miniText(q),{pooling:'mean',normalize:true}); return Int8Array.from(o.data,(x)=>Math.max(-127,Math.min(127,Math.round(x*127)))); }
 
 /* ============ more ways to search (search tips, compare, saved, related, find, voice, keys, links) ============ */
 const docKey=d=>d.a+'|'+(d.s||'')+'|'+d.t;
@@ -563,6 +607,12 @@ render=function(q){ _render(q); const box=$('#results');
   if(view==='compare'&&lastRun&&lastRun.res.length){ const tl=terms(lastRun.P); box.insertAdjacentHTML('afterbegin',compareHTML(lastRun,tl)+'<div class="lbl" style="margin:14px 0 8px">All results</div>'); }
   const f=lastRun&&lastRun.P; if(f&&(f.phrases.length||f.not.length||f.only.size)) box.insertAdjacentHTML('afterbegin',`<p class="meta">Searching ${f.only.size?'only '+[...f.only].map(a=>AGCOL[a]).join(', '):'all selected guides'}${f.phrases.length?' for the exact words '+f.phrases.map(p=>'&ldquo;'+esc(p)+'&rdquo;').join(', '):''}${f.not.length?', leaving out '+f.not.map(esc).join(', '):''}.</p>`);
 };
+/* each question is read by the MiniLM model before its results are shown (about 10 ms, never more than 300 ms) */
+let pendQ=null; const _renderM=render;
+render=function(q){ pendQ=q; const k=qkey(q);
+  if(FE&&!QV.has(k)&&tok(q).length>=2&&!/^[a-z]?[0-9]/i.test(q.trim())){ let shown=false; const show=()=>{ if(!shown&&pendQ===q){ shown=true; _renderM(q); } }, fb=setTimeout(show,300);
+    embedQ(q).then((v)=>{ if(QV.size>400) QV.delete(QV.keys().next().value); QV.set(k,v); }).catch(()=>{}).finally(()=>{ clearTimeout(fb); if(shown){ if(pendQ===q&&QV.has(k)) _renderM(q); } else show(); }); return; }
+  _renderM(q); };
 // the reader: save, link, find in this section, related sections, keeps a list of what was read
 const _openDoc=openDoc;
 openDoc=function(i,tl){ _openDoc(i,tl); const d=D[i], k=docKey(d);

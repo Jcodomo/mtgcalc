@@ -14,7 +14,7 @@ const VER = '57.27';
 const outData = path.join(root, 'assets/guidelines');
 fs.mkdirSync(outData, {recursive: true});
 let built = '';
-for (const f of ['fannie', 'fha', 'curated', 'semantic']) {
+for (const f of ['fannie', 'fha', 'curated', 'semantic', 'minilm']) {
   if (!fs.existsSync(path.join(src, 'data', f + '.js'))) continue;
   const js = fs.readFileSync(path.join(src, 'data', f + '.js'), 'utf8');
   const m = js.match(/"built":\s*"([\d-]+)"/); if (m && m[1] > built) built = m[1];

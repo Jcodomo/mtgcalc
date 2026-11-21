@@ -4,7 +4,40 @@ Every change, by the day it was released (newest first), then by section of the 
 the full release notes are in [CHANGELOG.md](CHANGELOG.md). The same list is on the site: https://jcodomo.github.io/mtgcalc/changelog.html
 This file is built from CHANGELOG.md with `npm run changelog`.
 
-## 2026-11-20 - Release 57.19, 57.20, 57.21, 57.22
+## 2026-11-21 - Release 57.25, 57.26, 57.27, 57.28
+
+### Loan Suite & calculations
+- (57.27) **Everyday questions:** "can my parents help with the down payment", "grandma wants to pay closing costs", "income that is going to end soon", "seller is paying my closing costs" go to the right sections.
+- (57.27) **Ctrl+K page finder:** 189 test searches find the right page or document builder in the top 3 every time (was 70.4%): typing mistakes ("escrw cushion", "renovaton budget", "guidlines"), shorthand (dti, le, cd, mip, fico, rehab, p&l, 1003) and plain English ("where do I enter the transfer tax"). tests/page-finder.mjs is part of npm test.
+- (57.25) **FHA MIP band:** a loan sized at exactly 95% stays in the 95%-or-less band (the loan-to-cost ratio is rounded to 6 places, so rounding the loan to cents cannot push it into the next band).
+- (57.25) **Conventional PMI** is priced at the loan's real LTV (base loan against the lesser of cost and appraised value), so a low appraisal is no longer priced at the down payment percent.
+- (57.25) **Seller concession bands:** 75.005% LTV falls in the 75.01-90% band (6%), not in the gap between bands (3%).
+- (57.25) **Same business:** "Elm Street Bakery" is recognised as a business name, while "Number, street, and room or suite no." is treated as form instructions.
+
+### Income Calculator
+- (57.26) **Browse topics** with one click (income, self-employed, gifts, large deposits, bankruptcy and foreclosure, DTI and reserves, condos, renovation, manufactured homes, co-borrowers, VA entitlement, student loans).
+- (57.26) **Compare agencies:** the best match from Fannie Mae, Freddie Mac, FHA and VA side by side, each with its answer lines.
+- (57.26) **Income Calculator, PITIA:** the total is now the sum of the rounded lines shown above it (as on a Loan Estimate). Before, $2,022.62 + $666.67 + $150.00 could show as $2,839.28.
+- (57.25) **W-2 reading:** each box is read from its own label (box 1 and box 2 often share a line); a W-2 for a finished year is not read as year-to-date pay; "Cat. No." and form numbers are not read as amounts.
+
+### Document Builder
+- (57.27) **Typing mistakes** (swapped letters, a rare word one letter from a common one) are corrected and the corrected words are used for the whole ranking; **word forms** (verify / verified / verification), **accents**, **phrases with small words** ("gift of equity") and **titles without their small words** all match.
+
+### Search, layout & pages
+- (57.28) **Meaning search with a real language model:** questions on the Guidelines page are now also read by MiniLM (all-MiniLM-L6-v2, the small sentence model qdrant's page search uses). Every guideline passage (11,953) and section title was read once ahead of time; the model reads your question in about 10 ms. It runs in the browser: the model (23 MB) is downloaded once from Hugging Face and kept, and searches are not sent anywhere. Turn it off in Settings; offline, or turned off, the meaning search built from the guides is used as before.
+- (57.28) **70 everyday questions that avoid the guide's own words** ("my ex pays me every month for the kids", "I rent my place out on Airbnb", "I'm on maternity leave right now", "the house sits on a steel chassis"): the right section is in the top 5 for 47 (was 31), and first or second far more often (mean reciprocal rank 0.550, was 0.274). The 527 earlier test searches are unchanged at 99.4%.
+- (57.28) **Real words are no longer "corrected":** a word the guides never use but that is ordinary English stays as typed (kids no longer becomes bids, visa no longer via, fired no longer filed); misspellings are still corrected.
+- (57.28) The What's new page now lists releases 57.24 to 57.28.
+- (57.27) Ideas from [qdrant/page-search](https://github.com/qdrant/page-search) and [Aperio](https://github.com/aperio-search/aperio), rebuilt to run in the page (no server, nothing downloaded or sent).
+- (57.27) **Guideline search finds more, and better first:** 527 test searches now find 99.4% (was 97.0%), mean reciprocal rank 0.981 (was 0.942), every section searched by its title (200/200), and typing mistakes in titles 42/42 (was 36/42). About 2.5 ms per search.
+- (57.27) **Meaning search** for questions: passages of the guides are matched by meaning as well as words (learned from the guides themselves, 8,337 passages, loaded in the background); a result found by meaning shows the passage that matched.
+- (57.26) **Guideline search operators:** `"exact words"`, `-word` to leave a word out, `in:fha` / `in:fannie` / `in:freddie` / `in:va` to search one guide; section codes jump straight to the section.
+- (57.26) **In the reader:** find in this section, Save (Saved list), Copy link (opens the same section), Related sections; Recently read on the start screen; voice search; keyboard (`/`, arrow keys, Enter, Esc).
+
+### Tests & checks
+- (57.25) **New tests:** tests/deep-matrix.mjs (every state, program, renovation, unit count and occupancy; 149,208 checks) and tests/bizid-matrix.mjs (8,994 checks), both passing.
+
+## 2026-11-20 - Release 57.19, 57.20, 57.21, 57.22, 57.24
 
 ### Loan Suite & calculations
 - (57.21) **Encompass is now the third view of the Full Suite: Simple | Advanced | Encompass**, in the same switch at the top. It no longer opens the older Loan Suite menu (File, Loan, Costs, Underwriting, Results, Home, Income Calculator, Full Suite, Quote & Setup, Setup) under the header; the header, page bar and live summary are the same as Simple and Advanced. Switching between the three views is instant (no page load), with a short cross-fade; the page bar's Full Suite and Encompass links switch in place too. loan-suite-encompass.html still opens straight on the Encompass view.
@@ -40,6 +73,9 @@ This file is built from CHANGELOG.md with `npm run changelog`.
 - (57.21) **The same page bar, Documents and Ghost buttons on every page.** Property, All pages, Handwriting and AI Income were missing Search and the Documents button (Ghost moved over to fill the gap), so the bar looked different there; every page now has Search, Home, All pages, Doc Organizer, Property, Income, Encompass and Full Suite in the same place.
 
 ### Search, layout & pages
+- (57.24) **Smooth transitions on every page:** page changes cross-fade on all 38 pages (the dock, Documents and Ghost buttons stay put), Income Calculator tabs fade in, and the document builder and Documents library ease open (assets/mt-motion.css, loaded in each page's head so it works before the first paint; off with the system's Reduce motion).
+- (57.24) **Guideline search** (guidelines.html, Guidelines in the dock): Fannie Mae, Freddie Mac, FHA and VA guideline search from Guideline Lookup, run on this computer. Every Ctrl+K search also offers "Search the guidelines for ..." The optional AI key is kept only while the tab is open unless you tick Remember. Rebuild with `node tools/guidelines-sync.mjs <guideline-lookup folder>`.
+- (57.24) **Faster pages:** the address helper read the label of every input on the page after each change (up to 1.2 s frozen on the Loan Suite's Advanced page); it now skips number boxes, checks each input once and works in idle moments. The Loan Suite's background tasks run in short slices. Loan Suite pages had 0.25-1.6 s of freezes while opening; now none longer than 50 ms.
 - (57.21) **The loan file stays live across browser tabs:** a change on one page (for example the Renovation page) shows in every other open Loan Suite tab - Encompass, Simple, Advanced, the live summary - without a reload. A tab waits until you leave the box you are typing in.
 - (57.21) **Faster page changes:** pages in the page bar are fetched ahead while the browser is idle, a page's scripts when the pointer rests on its link, and a page-bar link opens on press instead of release. Page changes cross-fade with the page bar, Documents and Ghost buttons held in place.
 - (57.19) **Search no longer disturbs the page.** Jumping to a result scrolls only the page and boxes meant to scroll, never sideways and never boxes that hide their overflow (that shifted and clipped sections). Results that sit in parts of a page that cannot be shown (the Income Calculator's own screens kept hidden inside the Loan Suite pages, the retired pay stub screen) are no longer offered - choosing them did nothing. A field the page has redrawn since the list was made is found again.
