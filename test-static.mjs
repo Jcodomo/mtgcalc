@@ -25,7 +25,7 @@ for (const file of pages) {
 
   const refs = [...html.matchAll(/(?:src|href)=["']([^"'#?]+)/gi)].map(match => match[1]);
   for (const ref of refs) {
-    if (/^(?:https?:|data:|mailto:|javascript:|\$\{)/i.test(ref)) continue;
+    if (/^(?:https?:|data:|mailto:|javascript:|\$\{|\$\d)/i.test(ref)) continue;   /* $1 = a regex replacement inside a script */
     assert.ok(existsSync(path.resolve(path.dirname(full), ref)), `${file} local asset exists: ${ref}`);
   }
 

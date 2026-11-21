@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<!-- Built by tools/guidelines-sync.mjs from Guideline Lookup (github.com/Jcodomo/guideline-lookup). Edit the app there, then re-run the tool. -->
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<link rel="stylesheet" href="assets/mt-motion.css?v=57.24">
+<title>Guidelines · Mortgage Suite</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%233d84e6'/%3E%3Ccircle cx='14' cy='14' r='6' stroke='white' stroke-width='2.5' fill='none'/%3E%3Cpath d='M19 19 L25 25' stroke='white' stroke-width='2.5' stroke-linecap='round'/%3E%3C/svg%3E">
+<script>!function(){try{var t=localStorage.getItem("gl-theme");"light"!==t&&"dark"!==t||(document.documentElement.dataset.theme=t)}catch(e){}}();</script>
+<style>
+/* Look matches Mortgage Suite (navy bar, slate canvas, white cards, blue accent, pale-yellow inputs) - standalone copy of the tokens */
+:root{
+  --bar:linear-gradient(135deg,#12263f,#1b3a5f); --bar-line:#26405f;
+  --bg:#f4f6fa; --surface:#fff; --surface-2:#f8fafd; --surface-3:#eef2f8;
+  --line:#dde3ec; --line-2:#c9d3e2; --text:#344054; --strong:#101828; --muted:#667085;
+  --accent:#1e40af; --accent-soft:#e4eefb; --accent-text:#17436f;
+  --input:#fffbea; --input-line:#e3d6a8; --input-focus:#c99a1e;
+  --calc:#eef4fd; --calc-line:#cfe0f5; --good:#059669; --bad:#e11d48; --warn:#b45309;
+  --radius:12px; --shadow:0 1px 3px 0 rgba(15,23,42,.10),0 1px 2px -1px rgba(15,23,42,.06);
+  --font:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --c-fannie:#1d4ed8; --c-freddie:#047857; --c-fha:#b45309; --c-va:#6d28d9; --c-other:#475569; --mark:#fde68a;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){
+  --bg:#0d1726; --surface:#15233a; --surface-2:#1a2a44; --surface-3:#1f3150; --line:#26384f; --line-2:#33496a;
+  --text:#c9d6e8; --strong:#eef3fb; --muted:#93a6c1; --accent:#6ea8ff; --accent-soft:#1d3358; --accent-text:#cfe1ff;
+  --input:#2a2615; --input-line:#5a4d23; --calc:#1a2c4a; --calc-line:#2b4670; --mark:#6b5a12;
+  --c-fannie:#6ea8ff; --c-freddie:#34d399; --c-fha:#fbbf24; --c-va:#c4b5fd; --c-other:#94a3b8;}}
+:root[data-theme=dark]{
+  --bg:#0d1726; --surface:#15233a; --surface-2:#1a2a44; --surface-3:#1f3150; --line:#26384f; --line-2:#33496a;
+  --text:#c9d6e8; --strong:#eef3fb; --muted:#93a6c1; --accent:#6ea8ff; --accent-soft:#1d3358; --accent-text:#cfe1ff;
+  --input:#2a2615; --input-line:#5a4d23; --calc:#1a2c4a; --calc-line:#2b4670; --mark:#6b5a12;
+  --c-fannie:#6ea8ff; --c-freddie:#34d399; --c-fha:#fbbf24; --c-va:#c4b5fd; --c-other:#94a3b8;}
+*{box-sizing:border-box} html,body{margin:0}
+body{background:var(--bg);color:var(--text);font:15px/1.5 var(--font);min-height:100vh}
+header{background:var(--bar);border-bottom:1px solid var(--bar-line);color:#fff;padding:12px clamp(14px,3vw,32px);display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:.08em;font-size:14px;text-transform:uppercase}
+.brand svg{width:22px;height:22px}
+.sub{color:#b9c8dc;font-size:12.5px}
+.spacer{flex:1}
+header button,header a.hb{appearance:none;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.08);color:#fff;border-radius:999px;padding:6px 13px;font:600 12.5px var(--font);cursor:pointer;text-decoration:none}
+header button:hover{background:rgba(255,255,255,.18)}
+main{max-width:1280px;margin:0 auto;padding:18px clamp(14px,3vw,32px) 60px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+.bar{padding:14px;display:flex;flex-direction:column;gap:10px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.sw{position:relative;flex:1;min-width:260px}
+#q{width:100%;font:500 17px var(--font);padding:12px 44px 12px 14px;background:var(--input);border:1px solid var(--input-line);color:var(--strong);border-radius:9px}
+#q:focus{outline:2px solid var(--input-focus);outline-offset:0}
+#clr{position:absolute;right:8px;top:8px;border:0;background:transparent;color:var(--muted);font-size:20px;cursor:pointer;display:none;line-height:1;padding:4px 8px}
+#ac{position:absolute;left:0;right:0;top:100%;margin-top:4px;background:var(--surface);border:1px solid var(--line-2);border-radius:10px;box-shadow:0 10px 30px rgba(15,23,42,.22);z-index:30;display:none;overflow:hidden;max-height:420px;overflow-y:auto}
+#ac .grp{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:7px 12px 3px;background:var(--surface-2)}
+#ac .it{padding:8px 12px;cursor:pointer;display:flex;gap:8px;align-items:baseline;border-top:1px solid var(--line)}
+#ac .it:first-child{border-top:0}
+#ac .it.on,#ac .it:hover{background:var(--accent-soft)}
+#ac .it .k{flex:1;color:var(--strong);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#ac .it .m{font-size:11.5px;color:var(--muted);white-space:nowrap}
+.seg{display:inline-flex;background:var(--surface-3);border-radius:10px;padding:3px;gap:2px}
+.seg button{appearance:none;border:0;background:transparent;color:var(--muted);font:600 12.5px var(--font);padding:7px 11px;border-radius:8px;cursor:pointer}
+.seg button.on{background:var(--surface);color:var(--accent);box-shadow:var(--shadow)}
+.chip{appearance:none;border:1px solid var(--line-2);background:var(--surface);color:var(--text);border-radius:999px;padding:5px 12px;font:600 12.5px var(--font);cursor:pointer}
+.chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.lbl{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.meta{font-size:12px;color:var(--muted)}
+.grid{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:16px;margin-top:16px;align-items:start}
+@media(max-width:980px){.grid{grid-template-columns:1fr}}
+.panel{padding:14px}
+.ans{background:var(--calc);border:1px solid var(--calc-line);border-radius:10px;padding:12px 14px;margin-bottom:12px}
+.ans h3{margin:0 0 6px;font-size:12px;letter-spacing:.07em;text-transform:uppercase;color:var(--accent-text)}
+.ans p{margin:6px 0;color:var(--strong)}
+.res{padding:12px 14px;border:1px solid var(--line);border-radius:10px;margin-bottom:10px;background:var(--surface);cursor:pointer}
+.res:hover,.res.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.res h4{margin:4px 0;font-size:15px;color:var(--strong);line-height:1.3}
+.res .sn{font-size:13.5px;color:var(--text);margin:4px 0 8px}
+.badge{display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:2px 8px;border-radius:999px;border:1px solid currentColor}
+.b-Fannie{color:var(--c-fannie)}.b-Freddie{color:var(--c-freddie)}.b-FHA{color:var(--c-fha)}.b-VA{color:var(--c-va)}.b-Other{color:var(--c-other)}
+.sec{font:600 12px ui-monospace,Consolas,monospace;color:var(--muted);margin-left:6px}
+.act{display:flex;gap:8px;flex-wrap:wrap}
+.btn{appearance:none;border:1px solid var(--line-2);background:var(--surface-2);color:var(--accent-text);border-radius:8px;padding:5px 10px;font:600 12.5px var(--font);cursor:pointer;text-decoration:none;display:inline-flex;gap:5px;align-items:center}
+.btn:hover{border-color:var(--accent)}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+mark{background:var(--mark);color:inherit;border-radius:3px;padding:0 1px}
+#reader{position:sticky;top:12px;max-height:calc(100vh - 24px);display:flex;flex-direction:column;overflow:hidden}
+#reader .hd{padding:12px 14px;border-bottom:1px solid var(--line);background:var(--surface-2)}
+#reader h2{margin:4px 0 8px;font-size:17px;color:var(--strong);line-height:1.3}
+#rbody{padding:14px;overflow-y:auto;white-space:pre-wrap;font-size:14px;line-height:1.6}
+@keyframes gl-in{from{opacity:0}}
+#reader .hd,#rbody,#webp,#aip,#ac,dialog[open]{animation:gl-in .18s ease-out}
+@media(prefers-reduced-motion:reduce){#reader .hd,#rbody,#webp,#aip,#ac,dialog[open]{animation:none}}
+dialog .keep{display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0;font-weight:600;font-size:13px;color:var(--text)}
+.empty{color:var(--muted);text-align:center;padding:40px 16px}
+.web a.btn{margin:0 6px 6px 0}
+.note{font-size:12px;color:var(--muted);margin:8px 0 0}
+.warn{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:13px}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]) .warn{background:#3a2a14;border-color:#6b4a1e;color:#fcd9a8}}
+:root[data-theme=dark] .warn{background:#3a2a14;border-color:#6b4a1e;color:#fcd9a8}
+dialog{border:1px solid var(--line-2);border-radius:14px;background:var(--surface);color:var(--text);padding:0;max-width:520px;width:92vw;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+dialog::backdrop{background:rgba(8,15,28,.55)}
+dialog .in{padding:18px}
+dialog h3{margin:0 0 10px;color:var(--strong)}
+dialog label{display:block;font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin:12px 0 4px}
+dialog input[type=password],dialog input[type=text],dialog select{width:100%;padding:9px 10px;background:var(--input);border:1px solid var(--input-line);color:var(--strong);border-radius:8px;font:14px var(--font)}
+.aiout{white-space:pre-wrap;font-size:14px;color:var(--strong)}
+.aiout a{color:var(--accent)}
+.tok{font-size:12px;color:var(--muted)}
+.skel{height:10px;background:var(--surface-3);border-radius:6px;margin:8px 0}
+kbd{font:600 11px ui-monospace,Consolas,monospace;border:1px solid var(--line-2);border-bottom-width:2px;border-radius:5px;padding:0 5px;background:var(--surface-2)}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><svg viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="7" fill="#3d84e6"/><circle cx="14" cy="14" r="6" stroke="#fff" stroke-width="2.5"/><path d="M19 19 L25 25" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/></svg>Guideline Lookup</div>
+  <span class="sub">Fannie Mae &middot; Freddie Mac &middot; FHA &middot; VA &middot; searched on this computer, nothing is sent</span>
+  <span class="spacer"></span>
+  <button id="bSet" title="AI and web settings">Settings</button>
+  <button id="bTheme" title="Toggle light / dark">Theme</button>
+</header>
+<main>
+  <div class="card bar">
+    <div class="row">
+      <div class="sw">
+        <input id="q" type="text" autocomplete="off" spellcheck="false" placeholder="Search guidelines: topic, question or section code (e.g. self-employed 2 years, B3-3.4-01, second FHA loan)" aria-label="Search">
+        <button id="clr" aria-label="Clear">&times;</button>
+        <div id="ac" role="listbox"></div>
+      </div>
+    </div>
+    <div class="row">
+      <span class="lbl">Search in</span>
+      <button class="chip on" data-ag="Fannie">Fannie Mae</button>
+      <button class="chip on" data-ag="Freddie">Freddie Mac</button>
+      <button class="chip on" data-ag="FHA">FHA</button>
+      <button class="chip on" data-ag="VA">VA</button>
+      <button class="chip on" data-ag="Other">Other (CFPB, FHFA, USDA)</button>
+      <span class="spacer"></span>
+      <span class="lbl">Mode</span>
+      <span class="seg" id="mode">
+        <button data-m="local" class="on" title="Search only the built-in guide copies. No network, no tokens.">Local &middot; free</button>
+        <button data-m="web" title="Local results plus one-click web searches on the official sites. No tokens.">+ Web &middot; free</button>
+        <button data-m="ai" title="Local results plus an AI answer. Uses tokens only when you click Ask AI.">+ AI &middot; tokens</button>
+      </span>
+    </div>
+    <div class="row meta" id="stats"></div>
+  </div>
+
+  <div id="warn"></div>
+  <div class="grid">
+    <section>
+      <div id="webp" class="card panel web" style="display:none;margin-bottom:12px"></div>
+      <div id="aip" class="card panel" style="display:none;margin-bottom:12px"></div>
+      <div class="card panel" id="results"><div class="empty">Type to search. Press <kbd>/</kbd> to focus the search box.</div></div>
+    </section>
+    <aside id="reader" class="card">
+      <div class="hd"><span class="lbl">Reader</span><div class="meta">Pick a result to read the guide text here.</div></div>
+      <div id="rbody" class="empty">Nothing open yet.</div>
+    </aside>
+  </div>
+</main>
+
+<dialog id="dlg"><div class="in">
+  <h3>Settings</h3>
+  <p class="meta">Local search never uses tokens. These settings only matter if you use <b>AI &middot; tokens</b> mode.</p>
+  <label>Anthropic API key</label>
+  <input id="sKey" type="password" placeholder="sk-ant-..." autocomplete="off">
+  <label class="keep"><input type="checkbox" id="sKeep"> Remember the key on this computer</label>
+  <label>Model</label>
+  <select id="sModel">
+    <option value="claude-haiku-5-5">Claude Haiku 5.5 (cheapest, fast)</option>
+    <option value="claude-sonnet-5-5">Claude Sonnet 5.5 (better reasoning)</option>
+    <option value="claude-opus-5-5">Claude Opus 5.5 (most capable, highest cost)</option>
+  </select>
+  <label>When may AI run?</label>
+  <select id="sAuto">
+    <option value="click">Only when I click Ask AI (recommended)</option>
+    <option value="auto">Automatically if local search finds nothing useful</option>
+  </select>
+  <label>Let Claude search the web too</label>
+  <select id="sWeb"><option value="0">No: answer from the local excerpts only (fewer tokens)</option><option value="1">Yes: allow web search (more tokens)</option></select>
+  <label>Max answer length (tokens)</label>
+  <input id="sMax" type="text" value="700">
+  <div class="act" style="margin-top:16px"><button class="btn pri" id="sSave">Save</button><button class="btn" id="sClose">Close</button></div>
+  <p class="note">The key is kept only while this tab is open, unless you tick Remember (then it stays in this browser's storage). It is sent only to api.anthropic.com. Do not tick Remember on a shared computer.</p>
+</div></dialog>
+
+<script src="assets/guidelines/fannie.js?v=2026-11-20"></script>
+<script src="assets/guidelines/fha.js?v=2026-11-20"></script>
+<script src="assets/guidelines/curated.js?v=2026-11-20"></script>
+<script>
+"use strict";
+/* ============ helpers ============ */
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+const GLD=(window.GL&&window.GL.docs)||[]; const META=(window.GL&&window.GL.meta)||{};
+const STOP=new Set("a an and are as at be by for from how i in is it of on or the to what when which who with do does can my me we you your this that there their they if not no".split(" "));
+const SYN={dti:["debt-to-income","debt to income"],ot:["overtime"],voe:["verification of employment"],wvoe:["written verification of employment","verification of employment"],se:["self-employed","self employed"],"self-employed":["self employed","self-employment","self employment","business income","schedule c"],"1099":["self-employed","independent contractor"],gift:["gifts","donor"],gifts:["gift"],pmi:["mortgage insurance"],mip:["mortgage insurance premium"],coe:["certificate of eligibility"],irrrl:["streamline","interest rate reduction"],adu:["accessory dwelling unit"],mh:["manufactured housing","manufactured home"],"double-wide":["manufactured"],doublewide:["manufactured"],bk:["bankruptcy"],fc:["foreclosure"],ltv:["loan-to-value","loan to value"],cltv:["combined loan-to-value"],reo:["real estate owned"],hoa:["homeowners association"],condo:["condominium"],"203k":["203(k)","rehabilitation","renovation"],buydown:["temporary buydown"],aus:["automated underwriting","du","lpa","total scorecard"],"non-occupant":["nonoccupant","non occupant"],coborrower:["co-borrower"],"co-borrower":["coborrower"],"split":["remaining entitlement"],entitlement:["guaranty"],"chipping":["peeling","flaking","defective paint"],paint:["lead-based paint"],rent:["rental income"],student:["student loan"],collections:["collection accounts"],residual:["residual income"],seasoning:["seasoned"],"cash-out":["cash out"],"second home":["second residence"],reserves:["reserve"],future:["employment offer","delayed start"],depletion:["asset depletion","assets as income"]};
+/* phrase intents: common questions mapped to the wording the guides actually use (boosts, never filters) */
+const PHR=[
+ [/second\s+(fha|home)|another\s+fha|two\s+fha|more\s+than\s+one\s+fha|multiple\s+fha/,["more than one mortgage","fha-insured mortgages","principal residence","relocation","increase in family size","vacating","non-occupant"]],
+ [/split\s+entitlement|remaining\s+entitlement|partial\s+entitlement/,["entitlement","guaranty","county loan limit","second tier"]],
+ [/large\s+deposit|undisclosed\s+deposit|source\s+of\s+funds|sourcing/,["large deposits","source of funds","bank statements","deposit","documentation of assets"]],
+ [/asset(s)?\s+(as|for)\s+income|asset\s+depletion|assets?\s+qualifying/,["asset depletion","employment-related assets","retirement accounts","distribution","qualifying income"]],
+ [/future\s+(employment|income)|delayed\s+start|job\s+offer|offer\s+letter/,["employment offers or contracts","delayed start","offer letter","start date"]],
+ [/self[\s-]*employ|1099|schedule\s+c|business\s+income/,["self-employed borrower","business tax returns","two years","cash flow analysis","form 1084","profit and loss"]],
+ [/manufactured|double[\s-]*wide|mobile\s+home/,["manufactured housing","permanent foundation","hud data plate","hud tag","certificate of occupancy"]],
+ [/chipping|peeling|flaking|defective\s+paint|lead[\s-]*based/,["lead-based paint","defective paint","deteriorated paint","pre-1978","minimum property requirements"]],
+ [/gift/,["gift funds","gift letter","donor","transfer of gift funds"]],
+ [/non[\s-]*occupant|non[\s-]*occupying/,["non-occupant borrower","co-borrower","non-occupying"]],
+ [/student\s+loan/,["student loan","monthly payment","deferred","1%","0.5%"]],
+ [/rental\s+income|rent\s+income|schedule\s+e/,["rental income","schedule e","lease agreement","vacancy factor"]],
+ [/bankruptcy|foreclosure|short\s+sale|waiting\s+period/,["waiting period","extenuating circumstances","bankruptcy","foreclosure"]],
+ [/appraisal\s+(age|expir|valid)|age\s+of\s+appraisal/,["appraisal","effective date","age of appraisal","120 days"]],
+ [/mortgage\s+insurance|mip\b|pmi\b/,["mortgage insurance","mip","annual premium","upfront","cancellation"]],
+ [/dti|debt[\s-]*to[\s-]*income|max(imum)?\s+ratio/,["debt-to-income ratio","qualifying ratios","maximum","total debt"]],
+ [/overtime|bonus|commission|variable\s+income/,["variable income","overtime","bonus","commission","two-year history"]],
+ [/203\s*\(?k\)?|rehab|renovation/,["rehabilitation","203(k)","consultant","contingency reserve","maximum mortgage"]],
+ [/occupancy/,["occupancy","principal residence","second home","investment property","60 days"]],
+ [/condo(minium)?/,["condominium","project","hoa","budget","reserve"]],
+ [/lease|leasing/,["lease","leased vehicle","monthly obligation","installment","ten months","payments remaining"]],
+ [/airbnb|vrbo|short[\s-]*term\s+rental|vacation\s+rental/,["short-term rental","rental income","second home","investment property","documentation"]],
+ [/boarder|roommate|room\s*mate/,["boarder income","rental income","12 months","payment history"]],
+ [/new\s+job|changed\s+jobs?|job\s+change|just\s+started|recently\s+hired|probation/,["employment offers or contracts","job change","start date","verbal verification","paystub","employment history","gap in employment"]],
+ [/401\s*\(?k\)?|ira|retirement\s+(account|fund)|pension/,["retirement accounts","withdrawal","distribution","vested","asset depletion"]],
+ [/divorc|alimony|child\s+support|separat/,["alimony","child support","separate maintenance","divorce decree","court-ordered"]],
+ [/flood/,["flood insurance","special flood hazard area","flood zone","sfha","coverage"]],
+ [/solar|pv\s+panel|photovoltaic/,["solar panels","leased","power purchase agreement","ppa","lien"]],
+ [/septic|well\s+water|private\s+well/,["septic","well","water supply","sewage","distance"]],
+ [/citizen|green\s*card|visa|permanent\s+resident|daca|itin|foreign/,["non-permanent resident alien","lawful residency","permanent resident","eligibility","ssn"]],
+ [/disabilit|ssi|ssdi|social\s+security/,["social security","disability income","award letter","gross up","non-taxable income"]],
+ [/collection|charge[\s-]*off|judgment|tax\s+lien/,["collection accounts","charge-offs","judgments","tax liens","must be paid"]],
+ [/co[\s-]*sign|cosign|co[\s-]*maker/,["contingent liability","co-signer","other party","12 months","payment history"]],
+ [/power\s+of\s+attorney|poa/,["power of attorney","attorney-in-fact","specific"]],
+ [/trust/,["inter vivos","living trust","revocable","trustee","trust agreement"]],
+ [/seller\s+(contribution|concession|credit|paid)|concession|interested\s+part/,["interested party contributions","seller concessions","closing costs","limits","percent"]],
+ [/credit\s+score|fico|min(imum)?\s+score/,["credit score","minimum","representative score","decision credit score"]],
+ [/no\s+credit|thin\s+file|rent\s+(history|payment)|nontraditional|non[\s-]*traditional/,["nontraditional credit","rent payments","utilities","12 months","alternative credit"]],
+ [/unpermit|illegal\s+(addition|unit)|zoning|legal\s+nonconform/,["legal nonconforming","zoning","additions","compliance","remedy"]],
+ [/rural|acre|acreage/,["acreage","rural","property characteristics","agricultural"]],
+ [/heloc|home\s+equity|subordinat|second\s+mortgage|junior\s+lien/,["subordinate financing","home equity line","heloc","closed-end second","combined ltv"]],
+ [/construction|build(ing)?\s+a\s+home|new\s+build/,["construction-to-permanent","single-closing","construction loan","interim"]],
+ [/homestyle|renovation\s+loan|fixer/,["homestyle renovation","rehabilitation","contractor","escrow"]],
+ [/homeready|home\s*possible|low\s+down|first[\s-]*time/,["homeready","home possible","income limit","homeownership education","reserves"]],
+ [/escrow/,["escrow account","waiver","taxes","insurance","impound"]],
+ [/hazard\s+insurance|homeowner'?s?\s+insurance|property\s+insurance|deductible/,["hazard insurance","deductible","coverage","replacement cost","mortgagee clause"]],
+ [/tolerance|closing\s+disclosure|loan\s+estimate|trid/,["tolerance","closing disclosure","loan estimate","trid","cure"]],
+ [/qm|qualified\s+mortgage|ability[\s-]*to[\s-]*repay|atr/,["ability-to-repay","qualified mortgage","points and fees","eligibility"]],
+ [/earnest\s+money|emd/,["earnest money deposit","source","verified","bank statement"]],
+ [/sweat\s+equity/,["sweat equity","labor","materials","contributions"]],
+ [/appraiser|appraisal\s+(waiver|rep)|value\s+too\s+low|low\s+appraisal|reconsideration/,["appraisal","reconsideration of value","appraisal waiver","value"]]
+];
+const CANNED=["self-employed income 2 years","large deposit sourcing","gift funds requirements","debt-to-income ratio limits","second FHA loan","VA split entitlement","VA loan limits","manufactured home eligibility","chipping paint peeling paint appraisal","assets as qualifying income","future employment income offer letter","rental income calculation","non-occupant co-borrower","student loan payment calculation","collection accounts","bankruptcy waiting period","foreclosure waiting period","mortgage insurance cancellation","age of appraisal","condo project eligibility","flood insurance","cash-out refinance seasoning","temporary buydown","HomeReady","Home Possible","203k rehabilitation loan","occupancy requirements","overtime bonus commission income","part-time second job income","social security retirement income","child support alimony income","credit score minimum","LTV limits","reserves requirements","VA funding fee exempt","FHA mortgage insurance premium MIP","FHA minimum property requirements","power of attorney","non-traditional credit","rent history","delayed financing","jumbo conforming loan limits","TRID tolerance","ATR QM"];
+const AGCOL={Fannie:"Fannie Mae",Freddie:"Freddie Mac",FHA:"FHA",VA:"VA",Other:"Other"};
+function tok(s){return String(s).toLowerCase().replace(/[^a-z0-9.\-]+/g,' ').split(/\s+/).map(t=>t.replace(/^[.\-]+|[.\-]+$/g,'')).filter(t=>t&&(t.length>1||/\d/.test(t)));}
+function esre(s){return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}
+
+/* ============ index ============ */
+const D=GLD; const N=D.length; const post=new Map(); const dlen=new Float32Array(N); let avg=1; let vocab=[]; let ready=false;
+function build(){
+  let tot=0;
+  for(let i=0;i<N;i++){
+    const d=D[i]; d._l=((d.t||'')+' '+(d.s||'')+' '+(d.k||'')).toLowerCase();
+    const tt=tok(d.x||''); dlen[i]=tt.length||1; tot+=tt.length;
+    const tf=new Map(); for(const w of tt) tf.set(w,(tf.get(w)||0)+1);
+    for(const w of tok(d.t||'')) tf.set(w,(tf.get(w)||0)+6);
+    for(const w of tok((d.s||'')+' '+(d.k||''))) tf.set(w,(tf.get(w)||0)+8);
+    for(const w of tok(d.h||'')) tf.set(w,(tf.get(w)||0)+(d.a==='FHA'?2:8));
+    for(const [w,c] of tf){let p=post.get(w); if(!p){p=[];post.set(w,p)} p.push(i,c);}
+  }
+  avg=tot/Math.max(1,N); vocab=[...post.keys()].sort(); ready=true;
+}
+function expandPrefix(p){ // vocab words starting with p (binary search)
+  let lo=0,hi=vocab.length; while(lo<hi){const m=(lo+hi)>>1; if(vocab[m]<p) lo=m+1; else hi=m;}
+  const out=[]; for(let i=lo;i<vocab.length&&vocab[i].startsWith(p)&&out.length<40;i++) out.push(vocab[i]); return out;
+}
+function ed(a,b,max){ if(Math.abs(a.length-b.length)>max) return 9; const m=a.length,n=b.length; let prev=Array.from({length:n+1},(_,j)=>j);
+  for(let i=1;i<=m;i++){const cur=[i]; let rm=i; for(let j=1;j<=n;j++){const v=Math.min(prev[j]+1,cur[j-1]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1)); cur.push(v); if(v<rm)rm=v;} if(rm>max) return 9; prev=cur;} return prev[n];}
+function suggestWord(w){ if(w.length<4) return null; let best=null,bd=3,bf=0; for(const v of vocab){ if(v[0]!==w[0]&&v[1]!==w[1]) continue; const d=ed(w,v,2); if(d<bd||(d===bd&&post.get(v).length>bf)){ if(d<=2){best=v;bd=d;bf=post.get(v).length} } } return best; }
+
+/* ============ search ============ */
+const AGWORDS={fannie:"Fannie",fnma:"Fannie",freddie:"Freddie",fhlmc:"Freddie",fha:"FHA",va:"VA",usda:"Other",hud:"FHA"};
+function parse(q){
+  const raw=q.trim(); const toks=tok(raw); const ag=new Set(); const core=[];
+  for(const t of toks){ if(AGWORDS[t]) ag.add(AGWORDS[t]); else core.push(t); }
+  const must=core.filter(t=>!STOP.has(t)); return {raw,toks:must.length?must:core,ag,codeLike:/^[a-z]\d[\w.\-]*$/i.test(raw.replace(/\s+/g,''))&&/\d/.test(raw)};
+}
+function run(q,agSel,opts={}){
+  const P=parse(q); if(!P.toks.length&&!P.codeLike) return {P,res:[],did:null};
+  const sc=new Float64Array(N); const used=new Set(); let miss=[],didMean=[];
+  const add=(w,wt,pre)=>{ const ps=post.get(w); if(!ps) return false; const df=ps.length/2; const idf=Math.log(1+(N-df+.5)/(df+.5));
+    for(let k=0;k<ps.length;k+=2){const i=ps[k],tf=ps[k+1]; sc[i]+=wt*idf*(tf*2.2)/(tf+1.2*(.25+.75*dlen[i]/avg));} return true; };
+  P.toks.forEach((t,ix)=>{
+    let hit=add(t,1);
+    if(SYN[t]) for(const s of SYN[t]) for(const w of tok(s)) add(w,.35);
+    if(!hit||(opts.prefix&&ix===P.toks.length-1)){ if(t.length>=2){ const ex=expandPrefix(t); for(const w of ex){ if(w!==t){add(w,.5); hit=true;} } } }
+    if(!hit){ const sg=suggestWord(t); if(sg){ didMean.push([t,sg]); add(sg,.8); hit=true;} else miss.push(t); }
+  });
+  // intent expansion: common questions -> wording used in the guides
+  const rawlow=P.raw.toLowerCase().replace(/\s+/g,' '); P.exp=[];
+  for(const [re,list] of PHR){ if(re.test(rawlow)){ for(const ph of list) for(const w of tok(ph)){ if(!STOP.has(w)&&!P.toks.includes(w)&&!P.exp.includes(w)){ P.exp.push(w); add(w,.55); } } } }
+  // pseudo-relevance feedback: mine the best few hits for their most distinctive words (low weight) -> finds indirect matches
+  if(!opts.noprf&&P.toks.length>=2){
+    const top=[]; for(let i=0;i<N;i++){ const v=sc[i]; if(v<=0) continue; if(top.length<5){top.push(i); top.sort((a,b)=>sc[b]-sc[a]);} else if(v>sc[top[4]]){top[4]=i; top.sort((a,b)=>sc[b]-sc[a]);} }
+    if(top.length>=3){ const fb=new Map(); const qset=new Set([...P.toks,...P.exp]);
+      for(const i of top){ const seen=new Set(); const pool=tok((D[i].t||'')+' '+(D[i].h||'')+' '+(D[i].x||'').slice(0,2500)); for(const w of pool){ if(w.length<4||STOP.has(w)||qset.has(w)||seen.has(w)) continue; seen.add(w); fb.set(w,(fb.get(w)||0)+1); } }
+      const cand=[...fb].filter(([w,c])=>c>=4&&post.has(w)).map(([w,c])=>[w,c*Math.log(1+N/(post.get(w).length/2))]).sort((a,b)=>b[1]-a[1]).slice(0,5);
+      P.prf=cand.map(c=>c[0]); for(const [w] of cand) add(w,.18); }
+  }
+  // phrase + title bonuses, section-code match
+  const qlow=P.toks.join(' ');
+  const codeQ=rawlow.replace(/\s+/g,'').replace(/^section|^topic/,'');
+  // proximity: adjacent query words appearing together in the text ("title insurance") earn a boost on the best candidates
+  const bg=[]; for(let k=0;k+1<P.toks.length;k++) if(!STOP.has(P.toks[k])&&!STOP.has(P.toks[k+1])) bg.push(P.toks[k]+' '+P.toks[k+1]);
+  let cut=0; if(bg.length){ const pos=[]; for(let i=0;i<N;i++) if(sc[i]>0) pos.push(sc[i]); pos.sort((a,b)=>b-a); cut=pos[Math.min(pos.length-1,99)]||0; }
+  const res=[];
+  for(let i=0;i<N;i++){
+    const d=D[i]; let s=sc[i]; const tl=d._l;
+    if(bg.length&&s>=cut&&s>0){ const low=d._x||(d._x=(d.x||'').toLowerCase()); let hits=0; for(const b of bg){ if(tl.includes(b)) hits+=2; else if(low.includes(b)) hits++; } if(hits) s*=1+Math.min(.9,.3*hits); }
+    if(s>0&&P.toks.length>1){ if(tl.includes(qlow)) s*=2.2; else if(P.toks.every(t=>tl.includes(t))) s*=1.5; }
+    if(P.codeLike&&d.s){ const dc=d.s.toLowerCase().replace(/\s+/g,''); if(dc===codeQ) s+=400; else if(dc.startsWith(codeQ)) s+=120; }
+    if(P.ag.size&&P.ag.has(d.a)) s*=1.6;
+    if(d.k&&s>0&&!P.ag.has(d.a)) s*=0.9;
+    if(!agSel.has(d.a)) continue;
+    if(s>0) res.push([i,s]);
+  }
+  res.sort((a,b)=>b[1]-a[1]);
+  return {P,res,did:didMean.length?didMean:null,miss};
+}
+
+/* ============ snippets / answers ============ */
+function terms(P){ const s=new Set(); P.toks.forEach(t=>{s.add(t); if(SYN[t]) SYN[t].forEach(x=>tok(x).forEach(w=>s.add(w)));}); (P.exp||[]).forEach(w=>s.add(w)); return [...s].filter(t=>t.length>1&&!STOP.has(t)); }
+function curTerms(){return lastRun?terms(lastRun.P):[]}
+function hl(text,tl){ let h=esc(text); if(!tl.length) return h; const re=new RegExp('(?<![a-z0-9])('+tl.map(esre).sort((a,b)=>b.length-a.length).join('|')+')','gi'); return h.replace(re,'<mark>$1</mark>'); }
+function snippet(d,tl,len=260){ const x=d.x||''; const low=x.toLowerCase(); let best=-1,bc=-1;
+  const hits=[]; for(const t of tl){ let p=low.indexOf(t); let c=0; while(p>=0&&c<3){hits.push(p);p=low.indexOf(t,p+t.length);c++;} }
+  hits.sort((a,b)=>a-b); for(const h of hits){ let c=0; for(const g of hits) if(g>=h-60&&g<=h+len-60) c++; if(c>bc){bc=c;best=h;} }
+  const st=Math.max(0,(best<0?0:best-70)); let sn=x.slice(st,st+len).replace(/\s+/g,' '); return (st>0?'… ':'')+sn+(st+len<x.length?' …':''); }
+function bestAnswer(res,P,n=3){ const tl=terms(P); if(!res.length||!tl.length) return null; const out=[];
+  for(const [i] of res.slice(0,2)){ const d=D[i]; const sents=(d.x||'').split(/(?<=[.!?])\s+|\n+/).map(s=>s.trim()).filter(s=>s.length>45&&s.length<420);
+    const scored=sents.map((s,ix)=>{const l=s.toLowerCase(); let c=0; for(const t of tl) if(l.includes(t)) c+=1; return {s,ix,c}}).filter(o=>o.c>=Math.min(2,tl.length)).sort((a,b)=>b.c-a.c||a.ix-b.ix).slice(0,n).sort((a,b)=>a.ix-b.ix);
+    if(scored.length){ out.push({d,i,lines:scored.map(o=>o.s)}); } if(out.length) break; }
+  return out[0]||null; }
+
+/* ============ UI state ============ */
+let agSel=new Set(LS.get('gl-ag',['Fannie','Freddie','FHA','VA','Other'])); let mode=LS.get('gl-mode','local'); let cur=null; let lastQ=''; let lastRun=null;
+let hist=LS.get('gl-hist',[]); const KEY={get(){try{return sessionStorage.getItem('gl-key')||localStorage.getItem('gl-key')||''}catch(e){return ''}},kept(){try{return !!localStorage.getItem('gl-key')}catch(e){return false}},
+  set(k,keep){try{k?sessionStorage.setItem('gl-key',k):sessionStorage.removeItem('gl-key')}catch(e){} try{k&&keep?localStorage.setItem('gl-key',k):localStorage.removeItem('gl-key')}catch(e){}}};
+let cfg=Object.assign({model:'claude-haiku-5-5',auto:'click',web:'0',max:700},LS.get('gl-cfg',{})); if(cfg.key){KEY.set(cfg.key,true);} cfg.key=KEY.get(); LS.set('gl-cfg',Object.assign({},cfg,{key:undefined})); let tokUsed=LS.get('gl-tok',{in:0,out:0});
+function linkLabel(d){return d.a==='Fannie'?'View in Selling Guide':d.a==='Freddie'?'View in Freddie Guide':d.a==='FHA'?'View in HUD 4000.1 (PDF)':d.a==='VA'?'View on VA site':'View official source'}
+function cite(d){return AGCOL[d.a]+' '+(d.s?d.s+' - ':'')+d.t+' - '+d.u}
+
+function stats(){ const c={}; D.forEach(d=>c[d.a]=(c[d.a]||0)+1); const parts=Object.entries(c).map(([k,v])=>`${AGCOL[k]||k}: ${v.toLocaleString()} ${k==='FHA'?'pages':'sections'}`);
+  const built=Object.values(META).map(m=>m.built).filter(Boolean).sort().pop();
+  $('#stats').innerHTML='Indexed locally &mdash; '+(parts.join(' &middot; ')||'nothing loaded')+(built?' &middot; built '+built:'')+' &middot; tokens used: '+(tokUsed.in+tokUsed.out).toLocaleString();
+  let w=''; if(!c.Fannie) w+='Fannie Mae data not found. Run <b>refresh.bat</b> (or <code>python crawl_fannie.py</code> then <code>python build_index.py</code>) to download the Selling Guide copy. ';
+  if(!c.FHA) w+='FHA data not found. Run <b>refresh.bat</b> to download HUD 4000.1. ';
+  $('#warn').innerHTML=w?'<div class="warn">'+w+'</div>':''; }
+
+function setMode(m){ mode=m; LS.set('gl-mode',m); $$('#mode button').forEach(b=>b.classList.toggle('on',b.dataset.m===m)); renderPanels(); }
+function renderPanels(){ const q=lastQ; const w=$('#webp'), a=$('#aip');
+  w.style.display=(mode==='web'&&q)?'block':'none'; a.style.display=(mode==='ai'&&q)?'block':'none';
+  if(mode==='web'&&q) w.innerHTML=webHTML(q);
+  if(mode==='ai'&&q) aiPanel(q); }
+const SITES={Fannie:["selling-guide.fanniemae.com"],Freddie:["guide.freddiemac.com"],FHA:["hud.gov","portal.hud.gov"],VA:["benefits.va.gov","va.gov","knowva.ebenefits.va.gov"],Other:["consumerfinance.gov","fhfa.gov","rd.usda.gov"]};
+function webURL(q,ags,eng){ const sites=[...ags].flatMap(a=>SITES[a]||[]); const qq=q+(sites.length?' ('+sites.map(s=>'site:'+s).join(' OR ')+')':'');
+  return eng==='ddg'?'https://duckduckgo.com/?q='+encodeURIComponent(qq):eng==='bing'?'https://www.bing.com/search?q='+encodeURIComponent(qq):'https://www.google.com/search?q='+encodeURIComponent(qq); }
+function webHTML(q){ let h='<div class="lbl">Free web search (no tokens) &mdash; opens official-site searches in a new tab</div><div style="margin:8px 0">';
+  for(const a of ['Fannie','Freddie','FHA','VA','Other']) h+=`<a class="btn" target="_blank" rel="noopener" href="${esc(webURL(q,[a],'g'))}">${AGCOL[a]} site</a>`;
+  h+=`<a class="btn pri" target="_blank" rel="noopener" href="${esc(webURL(q,agSel,'g'))}">All selected &middot; Google</a><a class="btn" target="_blank" rel="noopener" href="${esc(webURL(q,agSel,'ddg'))}">DuckDuckGo</a><a class="btn" target="_blank" rel="noopener" href="${esc(webURL(q,agSel,'bing'))}">Bing</a></div>`;
+  h+='<div class="note">Site-restricted searches. Freddie Mac and VA text is not stored offline, so use these for those. Always confirm the effective date on the official page.</div>'; return h; }
+
+/* ============ results ============ */
+function render(q){ lastQ=q; const t0=performance.now(); const r=run(q,agSel); lastRun=r; const box=$('#results');
+  if(!q.trim()){ box.innerHTML='<div class="empty">Type to search. Press <kbd>/</kbd> to focus the search box.</div>'; renderPanels(); return; }
+  const tl=terms(r.P); let h='';
+  const top=r.res.slice(0,30); const ms=(performance.now()-t0).toFixed(0);
+  if(r.did) h+=`<p class="meta">Showing results for <b>${r.did.map(x=>esc(x[1])).join(', ')}</b> (searched instead of ${r.did.map(x=>esc(x[0])).join(', ')}).</p>`;
+  const ba=bestAnswer(r.res,r.P); if(ba){ h+=`<div class="ans"><h3>Best match answer (from the guide, no AI)</h3>${ba.lines.map(l=>'<p>'+hl(l,tl)+'</p>').join('')}<div class="act"><span class="badge b-${ba.d.a}">${AGCOL[ba.d.a]}</span><span class="sec">${esc(ba.d.s)}</span><a class="btn" href="${esc(ba.d.u)}" target="_blank" rel="noopener">${linkLabel(ba.d)} &#8599;</a><button class="btn" data-open="${ba.i}">Read here</button></div></div>`; }
+  const rel=r.res.filter(x=>x[1]>=r.res[0][1]*.25).length;
+  h+=`<div class="meta" style="margin-bottom:8px">${rel.toLocaleString()} relevant result${rel===1?'':'s'} (of ${r.res.length.toLocaleString()} partial matches) &middot; ${ms} ms${r.res.length>30?' &middot; top 30 shown':''}</div>`;
+  if(!top.length){ h+='<div class="empty">No local match. '+(mode==='local'?'Switch to <b>+ Web</b> (free) or <b>+ AI</b> (tokens) above.':'Try the web or AI panel above.')+'</div>'; }
+  top.forEach(([i,s])=>{ const d=D[i]; h+=`<div class="res" data-i="${i}"><span class="badge b-${d.a}">${AGCOL[d.a]}</span><span class="sec">${esc(d.s||'')}</span><h4>${hl(d.t,tl)}</h4><div class="sn">${hl(snippet(d,tl),tl)}</div><div class="act"><button class="btn" data-open="${i}">Read here</button><a class="btn pri" href="${esc(d.u)}" target="_blank" rel="noopener">${linkLabel(d)} &#8599;</a><button class="btn" data-cite="${i}">Copy cite</button></div></div>`; });
+  box.innerHTML=h; renderPanels();
+  if(mode==='ai'&&cfg.auto==='auto'&&cfg.key&&(!top.length||top[0][1]<3)) askAI(q); }
+
+function openDoc(i,tl){ const d=D[i]; cur=i; tl=tl||curTerms();
+  $('#reader').innerHTML=`<div class="hd"><span class="badge b-${d.a}">${AGCOL[d.a]}</span><span class="sec">${esc(d.s||'')}</span><h2>${esc(d.t)}</h2><div class="act"><a class="btn pri" href="${esc(d.u)}" target="_blank" rel="noopener">${linkLabel(d)} &#8599;</a><button class="btn" id="rCopy">Copy text</button><button class="btn" id="rCite">Copy cite</button><button class="btn" id="rPrev">&larr; Prev</button><button class="btn" id="rNext">Next &rarr;</button></div></div><div id="rbody">${hl(d.x||'(No offline text for this entry. Use the official link above.)',tl)}</div>`;
+  $('#rCopy').onclick=()=>copy(d.x||''); $('#rCite').onclick=()=>copy(cite(d));
+  const step=dir=>{ let j=i+dir; while(j>=0&&j<N&&D[j].a!==d.a) j+=dir; if(j>=0&&j<N) openDoc(j,tl); }; $('#rPrev').onclick=()=>step(-1); $('#rNext').onclick=()=>step(1);
+  const m=$('#rbody mark'); if(m) m.scrollIntoView({block:'center'}); $$('.res').forEach(e=>e.classList.toggle('sel',+e.dataset.i===i)); }
+function copy(t){ (navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).catch(()=>{const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();document.execCommand('copy');a.remove();}); }
+
+/* ============ autocomplete ============ */
+let acItems=[], acIx=-1;
+function suggest(q){ const out=[]; const raw=q.trim(); if(raw.length<1){ const hs=hist.slice(0,6).map(t=>({g:'Recent',k:t,run:t})); return hs.concat(CANNED.slice(0,6).map(t=>({g:'Try',k:t,run:t}))); }
+  const low=raw.toLowerCase(); const toks=tok(raw);
+  const hs=hist.filter(h=>h.toLowerCase().includes(low)&&h.toLowerCase()!==low).slice(0,3).map(t=>({g:'Recent',k:t,run:t})); out.push(...hs);
+  const cn=CANNED.filter(c=>c.toLowerCase().includes(low)||toks.every(t=>c.toLowerCase().includes(t))).slice(0,4).map(t=>({g:'Popular questions',k:t,run:t})); out.push(...cn);
+  if(ready&&toks.length){ const last=toks[toks.length-1]; const ex=expandPrefix(last).filter(w=>w!==last).sort((a,b)=>post.get(b).length-post.get(a).length).slice(0,3);
+    ex.forEach(w=>out.push({g:'Complete',k:toks.slice(0,-1).concat(w).join(' '),run:toks.slice(0,-1).concat(w).join(' ')})); }
+  if(ready&&toks.length){ const sc=[]; const codeish=/\d/.test(raw)&&/^[a-z0-9.\-\s]+$/i.test(raw);
+    for(let i=0;i<N;i++){ const d=D[i]; if(!agSel.has(d.a)) continue; const l=d._l; let s=0;
+      if(d.s&&codeish&&d.s.toLowerCase().replace(/\s+/g,'').startsWith(raw.toLowerCase().replace(/\s+/g,''))) s+=10;
+      let all=true; for(const t of toks){ if(l.includes(t)) s+=l.startsWith(t)?3:2; else {all=false;} } if(all&&toks.length) s+=5; if(l.includes(low)) s+=6; if(s>=5) sc.push([i,s]); }
+    sc.sort((a,b)=>b[1]-a[1]); sc.slice(0,6).forEach(([i])=>out.push({g:'Sections',k:D[i].t,m:AGCOL[D[i].a]+' '+(D[i].s||''),doc:i})); }
+  return out; }
+function showAC(){ const q=$('#q').value; acItems=suggest(q); acIx=-1; const el=$('#ac'); if(!acItems.length){el.style.display='none';return}
+  let h='',g=''; acItems.forEach((it,i)=>{ if(it.g!==g){g=it.g;h+=`<div class="grp">${esc(g)}</div>`} h+=`<div class="it" data-ix="${i}"><span class="k">${esc(it.k)}</span><span class="m">${esc(it.m||'')}</span></div>`; });
+  el.innerHTML=h; el.style.display='block'; }
+function hideAC(){ $('#ac').style.display='none'; acIx=-1; }
+function pick(i){ const it=acItems[i]; if(!it) return; hideAC(); if(it.doc!=null){ openDoc(it.doc,curTerms()); } else { $('#q').value=it.run; go(); } }
+function remember(q){ q=q.trim(); if(q.length<3) return; hist=[q].concat(hist.filter(h=>h.toLowerCase()!==q.toLowerCase())).slice(0,20); LS.set('gl-hist',hist); }
+let tmr; function go(){ clearTimeout(tmr); const q=$('#q').value; $('#clr').style.display=q?'block':'none'; if(q.trim().length>=3) remember(q); render(q); }
+
+/* ============ AI (tokens only on click) ============ */
+function aiPanel(q){ const a=$('#aip'); const est=Math.round((q.length+ctxFor().length+400)/4);
+  a.innerHTML=`<div class="lbl">AI answer &mdash; uses tokens only when you press the button</div><div class="act" style="margin:8px 0"><button class="btn pri" id="askBtn">Ask AI (${esc(cfg.model.replace('claude-',''))})</button><span class="tok">Input estimate: ~${est.toLocaleString()} tokens${cfg.web==='1'?' + web search':''} &middot; this session total: ${(tokUsed.in+tokUsed.out).toLocaleString()}</span></div><div id="aiout" class="aiout"></div>${cfg.key?'':'<div class="note">Add your Anthropic API key in Settings first.</div>'}`;
+  $('#askBtn').onclick=()=>askAI(q); }
+function ctxFor(){ if(!lastRun) return ''; return lastRun.res.slice(0,5).map(([i],n)=>{const d=D[i]; return `[${n+1}] ${AGCOL[d.a]} ${d.s||''} - ${d.t}\nURL: ${d.u}\n${(d.x||'').slice(0,1800)}`}).join('\n\n'); }
+function md(s){ return esc(s).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/(https?:\/\/[^\s)<]+)/g,'<a href="$1" target="_blank" rel="noopener">$1</a>'); }
+async function askAI(q){ if(!cfg.key){ $('#dlg').showModal(); return; } const out=$('#aiout')||(()=>{setMode('ai');return $('#aiout')})(); if(!out) return;
+  out.innerHTML='<div class="skel"></div><div class="skel" style="width:80%"></div><div class="skel" style="width:60%"></div>';
+  const sys="You are a mortgage guideline assistant for loan officers and underwriters. Answer concisely. Use the provided guide excerpts as the primary source and cite them by agency, section code and URL. If the excerpts do not answer the question, say so"+(cfg.web==='1'?" and use web search of official sources (fanniemae.com, freddiemac.com, hud.gov, va.gov, consumerfinance.gov)":" and say what to look up")+". Flag anything time-sensitive (limits, fees, rates) as 'verify current'. Never invent section numbers or figures.";
+  const body={model:cfg.model,max_tokens:Math.max(200,+cfg.max||700),system:sys,messages:[{role:'user',content:`Question: ${q}\n\nLocal guide excerpts:\n${ctxFor()||'(none found)'}`}]};
+  if(cfg.web==='1') body.tools=[{type:'web_search_20250305',name:'web_search',max_uses:3}];
+  try{ const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':cfg.key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify(body)});
+    const j=await r.json(); if(!r.ok) throw new Error((j.error&&j.error.message)||r.status);
+    const txt=(j.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n'); out.innerHTML=md(txt||'(empty answer)');
+    if(j.usage){ tokUsed.in+=j.usage.input_tokens||0; tokUsed.out+=j.usage.output_tokens||0; LS.set('gl-tok',tokUsed); out.insertAdjacentHTML('beforeend',`<div class="tok" style="margin-top:8px">Used ${j.usage.input_tokens} in / ${j.usage.output_tokens} out tokens.</div>`); stats(); }
+  }catch(e){ out.innerHTML='<div class="warn">AI request failed: '+esc(e.message)+'</div>'; } }
+
+/* ============ wire up ============ */
+$('#q').addEventListener('input',()=>{ $('#clr').style.display=$('#q').value?'block':'none'; showAC(); clearTimeout(tmr); tmr=setTimeout(()=>render($('#q').value),120); });
+$('#q').addEventListener('keydown',e=>{ const n=acItems.length; if(e.key==='ArrowDown'&&n){e.preventDefault();acIx=(acIx+1)%n;} else if(e.key==='ArrowUp'&&n){e.preventDefault();acIx=(acIx-1+n)%n;} else if(e.key==='Enter'){ if(acIx>=0){e.preventDefault();pick(acIx);} else {hideAC();go();} return;} else if(e.key==='Escape'){hideAC();return;} else return;
+  $$('#ac .it').forEach((el,i)=>el.classList.toggle('on',i===acIx)); });
+$('#q').addEventListener('focus',showAC);
+$('#ac').addEventListener('mousedown',e=>{ const it=e.target.closest('.it'); if(it){e.preventDefault();pick(+it.dataset.ix);} });
+document.addEventListener('click',e=>{ if(!e.target.closest('.sw')) hideAC(); });
+$('#clr').onclick=()=>{$('#q').value='';go();$('#q').focus();};
+document.addEventListener('keydown',e=>{ if(e.key==='/'&&!/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){e.preventDefault();$('#q').focus();} });
+$('#results').addEventListener('click',e=>{ const o=e.target.closest('[data-open]'); if(o){openDoc(+o.dataset.open,curTerms());return;} const c=e.target.closest('[data-cite]'); if(c){copy(cite(D[+c.dataset.cite]));c.textContent='Copied';return;}
+  if(e.target.closest('a')) return; const r=e.target.closest('.res'); if(r) openDoc(+r.dataset.i,curTerms()); });
+$$('.chip').forEach(b=>{ b.classList.toggle('on',agSel.has(b.dataset.ag)); b.onclick=()=>{ const a=b.dataset.ag; if(agSel.has(a)&&agSel.size>1) agSel.delete(a); else agSel.add(a); b.classList.toggle('on',agSel.has(a)); LS.set('gl-ag',[...agSel]); render($('#q').value); }; });
+$$('#mode button').forEach(b=>b.onclick=()=>setMode(b.dataset.m));
+$('#bTheme').onclick=()=>{ const r=document.documentElement; const dark=r.dataset.theme?r.dataset.theme==='dark':matchMedia('(prefers-color-scheme:dark)').matches; r.dataset.theme=dark?'light':'dark'; LS.set('gl-theme',r.dataset.theme); try{localStorage.setItem('gl-theme',r.dataset.theme)}catch(e){} };
+$('#bSet').onclick=()=>{ $('#sKey').value=cfg.key; $('#sKeep').checked=KEY.kept(); $('#sModel').value=cfg.model; $('#sAuto').value=cfg.auto; $('#sWeb').value=cfg.web; $('#sMax').value=cfg.max; $('#dlg').showModal(); };
+$('#sClose').onclick=()=>$('#dlg').close();
+$('#sSave').onclick=()=>{ cfg={key:$('#sKey').value.trim(),model:$('#sModel').value,auto:$('#sAuto').value,web:$('#sWeb').value,max:+$('#sMax').value||700}; KEY.set(cfg.key,$('#sKeep').checked); LS.set('gl-cfg',Object.assign({},cfg,{key:undefined})); $('#dlg').close(); renderPanels(); };
+$('#q').focus();
+$('#stats').textContent='Building search index…';
+setTimeout(()=>{ build(); stats(); setMode(mode); const p=new URLSearchParams(location.search).get('q'); if(p){$('#q').value=p;go();} },20);
+window.GLsearch=q=>{ $('#q').value=q; go(); $('#q').focus(); };
+</script>
+<script src="assets/workflow-ui.js?v=57.24"></script>
+<script src="assets/mt-search.js?v=57.24"></script>
+</body>
+</html>

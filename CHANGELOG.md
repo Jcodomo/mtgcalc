@@ -700,3 +700,9 @@ All 25 pages load with no errors or missing files. Original Full Suite and the s
 ## Release 57.22 - W-2 years in the document reader
 
 - **A W-2 for a finished year is no longer read as year-to-date pay.** When the reader put a 2025 W-2 in a job's first column ("Most recent / YTD"), the worksheet divided it by the months elapsed this year (88,000 over 10.7 months = $8,250 a month instead of $7,333.33). A W-2 in the first column now dates that column's YTD at December 31 of its year; when a newer pay stub arrives, the W-2 years move to Prior year and Two years prior and the stub's year-to-date figures take the first column.
+
+## Release 57.24 - smooth page changes, guideline search, pages that no longer freeze
+
+- **Smooth transitions on every page:** page changes cross-fade on all 38 pages (the dock, Documents and Ghost buttons stay put), Income Calculator tabs fade in, and the document builder and Documents library ease open (assets/mt-motion.css, loaded in each page's head so it works before the first paint; off with the system's Reduce motion).
+- **Guideline search** (guidelines.html, Guidelines in the dock): Fannie Mae, Freddie Mac, FHA and VA guideline search from Guideline Lookup, run on this computer. Every Ctrl+K search also offers "Search the guidelines for ..." The optional AI key is kept only while the tab is open unless you tick Remember. Rebuild with `node tools/guidelines-sync.mjs <guideline-lookup folder>`.
+- **Faster pages:** the address helper read the label of every input on the page after each change (up to 1.2 s frozen on the Loan Suite's Advanced page); it now skips number boxes, checks each input once and works in idle moments. The Loan Suite's background tasks run in short slices. Loan Suite pages had 0.25-1.6 s of freezes while opening; now none longer than 50 ms.

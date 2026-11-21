@@ -227,13 +227,32 @@
     });
   }
   var ADDR = /\b(address|street|premises|job site|property location|subject property)\b/i, NOT = /e-?mail|web|url|\bip\b|city|town|\bzip|postal|\bstate\b|county|unit\s*#|apt|suite\b|line 2|ssn|nmls|phone/i;
+  /* 57.24: number boxes (inputmode decimal / numeric, and phone, e-mail and web boxes) never hold an address, so their labels
+     are not read; on the Loan Suite's Advanced page that skips about 1,600 of 1,800 inputs */
+  var NOTADDR = /^(decimal|numeric|tel|email|url)$/i;
   function candidate(el) {
     if (el.__mta || el.readOnly || el.disabled || el.closest('#mtB, .mtA-list, [data-mtaddr-skip]')) return false;
     if (el.getAttribute('data-path') === 'propertyAddress') return true;
+    if (NOTADDR.test(el.getAttribute('inputmode') || '')) return false;
     var l = labelOf(el); return ADDR.test(l) && !NOT.test(l.replace(ADDR, ''));
   }
-  function scan(root) { [].forEach.call((root || document).querySelectorAll('input[type=text], input:not([type])'), function (el) { if (candidate(el)) attach(el); }); }
-  var mo = new MutationObserver(function (m) { if (m.some(function (r) { return r.addedNodes.length; })) { clearTimeout(mo.t); mo.t = setTimeout(scan, 150); } });
+  /* 57.24: each input is checked once, only the parts of the page that were added are re-checked, and the work runs in
+     short slices while the browser is idle, so opening a page or re-drawing a tab never freezes it (was up to 1.2 s) */
+  var seen = typeof WeakSet === 'function' ? new WeakSet() : null, queue = [], busy = false;
+  var idle = window.requestIdleCallback ? function (f) { requestIdleCallback(f, {timeout: 800}); } : function (f) { setTimeout(function () { f({timeRemaining: function () { return 8; }}); }, 30); };
+  function check(el) { if (seen) { if (seen.has(el)) return; seen.add(el); } if (el.isConnected && candidate(el)) attach(el); }
+  function pump(d) { var t = Date.now(); while (queue.length && (d.timeRemaining() > 2 || Date.now() - t < 6)) check(queue.shift()); if (queue.length) idle(pump); else busy = false; }
+  function scan(root) {
+    var r = root || document, list = r.querySelectorAll ? r.querySelectorAll('input[type=text], input:not([type])') : [];
+    if (r.matches && r.matches('input[type=text], input:not([type])')) queue.push(r);
+    for (var i = 0; i < list.length; i++) queue.push(list[i]);
+    if (queue.length && !busy) { busy = true; idle(pump); }
+  }
+  var added = [];
+  var mo = new MutationObserver(function (m) {
+    for (var i = 0; i < m.length; i++) for (var j = 0; j < m[i].addedNodes.length; j++) { var n = m[i].addedNodes[j]; if (n.nodeType === 1) added.push(n); }
+    if (added.length) { clearTimeout(mo.t); mo.t = setTimeout(function () { var a = added; added = []; if (a.length > 400) scan(); else a.forEach(function (n) { if (n.isConnected) scan(n); }); }, 150); }
+  });
   function start() { scan(); mo.observe(document.body, {childList: true, subtree: true}); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
   window.addEventListener('scroll', place, true); window.addEventListener('resize', place);

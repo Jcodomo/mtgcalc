@@ -109,7 +109,7 @@ def main():
         cfg['legacy'] = cfg['persistCalc']                                       # v54-era app: also carries the name-field typing fix
         return ('<script>/* 55.15: OLED dark blue by default (once for everyone; afterwards the Look menu / theme switch decides) */(function(){try{var L=localStorage,k=\'mt.oledDefault.v1\';if(!L.getItem(k)){L.setItem(\'los.v25.surface\',\'oled\');L.setItem(\'uwTheme\',\'dark\');[\'los.v251.appearanceSeeded\',\'los.v35.appearanceSeeded\',\'v15ThemeSeeded\'].forEach(function(f){L.setItem(f,\'1\')});L.setItem(k,\'1\');}document.documentElement.setAttribute(\'data-mt-mode\',L.getItem(\'los.v25.surface\')===\'light\'&&L.getItem(\'uwTheme\')!==\'dark\'?\'light\':\'oled\');}catch(e){}})();</script>\n' + '<script>window.LOS_PAGE="' + ('allinone' if page else 'full') + '";window.LOS_EMBED=' + json.dumps(cfg) + ';'
                 'if(!/[?&]app=/.test(location.search)){try{history.replaceState(null,"",location.pathname+(location.search?location.search+"&":"?")+"app=' + app + '"+location.hash)}catch(e){}}</script>\n'
-                '<link rel="stylesheet" href="assets/loan-suite-embed.css?v=56.0">\n<link rel="stylesheet" href="assets/mtgcalc-theme.css?v=56.0">')
+                '<link rel="stylesheet" href="assets/loan-suite-embed.css?v=56.0">\n<link rel="stylesheet" href="assets/mtgcalc-theme.css?v=56.0">\n<link rel="stylesheet" href="assets/mt-motion.css?v=57.24">')
     tail = '<script src="assets/loan-suite-embed.js?v=56.0"></script>\n'
     def emit(fname, page, title, doc_title, app='suite'):
         doc = skeleton.replace('<!--LOS-PAGE-BOOT-->', boot(page, title, app), 1)
@@ -134,7 +134,7 @@ def main():
             tag = {'income-calculator.html': 'income', 'quick.html': 'quick', 'doc-organizer.html': 'docorg', 'property.html': 'property', 'handwriting.html': 'handwriting'}[f]
             t = re.sub(r'<html\b', f'<html data-mt-page="{tag}"', t, count=1)
             t = re.sub(r'(<head[^>]*>)', lambda m: m.group(1) + '\n' + MIG, t, count=1)
-            t = t.replace('</head>', '<link rel="stylesheet" href="assets/mtgcalc-theme.css">\n</head>', 1)
+            t = t.replace('</head>', '<link rel="stylesheet" href="assets/mtgcalc-theme.css">\n<link rel="stylesheet" href="assets/mt-motion.css?v=57.24">\n</head>', 1)
             if f == 'quick.html':
                 # 55.23: Quick runs the Loan Suite engine for its estimates - the module loader and the engine bundle
                 eng = next(x for x in sorted((OUT / 'assets' / 'js').glob('*.js')) if 'define("src/core/calc/engine"' in x.read_text(encoding='utf-8'))
@@ -187,6 +187,7 @@ def hub(OUT):
     cards = [('quick.html', 'Quick', 'Quick income worksheet and fast mortgage calculator.'),
              ('income-calculator.html', 'Income Calculator', 'W-2, self-employment, rental and other income, document import with OCR, AUS findings, DTI.'),
              ('doc-organizer.html', 'Documents', 'Document library with OCR, paste text, spreadsheet rows, screenshots and files, the income document reader, the Document Builder, and rename / split / zip; send reviewed fields to the Loan Suite or the Income Calculator.'),
+             ('guidelines.html', 'Guidelines', 'Search Fannie Mae, Freddie Mac, FHA and VA guidelines on this computer: a topic, a question or a section code. Nothing is sent anywhere.'),
              ('property.html', 'Property', 'Flood zone, census area and the public property record beside Street View, satellite and flood maps; listing sites open on the right half of the screen.'),
              ('handwriting.html', 'Handwriting', 'Type anything and it is written by hand with our own pen engine; signatures typed, drawn or from a PNG, SVG or photo, for every document.'),
              ('full-suite.html', 'Full Suite', 'The complete Loan Suite in one page. The Income Calculator is its own page.')]
@@ -198,6 +199,7 @@ def hub(OUT):
     html = """<!DOCTYPE html>
 <html lang="en" data-mt-page="hub"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light dark">
 <link rel="stylesheet" href="assets/mtgcalc-theme.css">
+<link rel="stylesheet" href="assets/mt-motion.css?v=57.24">
 """ + MIG + """
 <title>Mortgage Suite</title>
 <style>

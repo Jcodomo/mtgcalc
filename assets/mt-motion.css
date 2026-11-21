@@ -1,0 +1,33 @@
+/* Mortgage Suite 57.24 - smooth transitions on every page.
+   Loaded in each page's <head>, so the browser knows before the first paint that page changes should cross-fade
+   (the dock, Documents and Ghost buttons stay in place while the page underneath changes). Tabs and panels that a page
+   shows or hides fade in; the document builder and the Documents library ease open. Opacity only: nothing moves, so
+   fixed pop-ups and menus inside a panel keep their position. Browsers without view transitions simply change pages
+   as before. "Reduce motion" in the system settings turns all of it off. */
+@view-transition { navigation: auto; }
+::view-transition-old(root) { animation: mt-vt-out .14s ease-out both; }
+::view-transition-new(root) { animation: mt-vt-in .2s ease-out both; }
+::view-transition-group(mt-dock), ::view-transition-group(mt-docs), ::view-transition-group(mt-ghost) { animation-duration: .2s; }
+#mtgcalcPageNav { view-transition-name: mt-dock; }
+#mtDocsBtn { view-transition-name: mt-docs; }
+.ghost-fab { view-transition-name: mt-ghost; }
+@keyframes mt-vt-out { to { opacity: 0; } }
+@keyframes mt-vt-in { from { opacity: 0; } }
+@keyframes mt-fade { from { opacity: 0; } }
+@keyframes mt-fade-soft { from { opacity: .35; } }
+
+/* Income Calculator tabs (W-2, Schedule C, Rental, Assets, DTI, Summary ...) */
+.panel[id^="panel-"].active { animation: mt-fade-soft .2s ease-out; }
+/* Quick worksheet, Property and other pages built from cards that switch */
+[role="tabpanel"]:not([hidden]) { animation: mt-fade-soft .2s ease-out; }
+/* document builder and the Documents library */
+#mtB.open, #mtDocs.open { animation: mt-fade .16s ease-out; }
+
+@media (prefers-reduced-motion: reduce) {
+  @view-transition { navigation: none; }
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
+  .panel[id^="panel-"].active, [role="tabpanel"]:not([hidden]), #mtB.open, #mtDocs.open { animation: none !important; }
+}
+@media print {
+  .panel[id^="panel-"].active, [role="tabpanel"]:not([hidden]), #mtB.open, #mtDocs.open { animation: none !important; }
+}

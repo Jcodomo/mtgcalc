@@ -9,10 +9,11 @@
     ['property','Property','property.html','M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z M12 12.5a3 3 0 1 0 0-6 3 3 0 0 0 0 6'],
     ['income','Income','income-calculator.html','M5 3h14v18H5z M8 7h8 M8 11h2 M14 11h2 M8 15h2 M14 15h2'],
     ['enc','Encompass','loan-suite-encompass.html','M3 4h18v16H3z M3 9h18 M8 9v11'],
+    ['guide','Guidelines','guidelines.html','M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14z M16.5 16.5L21 21'],
     ['full','Full Suite','full-suite.html','M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z']
   ];
   const path = location.pathname;
-  const active = /income-calculator/.test(path) ? 'income' : /pages\.html/.test(path) ? 'pages' : (/quick/.test(path) || /\/(index\.html)?$/.test(path)) ? 'home' : /doc-organizer/.test(path) ? 'docs' : /property\.html/.test(path) ? 'property' : /encompass/.test(path) ? 'enc' : /(?:full-suite|all-in-one|loan-suite|renovation-suite)/.test(path) ? 'full' : 'home';
+  const active = /guidelines.html/.test(path) ? 'guide' : /income-calculator/.test(path) ? 'income' : /pages\.html/.test(path) ? 'pages' : (/quick/.test(path) || /\/(index\.html)?$/.test(path)) ? 'home' : /doc-organizer/.test(path) ? 'docs' : /property\.html/.test(path) ? 'property' : /encompass/.test(path) ? 'enc' : /(?:full-suite|all-in-one|loan-suite|renovation-suite)/.test(path) ? 'full' : 'home';
   const css = document.createElement('style');
   css.id = 'mtgcalc-5512-css';
   css.textContent =

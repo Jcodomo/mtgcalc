@@ -23,6 +23,7 @@
     [IC + '#tab=rates', 'Income Calculator - Mortgage rates', 'mortgage rates daily survey mnd'],
     [IC + '#tab=taxes', 'Income Calculator - Taxes & escrow', 'taxes escrow proration billing cycle county tax'],
     [IC + '#tab=summary', 'Income Calculator - Summary & guidelines', 'summary underwriting guidelines agency fannie freddie fha va stipulations'],
+    ['guidelines.html', 'Guideline search', 'guidelines guideline lookup search fannie mae freddie mac fha va hud 4000.1 selling guide seller servicer underwriting rules section policy requirement eligibility'],
     ['full-suite.html', 'Full Suite', 'full suite loan suite all pages'],
     ['loan-suite-quote.html', 'Loan Suite - Quote & Setup', 'quote setup borrower property address price program occupancy units down payment rate term'],
     ['loan-suite-setup.html', 'Loan Suite - Setup', 'setup borrower property zip state county program renovation transaction'],
@@ -127,7 +128,10 @@
     q = norm(q); if (!q) return [];
     if (!liveCache || Date.now() - liveAt > 4000) { liveCache = liveEntries(); liveAt = Date.now(); }
     var words = q.split(' '), all = provided().concat(liveCache).concat(staticEntries().filter(function (e) { return !(e.kind === 'Page' && here(e.href) && !/#/.test(e.href)); }));
-    return all.map(function (e) { return {e: e, s: score(e, words, q)}; }).filter(function (x) { return x.s > 0; }).sort(function (a, b) { return b.s - a.s; }).slice(0, 30).map(function (x) { return x.e; });
+    var res = all.map(function (e) { return {e: e, s: score(e, words, q)}; }).filter(function (x) { return x.s > 0; }).sort(function (a, b) { return b.s - a.s; }).slice(0, 29).map(function (x) { return x.e; });
+    /* 57.24: every search also offers the Fannie, Freddie, FHA and VA guideline search for the same words */
+    if (q.length >= 3) { var raw = q; res.push({kind: 'Guidelines', title: 'Search the guidelines for "' + raw + '"', sub: 'Fannie Mae, Freddie Mac, FHA, VA', text: norm(raw), go: function () { if (/guidelines.html$/.test(location.pathname) && window.GLsearch) window.GLsearch(raw); else location.href = 'guidelines.html?q=' + encodeURIComponent(raw); }}); }
+    return res;
   }
 
   /* ------------------------------------------------------------ going to a result */
