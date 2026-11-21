@@ -36,12 +36,12 @@
     ['loan-suite-taxes-proration.html', 'Loan Suite - Taxes & Proration', 'taxes proration property tax exemption star tax pickup escrow pickup'],
     ['loan-suite-qualify.html', 'Loan Suite - Qualify', 'qualify dti income debts reserves assets credit score aus'],
     ['loan-suite-rental.html', 'Loan Suite - Rental', 'rental income units adu self-sufficiency vacating rental 75%'],
-    ['loan-suite-credit.html', 'Loan Suite - Credit', 'credit score tradelines'],
+    ['loan-suite-credit.html', 'Loan Suite - Credit', 'credit score fico tradelines credit report liabilities'],
     ['loan-suite-advanced.html', 'Loan Suite - Advanced', 'advanced overrides mi pmi mip ufmip rounding bps'],
     ['loan-suite-scenarios.html', 'Loan Suite - Scenarios', 'scenarios compare save load json history'],
     ['loan-suite-summary.html', 'Loan Suite - Summary', 'summary loan report print'],
     ['loan-suite-draft-le.html', 'Loan Suite - Draft LE', 'loan estimate draft le fees'],
-    ['loan-suite-contract-le.html', 'Loan Suite - Contract & LE', 'contract loan estimate comparison'],
+    ['loan-suite-contract-le.html', 'Loan Suite - Contract & LE', 'contract loan estimate comparison closing disclosure cd purchase contract reader'],
     ['loan-suite-documents-ocr.html', 'Loan Suite - Documents & OCR', 'documents ocr read figures ai import paste screenshot'],
     ['loan-suite-documents-worksheets.html', 'Loan Suite - Documents & Worksheets', 'worksheets documents ai prompts'],
     ['doc-organizer.html', 'Doc Organizer', 'organize rename split merge zip documents borrower dates duplicates'],
@@ -113,9 +113,50 @@
     });
     return out;
   }
-  function score(e, words, q) {
-    var s = 0; for (var i = 0; i < words.length; i++) { var w = words[i], last = i === words.length - 1; var re = new RegExp('(^|\\s)' + w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + (last ? '' : '(\\s|$)')); if (re.test(e.text)) s += 3; else if (e.text.indexOf(w) >= 0) s += 1; else return 0; }
-    var t = norm(e.title); if (t === q) s += 8; else if (t.indexOf(q) === 0) s += 5; else if (t.indexOf(q) >= 0) s += 3;
+
+  /* 57.27: forgiving search (ideas from qdrant's page search and Aperio): a typing mistake still finds the page
+     (swapped letters count as one mistake; short words may have one, words of 8+ letters two), a loan officer's
+     shorthand finds the words the pages use (dti, le, mip, fico, rehab, p&l ...), and filler words ("where do I enter
+     the ...") are not required to match. */
+  var SYN = {dti: ['debt to income', 'dti'], le: ['loan estimate'], cd: ['closing disclosure'], mip: ['mortgage insurance', 'mip'], pmi: ['pmi', 'mortgage insurance'],
+    mi: ['mortgage insurance'], fico: ['credit score', 'credit'], credit: ['fico'], score: ['credit score'], rehab: ['renovation', 'rehab'], reno: ['renovation'], '203k': ['renovation', '203(k)'],
+    ltv: ['loan to value', 'ltv'], arv: ['after repair', 'arv'], urla: ['1003', 'urla'], '1003': ['urla', 'encompass'], paystub: ['pay stub', 'pay statement', 'paystub'], stub: ['pay stub'],
+    'p&l': ['profit and loss', 'p&l'], pnl: ['profit and loss'], heloc: ['home equity'], calc: ['calculator'], calculator: ['calc'], rates: ['rate'], rate: ['rates'], taxes: ['tax'], tax: ['taxes'],
+    guidelines: ['guideline'], guideline: ['guidelines'], bid: ['estimate', 'contractor'], k1: ['k-1'], w2: ['w-2'], '1099': ['self-employed'], loe: ['letter of explanation'],
+    cpa: ['cpa'], amortization: ['payment'], piti: ['payment', 'pitia'], pitia: ['payment', 'pitia'], hoi: ['insurance'], insurance: ['hazard'], changes: ['changelog'], updates: ['changelog']};
+  var FILLER = {where: 1, do: 1, does: 1, i: 1, enter: 1, the: 1, a: 1, an: 1, how: 1, much: 1, is: 1, are: 1, my: 1, me: 1, of: 1, for: 1, to: 1, in: 1, on: 1, at: 1, page: 1, what: 1, whats: 1,
+    show: 1, open: 1, go: 1, find: 1, calculate: 1, figure: 1, out: 1, put: 1, type: 1, add: 1, see: 1, get: 1, todays: 1, today: 1, current: 1, can: 1, with: 1, and: 1};
+  function osa(a, b, max) { var m = a.length, n = b.length; if (Math.abs(m - n) > max) return 9; var p2 = null, p1 = [], i, j; for (j = 0; j <= n; j++) p1.push(j);
+    for (i = 1; i <= m; i++) { var cur = [i], rm = i; for (j = 1; j <= n; j++) { var v = Math.min(p1[j] + 1, cur[j - 1] + 1, p1[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) v = Math.min(v, p2[j - 2] + 1); cur.push(v); if (v < rm) rm = v; } if (rm > max) return 9; p2 = p1; p1 = cur; } return p1[n]; }
+  /* for each typed word no entry has: the entry words one or two mistakes away (the last word may also be the start of one) */
+  function nearWords(words, all) {
+    var vocab = {}, near = {}; all.forEach(function (e) { (e._w || (e._w = e.text.split(' '))).forEach(function (v) { vocab[v] = 1; }); });
+    words.forEach(function (w, ix) {
+      if (vocab[w] || w.length < 4) return; var mx = w.length < 8 ? 1 : 2, out = [], last = ix === words.length - 1;
+      for (var v in vocab) { if (v.length < 3) continue; if (Math.abs(v.length - w.length) <= mx && osa(w, v, mx) <= mx) out.push(v); else if (last && v.length > w.length && osa(w, v.slice(0, w.length), 1) <= 1) out.push(v); }
+      if (out.length) near[w] = out;
+    });
+    return near;
+  }
+  function score(e, words, q, near) {
+    var s = 0, pad = ' ' + e.text + ' ', ew = e._w || (e._w = e.text.split(' ')), rw = [];
+    for (var i = 0; i < words.length; i++) {
+      var w = words[i], last = i === words.length - 1, esc = w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      if (FILLER[w]) { if (pad.indexOf(' ' + w + ' ') >= 0) s += 0.2; continue; }                          /* where, do, I, the ... count for almost nothing */
+      if (new RegExp('(^|\\s)' + esc + '(\\s|$)').test(e.text)) { s += 3.5; rw.push(w); continue; }          /* the whole word */
+      if (last && new RegExp('(^|\\s)' + esc).test(e.text)) { s += w.length < 3 ? 1.5 : 3; rw.push(w); continue; }   /* the start of a word, as you type */
+      var alt = SYN[w], k, hit = false;
+      if (alt) for (k = 0; k < alt.length && !hit; k++) if (pad.indexOf(' ' + alt[k] + ' ') >= 0 || (last && pad.indexOf(' ' + alt[k]) >= 0)) hit = true;
+      if (hit) { s += 3; rw.push(alt[k - 1]); continue; }
+      if (near && near[w]) { for (k = 0; k < ew.length && !hit; k++) if (near[w].indexOf(ew[k]) >= 0) hit = true; if (hit) { s += 2.2; rw.push(ew[k - 1]); continue; } }
+      if (e.text.indexOf(w) >= 0) { s += 1; rw.push(w); continue; }
+      return 0;
+    }
+    if (!s) return 0;
+    var t = norm(e.title), rq = rw.join(' ');
+    if (q.length < 3) t = ' ' + t + ' ', q = ' ' + q + ' ';   /* "le" matches the word LE in a title, not the start of "Lease" */
+    if (t === q || t === rq) s += 8; else if (t.indexOf(q) === 0 || (rq && t.indexOf(rq) === 0)) s += 5; else if (t.indexOf(q) >= 0 || (rq && t.indexOf(rq) >= 0)) s += 3;
     s += {Field: 2.2, Option: 1.6, Section: 1.8, Document: 2, Layout: 1.2, 'Sample scope': 1, Page: 1.5}[e.kind] || 0;
     if (e.el && e.el.offsetParent) s += 0.5;
     return s;
@@ -128,7 +169,8 @@
     q = norm(q); if (!q) return [];
     if (!liveCache || Date.now() - liveAt > 4000) { liveCache = liveEntries(); liveAt = Date.now(); }
     var words = q.split(' '), all = provided().concat(liveCache).concat(staticEntries().filter(function (e) { return !(e.kind === 'Page' && here(e.href) && !/#/.test(e.href)); }));
-    var res = all.map(function (e) { return {e: e, s: score(e, words, q)}; }).filter(function (x) { return x.s > 0; }).sort(function (a, b) { return b.s - a.s; }).slice(0, 29).map(function (x) { return x.e; });
+    var near = nearWords(words, all);
+    var res = all.map(function (e) { return {e: e, s: score(e, words, q, near)}; }).filter(function (x) { return x.s > 0; }).sort(function (a, b) { return b.s - a.s; }).slice(0, 29).map(function (x) { return x.e; });
     /* 57.24: every search also offers the Fannie, Freddie, FHA and VA guideline search for the same words */
     if (q.length >= 3) { var raw = q; res.push({kind: 'Guidelines', title: 'Search the guidelines for "' + raw + '"', sub: 'Fannie Mae, Freddie Mac, FHA, VA', text: norm(raw), go: function () { if (/guidelines.html$/.test(location.pathname) && window.GLsearch) window.GLsearch(raw); else location.href = 'guidelines.html?q=' + encodeURIComponent(raw); }}); }
     return res;

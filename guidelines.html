@@ -5,7 +5,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
-<link rel="stylesheet" href="assets/mt-motion.css?v=57.24">
+<link rel="stylesheet" href="assets/mt-motion.css?v=57.27">
 <title>Guidelines · Mortgage Suite</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%233d84e6'/%3E%3Ccircle cx='14' cy='14' r='6' stroke='white' stroke-width='2.5' fill='none'/%3E%3Cpath d='M19 19 L25 25' stroke='white' stroke-width='2.5' stroke-linecap='round'/%3E%3C/svg%3E">
 <script>!function(){try{var t=localStorage.getItem("gl-theme");"light"!==t&&"dark"!==t||(document.documentElement.dataset.theme=t)}catch(e){}}();</script>
@@ -201,7 +201,7 @@ const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 const GLD=(window.GL&&window.GL.docs)||[]; const META=(window.GL&&window.GL.meta)||{};
 const STOP=new Set("a an and are as at be by for from how i in is it of on or the to what when which who with do does can my me we you your this that there their they if not no".split(" "));
-const SYN={dti:["debt-to-income","debt to income"],ot:["overtime"],voe:["verification of employment"],wvoe:["written verification of employment","verification of employment"],se:["self-employed","self employed"],"self-employed":["self employed","self-employment","self employment","business income","schedule c"],"1099":["self-employed","independent contractor"],gift:["gifts","donor"],gifts:["gift"],pmi:["mortgage insurance"],mip:["mortgage insurance premium"],coe:["certificate of eligibility"],irrrl:["streamline","interest rate reduction"],adu:["accessory dwelling unit"],mh:["manufactured housing","manufactured home"],"double-wide":["manufactured"],doublewide:["manufactured"],bk:["bankruptcy"],fc:["foreclosure"],ltv:["loan-to-value","loan to value"],cltv:["combined loan-to-value"],reo:["real estate owned"],hoa:["homeowners association"],condo:["condominium"],"203k":["203(k)","rehabilitation","renovation"],buydown:["temporary buydown"],aus:["automated underwriting","du","lpa","total scorecard"],"non-occupant":["nonoccupant","non occupant"],coborrower:["co-borrower"],"co-borrower":["coborrower"],"split":["remaining entitlement"],entitlement:["guaranty"],"chipping":["peeling","flaking","defective paint"],paint:["lead-based paint"],rent:["rental income"],student:["student loan"],collections:["collection accounts"],residual:["residual income"],seasoning:["seasoned"],"cash-out":["cash out"],"second home":["second residence"],reserves:["reserve"],future:["employment offer","delayed start"],depletion:["asset depletion","assets as income"]};
+const SYN={crypto:["virtual currency","cryptocurrency"],bitcoin:["virtual currency","cryptocurrency"],cryptocurrency:["virtual currency"],dti:["debt-to-income","debt to income"],ot:["overtime"],voe:["verification of employment"],wvoe:["written verification of employment","verification of employment"],se:["self-employed","self employed"],"self-employed":["self employed","self-employment","self employment","business income","schedule c"],"1099":["self-employed","independent contractor"],gift:["gifts","donor"],gifts:["gift"],pmi:["mortgage insurance"],mip:["mortgage insurance premium"],coe:["certificate of eligibility"],irrrl:["streamline","interest rate reduction"],adu:["accessory dwelling unit"],mh:["manufactured housing","manufactured home"],"double-wide":["manufactured"],doublewide:["manufactured"],bk:["bankruptcy"],fc:["foreclosure"],ltv:["loan-to-value","loan to value"],cltv:["combined loan-to-value"],reo:["real estate owned"],hoa:["homeowners association"],condo:["condominium"],"203k":["203(k)","rehabilitation","renovation"],buydown:["temporary buydown"],aus:["automated underwriting","du","lpa","total scorecard"],"non-occupant":["nonoccupant","non occupant"],coborrower:["co-borrower"],"co-borrower":["coborrower"],"split":["remaining entitlement"],entitlement:["guaranty"],"chipping":["peeling","flaking","defective paint"],paint:["lead-based paint"],rent:["rental income"],student:["student loan"],collections:["collection accounts"],residual:["residual income"],seasoning:["seasoned"],"cash-out":["cash out"],"second home":["second residence"],reserves:["reserve"],future:["employment offer","delayed start"],depletion:["asset depletion","assets as income"]};
 /* phrase intents: common questions mapped to the wording the guides actually use (boosts, never filters) */
 const PHR=[
  [/second\s+(fha|home)|another\s+fha|two\s+fha|more\s+than\s+one\s+fha|multiple\s+fha/,["more than one mortgage","fha-insured mortgages","principal residence","relocation","increase in family size","vacating","non-occupant"]],
@@ -213,6 +213,8 @@ const PHR=[
  [/manufactured|double[\s-]*wide|mobile\s+home/,["manufactured housing","permanent foundation","hud data plate","hud tag","certificate of occupancy"]],
  [/chipping|peeling|flaking|defective\s+paint|lead[\s-]*based/,["lead-based paint","defective paint","deteriorated paint","pre-1978","minimum property requirements"]],
  [/gift/,["gift funds","gift letter","donor","transfer of gift funds"]],
+ [/(parent|mom|dad|mother|father|family|relative|grand\w*|brother|sister|uncle|aunt|in[\s-]*law)s?\b.{0,40}\b(help|pay|giv|gift|contribut|chip\s+in|cover)|\b(help|pay)\w*\s+(with|for|toward)\s+(the\s+)?(down\s+payment|closing\s+costs)/,["gift funds","donor","relative","gift letter","personal gifts"]],
+ [/income.{0,40}\b(end|ending|ends|expir|stop|terminat|run\s+out)|\b(end|ends|ending|expir\w*|stop\w*)\s+(soon|next\s+year|in\s+\d+)|continuance|how\s+long\s+(must|will|does|should)\s+(the\s+)?income/,["continuance","three years","documented to continue","expiration","continue for at least"]],
  [/non[\s-]*occupant|non[\s-]*occupying/,["non-occupant borrower","co-borrower","non-occupying"]],
  [/student\s+loan/,["student loan","monthly payment","deferred","1%","0.5%"]],
  [/rental\s+income|rent\s+income|schedule\s+e/,["rental income","schedule e","lease agreement","vacancy factor"]],
@@ -239,7 +241,7 @@ const PHR=[
  [/co[\s-]*sign|cosign|co[\s-]*maker/,["contingent liability","co-signer","other party","12 months","payment history"]],
  [/power\s+of\s+attorney|poa/,["power of attorney","attorney-in-fact","specific"]],
  [/trust/,["inter vivos","living trust","revocable","trustee","trust agreement"]],
- [/seller\s+(contribution|concession|credit|paid)|concession|interested\s+part/,["interested party contributions","seller concessions","closing costs","limits","percent"]],
+ [/seller.{0,25}\b(pay|paid|paying|cover|contribut|credit)|seller\s+(contribution|concession|credit|paid)|concession|interested\s+part/,["interested party contributions","seller concessions","closing costs","limits","percent"]],
  [/credit\s+score|fico|min(imum)?\s+score/,["credit score","minimum","representative score","decision credit score"]],
  [/no\s+credit|thin\s+file|rent\s+(history|payment)|nontraditional|non[\s-]*traditional/,["nontraditional credit","rent payments","utilities","12 months","alternative credit"]],
  [/unpermit|illegal\s+(addition|unit)|zoning|legal\s+nonconform/,["legal nonconforming","zoning","additions","compliance","remedy"]],
@@ -259,15 +261,18 @@ const PHR=[
 const CANNED=["self-employed income 2 years","large deposit sourcing","gift funds requirements","debt-to-income ratio limits","second FHA loan","VA split entitlement","VA loan limits","manufactured home eligibility","chipping paint peeling paint appraisal","assets as qualifying income","future employment income offer letter","rental income calculation","non-occupant co-borrower","student loan payment calculation","collection accounts","bankruptcy waiting period","foreclosure waiting period","mortgage insurance cancellation","age of appraisal","condo project eligibility","flood insurance","cash-out refinance seasoning","temporary buydown","HomeReady","Home Possible","203k rehabilitation loan","occupancy requirements","overtime bonus commission income","part-time second job income","social security retirement income","child support alimony income","credit score minimum","LTV limits","reserves requirements","VA funding fee exempt","FHA mortgage insurance premium MIP","FHA minimum property requirements","power of attorney","non-traditional credit","rent history","delayed financing","jumbo conforming loan limits","TRID tolerance","ATR QM"];
 const TOPICS=[["Income & jobs","employment income verification two year history"],["Self-employed","self-employed income tax returns"],["Gifts & assets","gift funds donor assets"],["Large deposits","large deposit sourcing bank statements"],["Bankruptcy & foreclosure","bankruptcy foreclosure waiting period"],["DTI & reserves","debt-to-income ratio reserves"],["Condos","condo project eligibility"],["Renovation","renovation 203k homestyle repairs"],["Manufactured","manufactured home"],["Co-borrowers","non-occupant co-borrower"],["VA entitlement","VA entitlement funding fee"],["Student loans","student loan payment calculation"]];
 const AGCOL={Fannie:"Fannie Mae",Freddie:"Freddie Mac",FHA:"FHA",VA:"VA",Other:"Other"};
-function tok(s){return String(s).toLowerCase().replace(/[^a-z0-9.\-]+/g,' ').split(/\s+/).map(t=>t.replace(/^[.\-]+|[.\-]+$/g,'')).filter(t=>t&&(t.length>1||/\d/.test(t)));}
+/* accents folded (é = e, ì = i), as Aperio's tokenizer normalizes Unicode */
+function tok(s){return String(s).normalize('NFKD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9.\-]+/g,' ').split(/\s+/).map(t=>t.replace(/^[.\-]+|[.\-]+$/g,'')).filter(t=>t&&(t.length>1||/\d/.test(t)));}
 function esre(s){return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}
 
 /* ============ index ============ */
-const D=GLD; const N=D.length; const post=new Map(); const dlen=new Float32Array(N); let avg=1; let vocab=[]; let ready=false;
+const D=GLD; const N=D.length; const post=new Map(); const dlen=new Float32Array(N); let avg=1; let vocab=[]; let ready=false; let stems=new Map();
+/* word forms: verify / verified / verifies / verification share a stem, so a search for one finds the others */
+function stem(w){ if(w.length<5||/d/.test(w)) return w; const s=w.replace(/(ational|tional|izations|ization|ations|ation|ements|ement|ments|ment|ingly|ings|ing|edly|ed|ies|ied|nesses|ness|ities|ity|ives|ive|ers|er|ors|or|ly|es|s)$/,''); return s.length>=4?s:w; }
 function build(){
   let tot=0;
   for(let i=0;i<N;i++){
-    const d=D[i]; d._l=((d.t||'')+' '+(d.s||'')+' '+(d.k||'')).toLowerCase();
+    const d=D[i]; d._i=i; d._l=((d.t||'')+' '+(d.s||'')+' '+(d.k||'')).toLowerCase();
     const tt=tok(d.x||''); dlen[i]=tt.length||1; tot+=tt.length;
     const tf=new Map(); for(const w of tt) tf.set(w,(tf.get(w)||0)+1);
     for(const w of tok(d.t||'')) tf.set(w,(tf.get(w)||0)+6);
@@ -275,15 +280,27 @@ function build(){
     for(const w of tok(d.h||'')) tf.set(w,(tf.get(w)||0)+(d.a==='FHA'?2:8));
     for(const [w,c] of tf){let p=post.get(w); if(!p){p=[];post.set(w,p)} p.push(i,c);}
   }
-  avg=tot/Math.max(1,N); vocab=[...post.keys()].sort(); ready=true;
+  avg=tot/Math.max(1,N); vocab=[...post.keys()].sort();
+  stems=new Map(); for(const w of vocab){ const k=stem(w); if(k!==w||stems.has(k)){ let a=stems.get(k); if(!a){a=[];stems.set(k,a)} a.push(w); } else stems.set(k,[w]); }
+  ready=true;
 }
 function expandPrefix(p){ // vocab words starting with p (binary search)
   let lo=0,hi=vocab.length; while(lo<hi){const m=(lo+hi)>>1; if(vocab[m]<p) lo=m+1; else hi=m;}
   const out=[]; for(let i=lo;i<vocab.length&&vocab[i].startsWith(p)&&out.length<40;i++) out.push(vocab[i]); return out;
 }
-function ed(a,b,max){ if(Math.abs(a.length-b.length)>max) return 9; const m=a.length,n=b.length; let prev=Array.from({length:n+1},(_,j)=>j);
-  for(let i=1;i<=m;i++){const cur=[i]; let rm=i; for(let j=1;j<=n;j++){const v=Math.min(prev[j]+1,cur[j-1]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1)); cur.push(v); if(v<rm)rm=v;} if(rm>max) return 9; prev=cur;} return prev[n];}
-function suggestWord(w){ if(w.length<4) return null; let best=null,bd=3,bf=0; for(const v of vocab){ if(v[0]!==w[0]&&v[1]!==w[1]) continue; const d=ed(w,v,2); if(d<bd||(d===bd&&post.get(v).length>bf)){ if(d<=2){best=v;bd=d;bf=post.get(v).length} } } return best; }
+/* typing mistakes: edit distance where swapping two neighbouring letters counts as one mistake ("requriements"); short
+   words may have one mistake, words of 8+ letters two; among equally close words the more common one wins */
+function ed(a,b,max){ const m=a.length,n=b.length; if(Math.abs(m-n)>max) return 9; let p2=null, p1=Array.from({length:n+1},(_,j)=>j);
+  for(let i=1;i<=m;i++){ const cur=[i]; let rm=i;
+    for(let j=1;j<=n;j++){ let v=Math.min(p1[j]+1,cur[j-1]+1,p1[j-1]+(a[i-1]===b[j-1]?0:1)); if(i>1&&j>1&&a[i-1]===b[j-2]&&a[i-2]===b[j-1]) v=Math.min(v,p2[j-2]+1); cur.push(v); if(v<rm) rm=v; }
+    if(rm>max) return 9; p2=p1; p1=cur; }
+  return p1[n]; }
+const maxEd=w=>w.length<4?0:w.length<8?1:2;
+let lastEd=0;
+function suggestWord(w){ const mx=maxEd(w); if(!mx) return null; let best=null,bd=mx+1,bf=-1;
+  for(const v of vocab){ if(v===w||Math.abs(v.length-w.length)>mx) continue; if(v[0]!==w[0]&&v[1]!==w[1]&&v[0]!==w[1]) continue;
+    const d=ed(w,v,mx); if(d>mx) continue; const f=post.get(v).length; if(d<bd||(d===bd&&f>bf)){best=v;bd=d;bf=f;} }
+  lastEd=bd; return best; }
 
 /* ============ search ============ */
 const AGWORDS={fannie:"Fannie",fnma:"Fannie",freddie:"Freddie",fhlmc:"Freddie",fha:"FHA",va:"VA",usda:"Other",hud:"FHA"};
@@ -299,17 +316,23 @@ function parse(q){
 }
 function run(q,agSel,opts={}){
   const P=parse(q); if(!P.toks.length&&!P.codeLike) return {P,res:[],did:null};
-  const sc=new Float64Array(N); const used=new Set(); let miss=[],didMean=[];
+  const sc=new Float64Array(N); const used=new Set(); let miss=[],didMean=[]; const fixed={};
   const add=(w,wt,pre)=>{ const ps=post.get(w); if(!ps) return false; const df=ps.length/2; const idf=Math.log(1+(N-df+.5)/(df+.5));
     for(let k=0;k<ps.length;k+=2){const i=ps[k],tf=ps[k+1]; sc[i]+=wt*idf*(tf*2.2)/(tf+1.2*(.25+.75*dlen[i]/avg));} return true; };
   P.toks.forEach((t,ix)=>{
     let hit=add(t,1);
+    /* a word that is in the guides only once or twice, one letter away from a word used everywhere, is a typing mistake */
+    if(hit&&t.length>=7){ const df=post.get(t).length/2; if(df<=1){ const sg=suggestWord(t); if(sg&&post.get(sg).length/2>=40*df){ didMean.push([t,sg]); fixed[t]=sg; add(sg,lastEd<=1?1:.85); } } }
+    { const own=post.get(t), sib=stems.get(stem(t)); if(sib&&sib.length>1&&(!own||own.length/2<40)){ const o=sib.filter(w=>w!==t).sort((a,b)=>post.get(b).length-post.get(a).length).slice(0,4); o.forEach(w=>{ if(add(w,.3/Math.sqrt(o.length))) hit=true; }); } }
     if(SYN[t]) for(const s of SYN[t]) for(const w of tok(s)) add(w,.35);
     if(!hit||(opts.prefix&&ix===P.toks.length-1)){ if(t.length>=2){ const ex=expandPrefix(t); for(const w of ex){ if(w!==t){add(w,.5); hit=true;} } } }
-    if(!hit){ const sg=suggestWord(t); if(sg){ didMean.push([t,sg]); add(sg,.8); hit=true;} else miss.push(t); }
+    if(!hit){ const sg=suggestWord(t); if(sg){ didMean.push([t,sg]); fixed[t]=sg; add(sg,lastEd<=1?1:.85); hit=true;} else miss.push(t); }
   });
+  // corrected spellings stand in for the typed words from here on (title match, word pairs, highlighting)
+  if(Object.keys(fixed).length) P.toks=P.toks.map(t=>fixed[t]||t);
   // intent expansion: common questions -> wording used in the guides
-  const rawlow=P.raw.toLowerCase().replace(/\s+/g,' '); P.exp=[];
+  let rawlow=P.raw.toLowerCase().replace(/\s+/g,' '); P.exp=[];
+  for(const k in fixed) rawlow=(' '+rawlow+' ').split(' '+k+' ').join(' '+fixed[k]+' ').trim();   /* question patterns see the corrected spelling */
   for(const [re,list] of PHR){ if(re.test(rawlow)){ for(const ph of list) for(const w of tok(ph)){ if(!STOP.has(w)&&!P.toks.includes(w)&&!P.exp.includes(w)){ P.exp.push(w); add(w,.55); } } } }
   // pseudo-relevance feedback: mine the best few hits for their most distinctive words (low weight) -> finds indirect matches
   if(!opts.noprf&&P.toks.length>=2){
@@ -324,25 +347,67 @@ function run(q,agSel,opts={}){
   const codeQ=rawlow.replace(/\s+/g,'').replace(/^section|^topic/,'');
   // proximity: adjacent query words appearing together in the text ("title insurance") earn a boost on the best candidates
   const bg=[]; for(let k=0;k+1<P.toks.length;k++) if(!STOP.has(P.toks[k])&&!STOP.has(P.toks[k+1])) bg.push(P.toks[k]+' '+P.toks[k+1]);
+  /* phrases as typed, small words kept: "gift of equity", "power of attorney" */
+  { const rt=tok(P.raw).map(t=>fixed[t]||t); for(let k=0;k+2<rt.length;k++) if(!STOP.has(rt[k])&&STOP.has(rt[k+1])&&!STOP.has(rt[k+2])&&!AGWORDS[rt[k]]&&!AGWORDS[rt[k+2]]) bg.push(rt[k]+' '+rt[k+1]+' '+rt[k+2]); }
+  /* the same pairs by word form, matched against titles: "gift equity" finds "Gifts of Equity" */
+  const bgS=bg.map(b=>b.split(' ').filter(w=>!STOP.has(w)).map(stem).join(' '));
   let cut=0; if(bg.length){ const pos=[]; for(let i=0;i<N;i++) if(sc[i]>0) pos.push(sc[i]); pos.sort((a,b)=>b-a); cut=pos[Math.min(pos.length-1,99)]||0; }
   const res=[];
   for(let i=0;i<N;i++){
     const d=D[i]; let s=sc[i]; const tl=d._l;
-    if(bg.length&&s>=cut&&s>0){ const low=d._x||(d._x=(d.x||'').toLowerCase()); let hits=0; for(const b of bg){ if(tl.includes(b)) hits+=2; else if(low.includes(b)) hits++; } if(hits) s*=1+Math.min(.9,.3*hits); }
-    if(s>0&&P.toks.length>1){ if(tl.includes(qlow)) s*=2.2; else if(P.toks.every(t=>tl.includes(t))) s*=1.5; }
+    if(bg.length&&s>=cut&&s>0){ const low=d._x||(d._x=(d.x||'').toLowerCase()); const ts=d._ts||(d._ts=' '+tok(d.t||'').filter(w=>!STOP.has(w)).map(stem).join(' ')+' '); let hits=0; for(let k=0;k<bg.length;k++){ const b=bg[k]; if(tl.includes(b)||ts.includes(' '+bgS[k]+' ')) hits+=2; else if(low.includes(b)) hits++; } if(hits) s*=1+Math.min(.9,.3*hits); }
+    /* the title, with its small words left out, holds the whole search: "property insurance requirements all property types" */
+    if(s>0&&P.toks.length>1){ const tn=d._tn||(d._tn=' '+tok(d.t||'').filter(w=>!STOP.has(w)).join(' ')+' '); if(tl.includes(qlow)||tn.includes(' '+qlow+' ')) s*=2.2; else if(P.toks.every(t=>tl.includes(t))) s*=1.5; }
     if(P.codeLike&&d.s){ const dc=d.s.toLowerCase().replace(/\s+/g,''); if(dc===codeQ) s+=400; else if(dc.startsWith(codeQ)) s+=120; }
     if(P.ag.size&&P.ag.has(d.a)) s*=1.6;
     if(d.k&&s>0&&!P.ag.has(d.a)) s*=0.9;
-    if(!agSel.has(d.a)) continue;
-    if(s>0&&P.only.size&&!P.only.has(d.a)) continue;
-    if(s>0&&(P.phrases.length||P.not.length)){ const low=d._n||(d._n=(d._l+' '+(d.x||'')).toLowerCase().replace(/\s+/g,' '));
-      if(P.phrases.some(p=>!low.includes(p))) continue;
-      if(P.not.some(w=>new RegExp('(?<![a-z0-9])'+esre(w)+'(?![a-z0-9])').test(low))) continue; }
-    if(s>0) res.push([i,s]);
+    if(s>0&&allowed(d,agSel,P)) res.push([i,s]);
   }
   res.sort((a,b)=>b[1]-a[1]);
-  return {P,res,did:didMean.length?didMean:null,miss};
+  // meaning search, merged in by Reciprocal Rank Fusion (as qdrant's page search does): a passage that means the same as
+  // the question ranks even when it uses other words. Not for one-word or section-code searches, where the words decide.
+  let sem=null;
+  if(opts.sem!==false&&!P.codeLike&&P.toks.length>=2&&semLoad()){
+    sem=semRank(P.toks.concat((P.exp||[]).slice(0,6)));
+    if(sem&&(opts.semWeight!=null?opts.semWeight:(isQuestion(P.raw)||res.length<5?SEM_W:0))>0){
+      const order=[]; for(let i=0;i<N;i++) if(sem.best[i]>(sc[i]>0?0.2:SEM_ONLY)&&allowed(D[i],agSel,P)) order.push(i);   /* a page found only by meaning must be a close match */
+      order.sort((a,b)=>sem.best[b]-sem.best[a]);
+      /* scores, not only places, are merged: a page that clearly wins on its words keeps its lead */
+      const W=opts.semWeight!=null?opts.semWeight:(isQuestion(P.raw)||res.length<5?SEM_W:0), fused=new Map(), top=res.length?res[0][1]:1;
+      const sTop=order.length?sem.best[order[0]]:1, fl=0.2, sn=(i)=>Math.max(0,(sem.best[i]-fl)/Math.max(1e-6,sTop-fl));
+      res.slice(0,300).forEach(([i,s])=>fused.set(i,s/top+W*sn(i)));
+      order.slice(0,200).forEach((i)=>{ if(!fused.has(i)) fused.set(i,W*sn(i)); });
+      const lex=new Map(res.map(([i,s])=>[i,s])), out=[...fused].sort((a,b)=>b[1]-a[1]), f0=out.length?out[0][1]:1;
+      const merged=out.map(([i,f])=>[i,top*f/f0]); for(const [i,s] of res) if(!fused.has(i)) merged.push([i,Math.min(s,top*0.01)]);
+      res.length=0; merged.forEach((x)=>res.push(x)); res.sort((a,b)=>b[1]-a[1]);
+      res.sem=sem; res.lex=lex;
+    }
+  }
+  return {P,res,did:didMean.length?didMean:null,miss,sem};
 }
+/* a question (how / can / does ..., a question mark, or a long sentence) is matched by meaning as well as words; a few
+   keywords or a section title is matched by its words, where meaning only adds noise */
+function isQuestion(raw){ const w=String(raw).trim().split(/\s+/); return /\?\s*$/.test(raw)||/^(how|what|when|where|who|why|which|can|could|does|do|did|is|are|should|must|may|will|if)\b/i.test(raw)||(w.length>=6&&w.filter(x=>STOP.has(x.toLowerCase())).length>=2); }
+function allowed(d,agSel,P){
+  if(!agSel.has(d.a)) return false;
+  if(P.only.size&&!P.only.has(d.a)) return false;
+  if(P.phrases.length||P.not.length){ const low=d._n||(d._n=(d._l+' '+(d.x||'')).toLowerCase().replace(/\s+/g,' '));
+    if(P.phrases.some(p=>!low.includes(p))) return false;
+    if(P.not.some(w=>new RegExp('(?<![a-z0-9])'+esre(w)+'(?![a-z0-9])').test(low))) return false; }
+  return true;
+}
+/* ============ meaning search (data/semantic.js, built by build_semantic.js) ============ */
+let SEM=null, SEM_W=0.5, SEM_ONLY=0.6;
+function b64u8(b){ if(typeof atob==='function'){ const s=atob(b), u=new Uint8Array(s.length); for(let i=0;i<s.length;i++) u[i]=s.charCodeAt(i); return u; } return new Uint8Array(Buffer.from(b,'base64')); }
+function semLoad(){ if(SEM) return SEM; const s=window.GL&&window.GL.sem; if(!s) return null;
+  SEM={K:s.K, tix:new Map(s.terms.map((w,i)=>[w,i])), idf:s.idf, W:new Int8Array(b64u8(s.W).buffer), Ws:new Float32Array(b64u8(s.Ws).buffer), P:new Int8Array(b64u8(s.P).buffer), doc:new Int32Array(b64u8(s.doc).buffer), at:new Int32Array(b64u8(s.at).buffer)};
+  return SEM; }
+function semRank(words){ const S=SEM, K=S.K, q=new Float32Array(K); let used=0;
+  for(const w of new Set(words)){ if(STOP.has(w)) continue; const t=S.tix.get(w); if(t==null) continue; used++; const wt=S.idf[t]*S.Ws[t], o=t*K; for(let k=0;k<K;k++) q[k]+=wt*S.W[o+k]; }
+  if(!used) return null; let nq=0; for(let k=0;k<K;k++) nq+=q[k]*q[k]; nq=Math.sqrt(nq)*127||1;
+  const best=new Float32Array(N).fill(-1), at=new Int32Array(N).fill(-1), n=S.doc.length;
+  for(let c=0;c<n;c++){ let s=0; const o=c*K; for(let k=0;k<K;k++) s+=q[k]*S.P[o+k]; s/=nq; const d=S.doc[c]; if(s>best[d]){ best[d]=s; at[d]=S.at[c]; } }
+  return {best,at}; }
 
 /* ============ snippets / answers ============ */
 function terms(P){ const s=new Set(); P.toks.forEach(t=>{s.add(t); if(SYN[t]) SYN[t].forEach(x=>tok(x).forEach(w=>s.add(w)));}); (P.exp||[]).forEach(w=>s.add(w)); (P.phrases||[]).forEach(w=>s.add(w)); return [...s].filter(t=>t.length>1&&!STOP.has(t)); }
@@ -351,6 +416,8 @@ function hl(text,tl){ let h=esc(text); if(!tl.length) return h; const re=new Reg
 function snippet(d,tl,len=260){ const x=d.x||''; const low=x.toLowerCase(); let best=-1,bc=-1;
   const hits=[]; for(const t of tl){ let p=low.indexOf(t); let c=0; while(p>=0&&c<3){hits.push(p);p=low.indexOf(t,p+t.length);c++;} }
   hits.sort((a,b)=>a-b); for(const h of hits){ let c=0; for(const g of hits) if(g>=h-60&&g<=h+len-60) c++; if(c>bc){bc=c;best=h;} }
+  /* found by meaning, few of the typed words: show the passage that matched */
+  const sm=lastRun&&lastRun.sem; if(bc<2&&sm&&d._i!=null&&sm.at[d._i]>=0){ const re=/[A-Za-z0-9]+/g; let k=0,m; while((m=re.exec(x))&&k<sm.at[d._i]) k++; if(m){ best=m.index+70; } }
   const st=Math.max(0,(best<0?0:best-70)); let sn=x.slice(st,st+len).replace(/\s+/g,' '); return (st>0?'… ':'')+sn+(st+len<x.length?' …':''); }
 function bestAnswer(res,P,n=3){ const tl=terms(P); if(!res.length||!tl.length) return null; const out=[];
   for(const [i] of res.slice(0,2)){ const d=D[i]; const sents=(d.x||'').split(/(?<=[.!?])\s+|\n+/).map(s=>s.trim()).filter(s=>s.length>45&&s.length<420);
@@ -368,7 +435,7 @@ function cite(d){return AGCOL[d.a]+' '+(d.s?d.s+' - ':'')+d.t+' - '+d.u}
 
 function stats(){ const c={}; D.forEach(d=>c[d.a]=(c[d.a]||0)+1); const parts=Object.entries(c).map(([k,v])=>`${AGCOL[k]||k}: ${v.toLocaleString()} ${k==='FHA'?'pages':'sections'}`);
   const built=Object.values(META).map(m=>m.built).filter(Boolean).sort().pop();
-  $('#stats').innerHTML='Indexed locally &mdash; '+(parts.join(' &middot; ')||'nothing loaded')+(built?' &middot; built '+built:'')+' &middot; tokens used: '+(tokUsed.in+tokUsed.out).toLocaleString();
+  $('#stats').innerHTML='Indexed locally &mdash; '+(parts.join(' &middot; ')||'nothing loaded')+(built?' &middot; built '+built:'')+(SEM?' &middot; meaning search on ('+SEM.doc.length.toLocaleString()+' passages)':'')+' &middot; tokens used: '+(tokUsed.in+tokUsed.out).toLocaleString();
   let w=''; if(!c.Fannie) w+='Fannie Mae data not found. Run <b>refresh.bat</b> (or <code>python crawl_fannie.py</code> then <code>python build_index.py</code>) to download the Selling Guide copy. ';
   if(!c.FHA) w+='FHA data not found. Run <b>refresh.bat</b> to download HUD 4000.1. ';
   $('#warn').innerHTML=w?'<div class="warn">'+w+'</div>':''; }
@@ -465,7 +532,12 @@ $('#sClose').onclick=()=>$('#dlg').close();
 $('#sSave').onclick=()=>{ cfg={key:$('#sKey').value.trim(),model:$('#sModel').value,auto:$('#sAuto').value,web:$('#sWeb').value,max:+$('#sMax').value||700}; KEY.set(cfg.key,$('#sKeep').checked); LS.set('gl-cfg',Object.assign({},cfg,{key:undefined})); $('#dlg').close(); renderPanels(); };
 $('#q').focus();
 $('#stats').textContent='Building search index…';
-setTimeout(()=>{ build(); stats(); setMode(mode); const p=new URLSearchParams(location.search).get('q'); if(p){$('#q').value=p;go();} },20);
+setTimeout(()=>{ build(); stats(); setMode(mode); const p=new URLSearchParams(location.search).get('q'); if(p){$('#q').value=p;go();} loadMeaning(); },20);
+/* meaning search: data/semantic.js (2 MB) loads in the background after the page is ready; questions are then matched by
+   meaning as well as by words. It is built from the guides on this computer; nothing is downloaded from anywhere else. */
+function loadMeaning(){ if(window.GL&&GL.sem) return; const f=document.querySelector('script[src*="fannie.js"]'); if(!f) return;
+  const go2=()=>{ const sc=document.createElement('script'); sc.src=f.src.replace(/fannie\.js(\?.*)?$/,'semantic.js$1'); sc.onload=()=>{ semLoad(); stats(); const q=$('#q').value; if(q.trim()) render(q); }; document.head.appendChild(sc); };
+  (window.requestIdleCallback||((cb)=>setTimeout(cb,600)))(go2,{timeout:2500}); }
 
 /* ============ more ways to search (search tips, compare, saved, related, find, voice, keys, links) ============ */
 const docKey=d=>d.a+'|'+(d.s||'')+'|'+d.t;
@@ -539,7 +611,7 @@ setTimeout(()=>{ const m=location.hash.match(/#doc=(.+)$/); if(m){ const i=byKey
 
 window.GLsearch=q=>{ $('#q').value=q; go(); $('#q').focus(); };
 </script>
-<script src="assets/workflow-ui.js?v=57.24"></script>
-<script src="assets/mt-search.js?v=57.24"></script>
+<script src="assets/workflow-ui.js?v=57.27"></script>
+<script src="assets/mt-search.js?v=57.27"></script>
 </body>
 </html>

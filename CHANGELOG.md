@@ -723,3 +723,12 @@ All 25 pages load with no errors or missing files. Original Full Suite and the s
 - **Compare agencies:** the best match from Fannie Mae, Freddie Mac, FHA and VA side by side, each with its answer lines.
 - **In the reader:** find in this section, Save (Saved list), Copy link (opens the same section), Related sections; Recently read on the start screen; voice search; keyboard (`/`, arrow keys, Enter, Esc).
 - **Income Calculator, PITIA:** the total is now the sum of the rounded lines shown above it (as on a Loan Estimate). Before, $2,022.62 + $666.67 + $150.00 could show as $2,839.28.
+
+## Release 57.27 - smarter guideline search, a page finder that forgives typos
+
+Ideas from [qdrant/page-search](https://github.com/qdrant/page-search) and [Aperio](https://github.com/aperio-search/aperio), rebuilt to run in the page (no server, nothing downloaded or sent).
+- **Guideline search finds more, and better first:** 527 test searches now find 99.4% (was 97.0%), mean reciprocal rank 0.981 (was 0.942), every section searched by its title (200/200), and typing mistakes in titles 42/42 (was 36/42). About 2.5 ms per search.
+- **Meaning search** for questions: passages of the guides are matched by meaning as well as words (learned from the guides themselves, 8,337 passages, loaded in the background); a result found by meaning shows the passage that matched.
+- **Typing mistakes** (swapped letters, a rare word one letter from a common one) are corrected and the corrected words are used for the whole ranking; **word forms** (verify / verified / verification), **accents**, **phrases with small words** ("gift of equity") and **titles without their small words** all match.
+- **Everyday questions:** "can my parents help with the down payment", "grandma wants to pay closing costs", "income that is going to end soon", "seller is paying my closing costs" go to the right sections.
+- **Ctrl+K page finder:** 189 test searches find the right page or document builder in the top 3 every time (was 70.4%): typing mistakes ("escrw cushion", "renovaton budget", "guidlines"), shorthand (dti, le, cd, mip, fico, rehab, p&l, 1003) and plain English ("where do I enter the transfer tax"). tests/page-finder.mjs is part of npm test.
