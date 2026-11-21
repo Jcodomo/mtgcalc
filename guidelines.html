@@ -105,6 +105,14 @@ dialog input[type=password],dialog input[type=text],dialog select{width:100%;pad
 .aiout a{color:var(--accent)}
 .tok{font-size:12px;color:var(--muted)}
 .skel{height:10px;background:var(--surface-3);border-radius:6px;margin:8px 0}
+.cmp{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}.cmpc{min-width:0}.cmpc .res{margin:6px 0 0}.cmpc .act{gap:6px}
+.find{display:flex;gap:8px;align-items:center;margin-top:8px}.find input{flex:1;padding:6px 9px;border:1px solid var(--input-line);background:var(--input);color:var(--strong);border-radius:7px;font:13px var(--font)}
+mark.fm{background:var(--mark)}mark.fm.on{outline:2px solid var(--accent);outline-offset:1px}
+.rel{border-top:1px solid var(--line);padding:10px 14px;display:flex;flex-direction:column;gap:4px;max-height:34%;overflow:auto}.rel a{color:var(--accent-text);text-decoration:none;font-size:13px}.rel a:hover{text-decoration:underline}
+.topics{display:flex;gap:6px;flex-wrap:wrap}.chip.tp{font-weight:600}.star.on{color:#d4a017}.tips{background:var(--surface-2);border:1px solid var(--line);border-radius:9px;padding:8px 10px;line-height:1.9}
+#mic{position:absolute;right:38px;top:8px;border:0;background:transparent;font-size:17px;cursor:pointer;padding:4px 6px;opacity:.75}#mic.on{opacity:1;filter:drop-shadow(0 0 4px var(--bad))}
+.res:focus{outline:2px solid var(--accent);outline-offset:1px}
+.sw:has(#mic) #q{padding-right:76px}
 kbd{font:600 11px ui-monospace,Consolas,monospace;border:1px solid var(--line-2);border-bottom-width:2px;border-radius:5px;padding:0 5px;background:var(--surface-2)}
 </style>
 </head>
@@ -249,6 +257,7 @@ const PHR=[
  [/appraiser|appraisal\s+(waiver|rep)|value\s+too\s+low|low\s+appraisal|reconsideration/,["appraisal","reconsideration of value","appraisal waiver","value"]]
 ];
 const CANNED=["self-employed income 2 years","large deposit sourcing","gift funds requirements","debt-to-income ratio limits","second FHA loan","VA split entitlement","VA loan limits","manufactured home eligibility","chipping paint peeling paint appraisal","assets as qualifying income","future employment income offer letter","rental income calculation","non-occupant co-borrower","student loan payment calculation","collection accounts","bankruptcy waiting period","foreclosure waiting period","mortgage insurance cancellation","age of appraisal","condo project eligibility","flood insurance","cash-out refinance seasoning","temporary buydown","HomeReady","Home Possible","203k rehabilitation loan","occupancy requirements","overtime bonus commission income","part-time second job income","social security retirement income","child support alimony income","credit score minimum","LTV limits","reserves requirements","VA funding fee exempt","FHA mortgage insurance premium MIP","FHA minimum property requirements","power of attorney","non-traditional credit","rent history","delayed financing","jumbo conforming loan limits","TRID tolerance","ATR QM"];
+const TOPICS=[["Income & jobs","employment income verification two year history"],["Self-employed","self-employed income tax returns"],["Gifts & assets","gift funds donor assets"],["Large deposits","large deposit sourcing bank statements"],["Bankruptcy & foreclosure","bankruptcy foreclosure waiting period"],["DTI & reserves","debt-to-income ratio reserves"],["Condos","condo project eligibility"],["Renovation","renovation 203k homestyle repairs"],["Manufactured","manufactured home"],["Co-borrowers","non-occupant co-borrower"],["VA entitlement","VA entitlement funding fee"],["Student loans","student loan payment calculation"]];
 const AGCOL={Fannie:"Fannie Mae",Freddie:"Freddie Mac",FHA:"FHA",VA:"VA",Other:"Other"};
 function tok(s){return String(s).toLowerCase().replace(/[^a-z0-9.\-]+/g,' ').split(/\s+/).map(t=>t.replace(/^[.\-]+|[.\-]+$/g,'')).filter(t=>t&&(t.length>1||/\d/.test(t)));}
 function esre(s){return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}
@@ -279,9 +288,14 @@ function suggestWord(w){ if(w.length<4) return null; let best=null,bd=3,bf=0; fo
 /* ============ search ============ */
 const AGWORDS={fannie:"Fannie",fnma:"Fannie",freddie:"Freddie",fhlmc:"Freddie",fha:"FHA",va:"VA",usda:"Other",hud:"FHA"};
 function parse(q){
-  const raw=q.trim(); const toks=tok(raw); const ag=new Set(); const core=[];
+  /* search operators: "exact words", -word (leave out), in:fha / in:fannie / in:freddie / in:va (one guide) */
+  const phrases=[], not=[], only=new Set(); let r0=String(q);
+  r0=r0.replace(/"([^"]+)"?/g,(m,p)=>{ const x=p.toLowerCase().replace(/\s+/g,' ').trim(); if(x) phrases.push(x); return ' '+p+' '; });
+  r0=r0.replace(/(^|\s)-([a-z0-9][\w.\-]*)/gi,(m,sp,w)=>{ not.push(w.toLowerCase()); return sp; });
+  r0=r0.replace(/(^|\s)(?:in|only):([a-z]+)/gi,(m,sp,a)=>{ const g=AGWORDS[a.toLowerCase()]; if(g) only.add(g); return sp; });
+  const raw=r0.trim(); const toks=tok(raw); const ag=new Set(); const core=[];
   for(const t of toks){ if(AGWORDS[t]) ag.add(AGWORDS[t]); else core.push(t); }
-  const must=core.filter(t=>!STOP.has(t)); return {raw,toks:must.length?must:core,ag,codeLike:/^[a-z]\d[\w.\-]*$/i.test(raw.replace(/\s+/g,''))&&/\d/.test(raw)};
+  const must=core.filter(t=>!STOP.has(t)); return {raw,phrases,not,only,toks:must.length?must:core,ag,codeLike:/^[a-z]\d[\w.\-]*$/i.test(raw.replace(/\s+/g,''))&&/\d/.test(raw)};
 }
 function run(q,agSel,opts={}){
   const P=parse(q); if(!P.toks.length&&!P.codeLike) return {P,res:[],did:null};
@@ -320,6 +334,10 @@ function run(q,agSel,opts={}){
     if(P.ag.size&&P.ag.has(d.a)) s*=1.6;
     if(d.k&&s>0&&!P.ag.has(d.a)) s*=0.9;
     if(!agSel.has(d.a)) continue;
+    if(s>0&&P.only.size&&!P.only.has(d.a)) continue;
+    if(s>0&&(P.phrases.length||P.not.length)){ const low=d._n||(d._n=(d._l+' '+(d.x||'')).toLowerCase().replace(/\s+/g,' '));
+      if(P.phrases.some(p=>!low.includes(p))) continue;
+      if(P.not.some(w=>new RegExp('(?<![a-z0-9])'+esre(w)+'(?![a-z0-9])').test(low))) continue; }
     if(s>0) res.push([i,s]);
   }
   res.sort((a,b)=>b[1]-a[1]);
@@ -327,7 +345,7 @@ function run(q,agSel,opts={}){
 }
 
 /* ============ snippets / answers ============ */
-function terms(P){ const s=new Set(); P.toks.forEach(t=>{s.add(t); if(SYN[t]) SYN[t].forEach(x=>tok(x).forEach(w=>s.add(w)));}); (P.exp||[]).forEach(w=>s.add(w)); return [...s].filter(t=>t.length>1&&!STOP.has(t)); }
+function terms(P){ const s=new Set(); P.toks.forEach(t=>{s.add(t); if(SYN[t]) SYN[t].forEach(x=>tok(x).forEach(w=>s.add(w)));}); (P.exp||[]).forEach(w=>s.add(w)); (P.phrases||[]).forEach(w=>s.add(w)); return [...s].filter(t=>t.length>1&&!STOP.has(t)); }
 function curTerms(){return lastRun?terms(lastRun.P):[]}
 function hl(text,tl){ let h=esc(text); if(!tl.length) return h; const re=new RegExp('(?<![a-z0-9])('+tl.map(esre).sort((a,b)=>b.length-a.length).join('|')+')','gi'); return h.replace(re,'<mark>$1</mark>'); }
 function snippet(d,tl,len=260){ const x=d.x||''; const low=x.toLowerCase(); let best=-1,bc=-1;
@@ -448,6 +466,77 @@ $('#sSave').onclick=()=>{ cfg={key:$('#sKey').value.trim(),model:$('#sModel').va
 $('#q').focus();
 $('#stats').textContent='Building search index…';
 setTimeout(()=>{ build(); stats(); setMode(mode); const p=new URLSearchParams(location.search).get('q'); if(p){$('#q').value=p;go();} },20);
+
+/* ============ more ways to search (search tips, compare, saved, related, find, voice, keys, links) ============ */
+const docKey=d=>d.a+'|'+(d.s||'')+'|'+d.t;
+let keyIx=null; const byKey=k=>{ if(!keyIx){ keyIx=new Map(); D.forEach((d,i)=>keyIx.set(docKey(d),i)); } return keyIx.get(k); };
+let saved=LS.get('gl-saved',[]), seen=LS.get('gl-seen',[]), view=LS.get('gl-view','list');
+const isSaved=i=>saved.includes(docKey(D[i]));
+function toggleSave(i){ const k=docKey(D[i]); saved=isSaved(i)?saved.filter(x=>x!==k):[k].concat(saved).slice(0,200); LS.set('gl-saved',saved); }
+function cardHTML(i,tl,extra){ const d=D[i]; return `<div class="res" data-i="${i}" tabindex="0"><span class="badge b-${d.a}">${AGCOL[d.a]}</span><span class="sec">${esc(d.s||'')}</span>${isSaved(i)?' <span class="star on" title="Saved">&#9733;</span>':''}<h4>${hl(d.t,tl)}</h4>${extra||`<div class="sn">${hl(snippet(d,tl),tl)}</div>`}<div class="act"><button class="btn" data-open="${i}">Read here</button><a class="btn pri" href="${esc(d.u)}" target="_blank" rel="noopener">${linkLabel(d)} &#8599;</a><button class="btn" data-cite="${i}">Copy citation</button></div></div>`; }
+function listHTML(title,ids,note){ return `<div class="lbl" style="margin-bottom:8px">${esc(title)}</div>`+(ids.length?ids.map(i=>cardHTML(i,[])).join(''):`<div class="empty">${note}</div>`); }
+function showSaved(){ const ids=saved.map(byKey).filter(i=>i!=null); $('#results').innerHTML=listHTML('Saved sections ('+ids.length+')',ids,'Nothing saved yet. Open a section and press &#9734; Save.'); }
+function homeHTML(){ const ids=seen.map(byKey).filter(i=>i!=null).slice(0,6);
+  return '<div class="empty">Type to search, or pick a topic above. Press <kbd>/</kbd> to search, <kbd>&darr;</kbd> to move through results.</div>'+(ids.length?listHTML('Recently read',ids,''):''); }
+// compare: the best match from each agency side by side
+function compareHTML(r,tl){ const ags=['Fannie','Freddie','FHA','VA'].filter(a=>agSel.has(a)); let h='<div class="cmp">';
+  for(const a of ags){ const hit=r.res.find(([i])=>D[i].a===a); h+=`<div class="cmpc"><div class="lbl">${AGCOL[a]}</div>`;
+    if(!hit){ h+='<div class="empty" style="padding:18px 6px">No match in the stored copy'+(a==='Freddie'||a==='VA'?' (only pointers are stored; use + Web)':'')+'.</div></div>'; continue; }
+    const ba=bestAnswer([hit],r.P,2); h+=cardHTML(hit[0],tl,ba?`<div class="sn">${ba.lines.map(l=>hl(l,tl)).join(' ')}</div>`:'')+'</div>'; }
+  return h+'</div>'; }
+const _render=render;
+render=function(q){ _render(q); const box=$('#results');
+  if(!q.trim()){ box.innerHTML=homeHTML(); return; }
+  box.querySelectorAll('.res').forEach(e=>e.tabIndex=0);
+  if(view==='compare'&&lastRun&&lastRun.res.length){ const tl=terms(lastRun.P); box.insertAdjacentHTML('afterbegin',compareHTML(lastRun,tl)+'<div class="lbl" style="margin:14px 0 8px">All results</div>'); }
+  const f=lastRun&&lastRun.P; if(f&&(f.phrases.length||f.not.length||f.only.size)) box.insertAdjacentHTML('afterbegin',`<p class="meta">Searching ${f.only.size?'only '+[...f.only].map(a=>AGCOL[a]).join(', '):'all selected guides'}${f.phrases.length?' for the exact words '+f.phrases.map(p=>'&ldquo;'+esc(p)+'&rdquo;').join(', '):''}${f.not.length?', leaving out '+f.not.map(esc).join(', '):''}.</p>`);
+};
+// the reader: save, link, find in this section, related sections, keeps a list of what was read
+const _openDoc=openDoc;
+openDoc=function(i,tl){ _openDoc(i,tl); const d=D[i], k=docKey(d);
+  seen=[k].concat(seen.filter(x=>x!==k)).slice(0,30); LS.set('gl-seen',seen);
+  try{ history.replaceState(null,'',location.pathname+'?q='+encodeURIComponent($('#q').value||'')+'#doc='+encodeURIComponent(k)); }catch(e){}
+  const act=$('#reader .hd .act');
+  if(act){ act.insertAdjacentHTML('beforeend',`<button class="btn" id="rSave">${isSaved(i)?'&#9733; Saved':'&#9734; Save'}</button><button class="btn" id="rLink">Copy link</button>`);
+    $('#rSave').onclick=()=>{ toggleSave(i); $('#rSave').innerHTML=isSaved(i)?'&#9733; Saved':'&#9734; Save'; };
+    $('#rLink').onclick=()=>{ copy(location.href); $('#rLink').textContent='Link copied'; }; }
+  $('#reader .hd').insertAdjacentHTML('beforeend','<div class="find"><input id="rFind" type="search" placeholder="Find in this section" aria-label="Find in this section"><span id="rFindN" class="meta"></span></div>');
+  const body=$('#rbody'), base=body.innerHTML; let hits=[], at=-1;
+  const show=()=>{ hits.forEach((m,j)=>m.classList.toggle('on',j===at)); if(hits[at]) hits[at].scrollIntoView({block:'center'}); $('#rFindN').textContent=hits.length?(at+1)+' of '+hits.length:($('#rFind').value.trim()?'not in this section':''); };
+  $('#rFind').oninput=()=>{ const t=$('#rFind').value.trim(); if(!t){ body.innerHTML=base; hits=[]; at=-1; show(); return; }
+    body.innerHTML=esc(d.x||'').replace(new RegExp('('+esre(esc(t))+')','gi'),'<mark class="fm">$1</mark>'); hits=[...body.querySelectorAll('mark.fm')]; at=hits.length?0:-1; show(); };
+  $('#rFind').onkeydown=e=>{ if(e.key==='Enter'&&hits.length){ e.preventDefault(); at=(at+(e.shiftKey?-1:1)+hits.length)%hits.length; show(); } if(e.key==='Escape'){ $('#rFind').value=''; $('#rFind').oninput(); } };
+  const rel=run(d.t,agSel,{noprf:true}).res.filter(([j])=>j!==i).slice(0,5);
+  if(rel.length) body.insertAdjacentHTML('afterend','<div class="rel"><div class="lbl">Related sections</div>'+rel.map(([j])=>`<a href="#" data-rel="${j}"><span class="badge b-${D[j].a}">${AGCOL[D[j].a]}</span> ${esc((D[j].s?D[j].s+' ':'')+D[j].t)}</a>`).join('')+'</div>');
+  $$('#reader [data-rel]').forEach(a=>a.onclick=e=>{ e.preventDefault(); openDoc(+a.dataset.rel,curTerms()); });
+};
+// topics, view switch, saved, search tips
+$('#stats').insertAdjacentHTML('beforebegin',`<div class="row"><span class="lbl">Browse</span><span class="topics">${TOPICS.map(([t,q])=>`<button class="chip tp" data-q="${esc(q)}">${esc(t)}</button>`).join('')}</span></div>
+<div class="row"><span class="lbl">View</span><span class="seg" id="view"><button data-v="list">List</button><button data-v="compare" title="The best match from Fannie Mae, Freddie Mac, FHA and VA side by side">Compare agencies</button></span><button class="chip" id="bSaved">&#9733; Saved</button><span class="spacer"></span><button class="chip" id="bTips" aria-expanded="false">Search tips</button></div>
+<div class="tips meta" id="tips" hidden><b>"exact words"</b> in quotes &middot; <b>-word</b> leaves a word out &middot; <b>in:fha</b>, <b>in:fannie</b>, <b>in:freddie</b>, <b>in:va</b> searches one guide &middot; a section code such as <b>B3-3.1-01</b> opens it &middot; plain questions work too (&ldquo;can a gift pay closing costs&rdquo;) &middot; <kbd>/</kbd> search &middot; <kbd>&darr;</kbd><kbd>&uarr;</kbd> move through results &middot; <kbd>Enter</kbd> read &middot; <kbd>Esc</kbd> back to the box</div>`);
+const syncView=()=>$$('#view button').forEach(b=>b.classList.toggle('on',b.dataset.v===view));
+$$('#view button').forEach(b=>b.onclick=()=>{ view=b.dataset.v; LS.set('gl-view',view); syncView(); render($('#q').value); }); syncView();
+$$('.tp').forEach(b=>b.onclick=()=>{ $('#q').value=b.dataset.q; go(); });
+$('#bSaved').onclick=showSaved;
+$('#bTips').onclick=()=>{ const t=$('#tips'); t.hidden=!t.hidden; $('#bTips').setAttribute('aria-expanded',String(!t.hidden)); };
+// voice search where the browser has it
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+if(SR){ $('#clr').insertAdjacentHTML('beforebegin','<button id="mic" title="Search by voice" aria-label="Search by voice">&#127908;</button>');
+  $('#mic').onclick=()=>{ try{ const rec=new SR(); rec.lang='en-US'; rec.interimResults=false; $('#mic').classList.add('on');
+    rec.onresult=e=>{ $('#q').value=e.results[0][0].transcript; go(); }; rec.onend=()=>$('#mic').classList.remove('on'); rec.start(); }catch(e){ $('#mic').classList.remove('on'); } }; }
+// keys: down arrow from the box into the results, up/down between them, Enter reads, Esc back to the box
+document.addEventListener('keydown',e=>{
+  const a=document.activeElement, inRes=a&&a.classList&&a.classList.contains('res');
+  if(a&&a.id==='q'&&e.key==='ArrowDown'&&$('#ac').style.display==='none'){ const f=$('#results .res'); if(f){ e.preventDefault(); f.focus(); } return; }
+  if(!inRes) return; const all=$$('#results .res'), k=all.indexOf(a);
+  if(e.key==='ArrowDown'||e.key==='j'){ e.preventDefault(); (all[k+1]||a).focus(); }
+  else if(e.key==='ArrowUp'||e.key==='k'){ e.preventDefault(); if(k>0) all[k-1].focus(); else $('#q').focus(); }
+  else if(e.key==='Enter'){ e.preventDefault(); openDoc(+a.dataset.i,curTerms()); }
+  else if(e.key==='Escape'){ $('#q').focus(); }
+});
+// a shared link (#doc=...) opens that section
+setTimeout(()=>{ const m=location.hash.match(/#doc=(.+)$/); if(m){ const i=byKey(decodeURIComponent(m[1])); if(i!=null) openDoc(i,curTerms()); } if(!$('#q').value.trim()) $('#results').innerHTML=homeHTML(); },60);
+
 window.GLsearch=q=>{ $('#q').value=q; go(); $('#q').focus(); };
 </script>
 <script src="assets/workflow-ui.js?v=57.24"></script>

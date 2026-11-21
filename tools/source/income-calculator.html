@@ -5543,7 +5543,8 @@ function calcLoan(){
   const taxes=N(L.taxAnnual)/12, ins=N(L.insAnnual)/12, flood=N(L.floodAnnual)/12, hoa=N(L.hoaMonthly);
   return {dp, dpPct, base, value, ltv, upfront, upfrontLabel, financed, totalLoan,
           annualRate, miMonthly, miDrop, miBasis, pi, piCalc, miCalc, taxes, ins, flood, hoa,
-          pitia: pi+taxes+ins+flood+hoa+miMonthly};
+          /* 57.26: the total is the sum of the rounded lines shown above it (as on a Loan Estimate), so they always add up */
+          pitia: [pi,taxes,ins,flood,hoa,miMonthly].reduce((s,v)=>s+Math.round((+v||0)*100)/100,0)};
 }
 function syncLoanToDTI(){
   if (!S.loan || !S.loan.sync) return;

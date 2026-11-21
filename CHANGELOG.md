@@ -715,3 +715,11 @@ All 25 pages load with no errors or missing files. Original Full Suite and the s
 - **W-2 reading:** each box is read from its own label (box 1 and box 2 often share a line); a W-2 for a finished year is not read as year-to-date pay; "Cat. No." and form numbers are not read as amounts.
 - **Same business:** "Elm Street Bakery" is recognised as a business name, while "Number, street, and room or suite no." is treated as form instructions.
 - **New tests:** tests/deep-matrix.mjs (every state, program, renovation, unit count and occupancy; 149,208 checks) and tests/bizid-matrix.mjs (8,994 checks), both passing.
+
+## Release 57.26 - next-level guideline search, PITIA that adds up
+
+- **Guideline search operators:** `"exact words"`, `-word` to leave a word out, `in:fha` / `in:fannie` / `in:freddie` / `in:va` to search one guide; section codes jump straight to the section.
+- **Browse topics** with one click (income, self-employed, gifts, large deposits, bankruptcy and foreclosure, DTI and reserves, condos, renovation, manufactured homes, co-borrowers, VA entitlement, student loans).
+- **Compare agencies:** the best match from Fannie Mae, Freddie Mac, FHA and VA side by side, each with its answer lines.
+- **In the reader:** find in this section, Save (Saved list), Copy link (opens the same section), Related sections; Recently read on the start screen; voice search; keyboard (`/`, arrow keys, Enter, Esc).
+- **Income Calculator, PITIA:** the total is now the sum of the rounded lines shown above it (as on a Loan Estimate). Before, $2,022.62 + $666.67 + $150.00 could show as $2,839.28.
