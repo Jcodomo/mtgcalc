@@ -163,7 +163,7 @@ const CENTER = {
   lecd() {
     const rate = pick([5.875, 6.125, 6.25, 6.5, 6.625, 6.99, 7.125]), term = pick([15, 20, 30]), orig = cents(500, 6000), appr = int(450, 900), cr = int(30, 120);
     const L = ['Loan Estimate', `LOAN TERM ${term} years`, 'PURPOSE Purchase', `Interest Rate ${rate.toFixed(3)} %`, 'Loan Costs', `A. Origination Charges ${money(orig)}`, `Appraisal Fee ${money(appr)}`, `Credit Report Fee ${money(cr)}`, 'Projected Payments'];
-    return { text: L.join('\n'), type: 'lecd', want: [['loan:interestRate', rate, 'n'], ['loan:termYears', term, 'n'], ['loan:closing.overrides.lenderOrigination', orig, 'n'], ['loan:closing.overrides.appraisal', appr, 'n'], ['loan:closing.overrides.creditReport', cr, 'n']] };
+    return { text: L.join('\n'), type: 'lecd', want: [['loan:interestRate', rate, 'n'], ['loan:termYears', term, 'n'], ['loan:closing.overrides.appraisal', appr, 'n'], ['loan:closing.overrides.creditReport', cr, 'n']] };
   },
   mortgage() {
     const pmt = cents(900, 6500), bal = cents(60000, 900000);
