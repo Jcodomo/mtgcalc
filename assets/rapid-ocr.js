@@ -6,9 +6,13 @@
                 {text, lines: [{text, score, box, items}], confidence, turned}. */
 (function () {
   'use strict';
-  if (window.MTRapidOCR && window.MTOcrBar) return;
+  var G = typeof window !== 'undefined' ? window : self, IN_WORKER = typeof document === 'undefined';
+  if (!IN_WORKER && G.MTRapidOCR && G.MTOcrBar) return;
+  var SELF_URL = !IN_WORKER && document.currentScript && document.currentScript.src || '';
+  function mk(w, h) { if (IN_WORKER) return new OffscreenCanvas(w, h); var c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
 
   /* ================================================================= progress bar */
+  if (!IN_WORKER) {
   var jobs = [], seq = 0, el = null, hideT = 0;
   function css() {
     if (document.getElementById('mt-ocrbar-css')) return;
@@ -74,13 +78,16 @@
     }
   };
 
+  }   /* end of the progress bar (pages only) */
+
   /* ================================================================= RapidOCR */
   var ORT_BASE = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/';
   var MODEL_BASE = 'https://huggingface.co/SWHL/RapidOCR/resolve/main/PP-OCRv4/';
   var FILES = {det: 'ch_PP-OCRv4_det_infer.onnx', rec: 'ch_PP-OCRv4_rec_infer.onnx'}, SIZES = {det: 4745517, rec: 10857958};
   var CACHE = 'mt-rapidocr-ppocrv4', state = null;
   function loadOrt() {
-    if (window.ort && window.ort.InferenceSession) return Promise.resolve(window.ort);
+    if (G.ort && G.ort.InferenceSession) return Promise.resolve(G.ort);
+    if (IN_WORKER) { try { importScripts(ORT_BASE + 'ort.min.js'); } catch (e) { return Promise.reject(new Error('RapidOCR could not be downloaded (cdn.jsdelivr.net).')); } return G.ort ? Promise.resolve(G.ort) : Promise.reject(new Error('onnxruntime-web did not start')); }
     return new Promise(function (res, rej) {
       var d = window.define; window.define = undefined;   /* a page's AMD loader would swallow the UMD build */
       var s = document.createElement('script'); s.src = ORT_BASE + 'ort.min.js'; s.async = true;
@@ -121,7 +128,7 @@
       if (onProg) onProg(0, 'starting RapidOCR');
       var ort = await loadOrt();
       ort.env.wasm.wasmPaths = ORT_BASE;
-      ort.env.wasm.numThreads = window.crossOriginIsolated ? Math.max(1, Math.min(4, (navigator.hardwareConcurrency || 2) - 1)) : 1;
+      ort.env.wasm.numThreads = G.crossOriginIsolated ? Math.max(1, Math.min(4, (navigator.hardwareConcurrency || 2) - 1)) : 1;
       var got = {det: 0, rec: 0}, tot = {det: SIZES.det, rec: SIZES.rec}, slow = false;
       var tick = function (k) { return function (g, t) { got[k] = g; tot[k] = t || tot[k]; var a = got.det + got.rec, b = tot.det + tot.rec; if (a < b) slow = true; if (onProg) onProg(a / b, slow ? 'downloading RapidOCR (first time only) ' + mb(a) + ' of ' + mb(b) + ' MB' : 'loading RapidOCR'); }; };
       var bufs = await Promise.all([getBytes(FILES.det, tick('det')), getBytes(FILES.rec, tick('rec'))]);
@@ -137,11 +144,11 @@
   }
   function canvasOf(src) {
     if (src && src.getContext) return src;
-    var w = src.naturalWidth || src.width, h = src.naturalHeight || src.height, c = document.createElement('canvas'); c.width = w; c.height = h;
+    var w = src.naturalWidth || src.width, h = src.naturalHeight || src.height, c = mk(w, h);
     var g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, w, h); g.drawImage(src, 0, 0); return c;
   }
   function turn(c, deg) {
-    var k = document.createElement('canvas'), side = deg % 180 !== 0; k.width = side ? c.height : c.width; k.height = side ? c.width : c.height;
+    var side = deg % 180 !== 0, k = mk(side ? c.height : c.width, side ? c.width : c.height);
     var g = k.getContext('2d'); g.translate(k.width / 2, k.height / 2); g.rotate(deg * Math.PI / 180); g.drawImage(c, -c.width / 2, -c.height / 2); return k;
   }
   /* text detection (DB): the page at a side of 736-1920 px in steps of 32, BGR normalised; the probability map above 0.3 is split
@@ -150,18 +157,18 @@
     var W = c.width, H = c.height, r = 1, mn = Math.min(W, H), mx = Math.max(W, H);
     if (mn < 736) r = 736 / mn; if (mx * r > 1920) r = 1920 / mx;
     var w = Math.max(32, Math.round(W * r / 32) * 32), h = Math.max(32, Math.round(H * r / 32) * 32), rx = w / W, ry = h / H;
-    var k = document.createElement('canvas'); k.width = w; k.height = h;
+    var k = mk(w, h);
     var g = k.getContext('2d', {willReadFrequently: true}); g.fillStyle = '#fff'; g.fillRect(0, 0, w, h); g.drawImage(c, 0, 0, w, h);
     var px = g.getImageData(0, 0, w, h).data, n = w * h, x = new Float32Array(3 * n);
     for (var i = 0; i < n; i++) { var o = i * 4; x[i] = (px[o + 2] / 255 - 0.485) / 0.229; x[n + i] = (px[o + 1] / 255 - 0.456) / 0.224; x[2 * n + i] = (px[o] / 255 - 0.406) / 0.225; }
     var feeds = {}; feeds[S.det.inputNames[0]] = new S.ort.Tensor('float32', x, [1, 3, h, w]);
     var prob = (await S.det.run(feeds))[S.det.outputNames[0]].data;
-    var seen = new Uint8Array(n), stack = new Int32Array(n), boxes = [];
+    var seen = new Uint8Array(n), stack = new Int32Array(n), boxes = [], angles = [];
     for (var s0 = 0; s0 < n; s0++) {
       if (seen[s0] || prob[s0] <= 0.3) continue;
-      var sp = 0, x0 = w, y0 = h, x1 = 0, y1 = 0, cnt = 0, sum = 0; stack[sp++] = s0; seen[s0] = 1;
+      var sp = 0, x0 = w, y0 = h, x1 = 0, y1 = 0, cnt = 0, sum = 0, mx_ = 0, my_ = 0, mxx = 0, mxy = 0; stack[sp++] = s0; seen[s0] = 1;
       while (sp) {
-        var v = stack[--sp], vx = v % w, vy = (v - vx) / w; cnt++; sum += prob[v];
+        var v = stack[--sp], vx = v % w, vy = (v - vx) / w; cnt++; sum += prob[v]; mx_ += vx; my_ += vy; mxx += vx * vx; mxy += vx * vy;
         if (vx < x0) x0 = vx; if (vx > x1) x1 = vx; if (vy < y0) y0 = vy; if (vy > y1) y1 = vy;
         if (vx > 0 && !seen[v - 1] && prob[v - 1] > 0.3) { seen[v - 1] = 1; stack[sp++] = v - 1; }
         if (vx < w - 1 && !seen[v + 1] && prob[v + 1] > 0.3) { seen[v + 1] = 1; stack[sp++] = v + 1; }
@@ -170,10 +177,15 @@
       }
       var bw = x1 - x0 + 1, bh = y1 - y0 + 1;
       if (Math.min(bw, bh) < 3 || sum / cnt < 0.5) continue;
+      if (cnt < 12 || (bw < 6 && bh < 6)) continue;   /* a speck on a photo or scan, not text: reading each one is slow and turns pages wrongly */
+      /* a long text line's slope (least squares through its pixels) tells the page's tilt */
+      if (bw > 8 * bh && cnt > 50) { var ex = mx_ / cnt, vxx = mxx / cnt - ex * ex; if (vxx > 0) angles.push(Math.atan(((mxy / cnt) - ex * (my_ / cnt)) / vxx * (rx / ry))); }
       var dist = bw * bh * 1.6 / (2 * (bw + bh));
       var b = {x0: Math.max(0, (x0 - dist) / rx), y0: Math.max(0, (y0 - dist) / ry), x1: Math.min(W, (x1 + 1 + dist) / rx), y1: Math.min(H, (y1 + 1 + dist) / ry)};
       if (b.x1 - b.x0 >= 5 && b.y1 - b.y0 >= 5) boxes.push(b);
     }
+    angles.sort(function (a, b) { return a - b; });
+    boxes.skew = angles.length >= 3 ? angles[angles.length >> 1] : 0;
     return boxes;
   }
   /* recognition (CRNN + CTC): each box at a height of 48, batches of 8 boxes of similar shape, greedy CTC decoding */
@@ -183,12 +195,13 @@
     for (var s = 0; s < order.length; s += 8) {
       var ids = order.slice(s, s + 8), maxR = 320 / 48;
       ids.forEach(function (i) { maxR = Math.max(maxR, ar(boxes[i])); });
-      var W = Math.min(4800, Math.ceil(48 * maxR)), plane = 48 * W, x = new Float32Array(ids.length * 3 * plane);
+      var W = Math.min(4800, Math.ceil(48 * maxR)), plane = 48 * W, x = new Float32Array(ids.length * 3 * plane), gapsOf = [];
       ids.forEach(function (i, bi) {
         var b = boxes[i], bw = Math.max(1, Math.round(b.x1 - b.x0)), bh = Math.max(1, Math.round(b.y1 - b.y0)), rw = Math.max(1, Math.min(W, Math.ceil(48 * bw / bh)));
-        var t = document.createElement('canvas'); t.width = rw; t.height = 48; var g = t.getContext('2d', {willReadFrequently: true});
+        var t = mk(rw, 48); var g = t.getContext('2d', {willReadFrequently: true});
         g.drawImage(c, Math.round(b.x0), Math.round(b.y0), bw, bh, 0, 0, rw, 48);
         var d = g.getImageData(0, 0, rw, 48).data, base = bi * 3 * plane;
+        gapsOf[bi] = inkGaps(d, rw);
         for (var yy = 0; yy < 48; yy++) for (var xx = 0; xx < rw; xx++) { var p4 = (yy * rw + xx) * 4, o = yy * W + xx; x[base + o] = d[p4 + 2] / 127.5 - 1; x[base + plane + o] = d[p4 + 1] / 127.5 - 1; x[base + 2 * plane + o] = d[p4] / 127.5 - 1; }
       });
       var feeds = {}; feeds[S.rec.inputNames[0]] = new S.ort.Tensor('float32', x, [ids.length, 3, 48, W]);
@@ -197,17 +210,39 @@
         var ch = [], at = [], sc = 0, nsc = 0, prev = -1;
         for (var t2 = 0; t2 < T; t2++) { var off = (bi * T + t2) * C, best = 0, bv = -1; for (var cc = 0; cc < C; cc++) { if (P[off + cc] > bv) { bv = P[off + cc]; best = cc; } }
           if (best !== 0 && best !== prev) { ch.push(S.dict[best] || ''); at.push(t2); sc += bv; nsc++; } prev = best; }
-        /* the model often leaves out the spaces inside a box ("Overtime38.25004.00"): a gap between two characters well over the
-           box's usual spacing is a space */
-        var gaps = []; for (var z = 1; z < at.length; z++) if (ch[z] !== ' ' && ch[z - 1] !== ' ') gaps.push(at[z] - at[z - 1]);
-        var med = gaps.length ? gaps.slice().sort(function (a, b) { return a - b; })[gaps.length >> 1] : 0, txt = ch[0] || '';
-        for (var z2 = 1; z2 < ch.length; z2++) { if (med && ch[z2] !== ' ' && ch[z2 - 1] !== ' ' && at[z2] - at[z2 - 1] >= Math.max(med * 1.9, med + 2)) txt += ' '; txt += ch[z2]; }
+        /* spaces from the ink, not the model: it leaves out most word spaces inside a box ("Employer'sname,address") and adds
+           some inside words ("nu mber"). Each character sits at x = (t + 0.5) * W / T; a blank column run between two characters
+           is a word space */
+        var gp = gapsOf[bi], xs = at.map(function (t3) { return (t3 + 0.5) * W / T; }), txt = '', lastX = -1;
+        for (var z2 = 0; z2 < ch.length; z2++) {
+          if (ch[z2] === ' ') continue;
+          /* beside a comma or point, or between two digits, the blank must be much wider: narrow punctuation leaves blank columns ("94 , 655. 65") */
+          var pc = txt.charAt(txt.length - 1), nc = ch[z2], need = /[,.:;'’]/.test(pc) || /[,.:;'’]/.test(nc) ? 0.6 : /\d/.test(pc) && /\d/.test(nc) ? 0.32 : 0;
+          if (txt && gp.some(function (q) { return q[0] > lastX && q[1] < xs[z2] && q[1] - q[0] >= q[2] * need; })) txt += ' ';
+          txt += ch[z2]; lastX = xs[z2];
+        }
         res[i] = {text: txt, score: nsc ? sc / nsc : 0};
       });
       if (onStep) onStep(Math.min(1, (s + ids.length) / order.length));
-      await new Promise(function (r) { setTimeout(r, 0); });   /* let the page paint the progress */
+      await breathe();   /* let the page paint the progress */
     }
     return res;
+  }
+  /* a pause for the page to paint that a background tab does not slow down (its timers can wait up to a minute) */
+  var chan = typeof MessageChannel !== 'undefined' ? new MessageChannel() : null, waiting = [];
+  if (chan) chan.port1.onmessage = function () { var w = waiting.shift(); if (w) w(); };
+  function breathe() { return new Promise(function (r) { if (chan && !IN_WORKER && document.visibilityState === 'hidden') { waiting.push(r); chan.port2.postMessage(0); } else setTimeout(r, 0); }); }
+  /* blank column runs inside a 48 px text crop wide enough to be a word space: about a fifth of the ink's height */
+  function inkGaps(d, rw) {
+    var lum = new Float32Array(rw * 48), mn = 255, mx = 0, i;
+    for (i = 0; i < rw * 48; i++) { var v = 0.299 * d[i * 4] + 0.587 * d[i * 4 + 1] + 0.114 * d[i * 4 + 2]; lum[i] = v; if (v < mn) mn = v; if (v > mx) mx = v; }
+    if (mx - mn < 40) return [];
+    var cut = mn + (mx - mn) * 0.55, col = new Uint8Array(rw), top = 48, bot = 0;
+    for (var y = 0; y < 48; y++) for (var x = 0; x < rw; x++) if (lum[y * rw + x] < cut) { if (col[x] < 255) col[x]++; if (y < top) top = y; if (y > bot) bot = y; }
+    for (x = 0; x < rw; x++) col[x] = col[x] >= 2 ? 1 : 0;   /* one dark pixel is a speck, not a letter */
+    var hgt = Math.max(8, bot - top + 1), min = Math.max(4, hgt * 0.22), out = [], s = -1;
+    for (x = 0; x <= rw; x++) { var empty = x < rw && !col[x]; if (empty && s < 0) s = x; if (!empty && s >= 0) { if (x - s >= min && s > 0 && x < rw) out.push([s, x, hgt]); s = -1; } }
+    return out;
   }
   /* the model reads Chinese too: full-width punctuation becomes ASCII, CJK characters are dropped */
   function clean(s) {
@@ -233,9 +268,20 @@
         var sa = await meanScore(S, a, longest(ba, 6)), sb = await meanScore(S, b2, longest(bb, 6));
         if (sa >= sb) { c = a; boxes = ba; turned = 90; } else { c = b2; boxes = bb; turned = 270; }
       } else {   /* upside down reads with low scores */
-        var smp = longest(boxes, 6), s0 = await meanScore(S, c, smp), c180 = turn(c, 180), s1 = await meanScore(S, c180, rotBoxes(smp, c.width, c.height));
-        if (s1 > s0 + 0.08) { boxes = rotBoxes(boxes, c.width, c.height); c = c180; turned = 180; }
+        var smp = longest(boxes, 4), s0 = await meanScore(S, c, smp);
+        if (s0 < 0.85) {   /* lines that read well are upright: only an unsure page is tried upside down */
+          var c180 = turn(c, 180), s1 = await meanScore(S, c180, rotBoxes(smp, c.width, c.height));
+          if (s1 > s0 + 0.08) { boxes = rotBoxes(boxes, c.width, c.height); c = c180; turned = 180; }
+        }
       }
+    }
+    /* a tilted photo: long lines get boxes much taller than their text, which the reader then sees too small - straighten the
+       page by the lines' own slope and find the text again */
+    if (opt.deskew !== false && Math.abs(boxes.skew || 0) > 0.006) {
+      say(0.1, 'straightening the page');
+      var k2 = mk(c.width, c.height); var g2 = k2.getContext('2d');
+      g2.fillStyle = '#fff'; g2.fillRect(0, 0, k2.width, k2.height); g2.translate(c.width / 2, c.height / 2); g2.rotate(-boxes.skew); g2.drawImage(c, -c.width / 2, -c.height / 2);
+      var nb = await detect(S, k2); if (nb.length >= boxes.length * 0.7) { c = k2; boxes = nb; }
     }
     say(0.12, 'reading ' + boxes.length + ' text boxes');
     var rs = await recognize(S, c, boxes, function (f) { say(0.12 + 0.86 * f, 'reading ' + boxes.length + ' text boxes'); });
@@ -254,7 +300,10 @@
     var outLines = lines.map(function (L) {
       L.items.sort(function (a, b) { return a.x0 - b.x0; });
       var box = {x0: Math.min.apply(null, L.items.map(function (i) { return i.x0; })), y0: Math.min.apply(null, L.items.map(function (i) { return i.y0; })), x1: Math.max.apply(null, L.items.map(function (i) { return i.x1; })), y1: Math.max.apply(null, L.items.map(function (i) { return i.y1; }))};
-      return {text: L.items.map(function (i) { return i.text; }).join(' '), score: L.items.reduce(function (a, i) { return a + i.score; }, 0) / L.items.length, box: box, items: L.items};
+      /* boxes almost touching are one word or one amount split by the detector ("17,63" + "2.08") */
+      var t = ''; L.items.forEach(function (i, k) { var p = L.items[k - 1]; t += k && !(i.x0 - p.x1 < 0.3 * L.h && /[\d,.]$/.test(p.text) && /^[\d,.]/.test(i.text)) ? ' ' + i.text : i.text; });
+      t = t.replace(/(\d,)(\d{1,2}) (\d{1,2})(?=\.\d{2}(?!\d))/g, function (m, a, b, c2) { return b.length + c2.length === 3 ? a + b + c2 : m; });   /* "2,93 8.68" */
+      return {text: t, score: L.items.reduce(function (a, i) { return a + i.score; }, 0) / L.items.length, box: box, items: L.items};
     });
     say(1, '');
     var conf = items.length ? Math.round(items.reduce(function (a, i) { return a + i.score; }, 0) / items.length * 100) : 0;
@@ -266,5 +315,39 @@
       return {text: l.text, confidence: l.score * 100, bbox: l.box, words: l.items.map(function (i) { return {text: i.text, confidence: i.score * 100, bbox: {x0: i.x0, y0: i.y0, x1: i.x1, y1: i.y1}}; })};
     })}]}]};
   }
-  window.MTRapidOCR = {ready: ready, read: read, asTesseract: asTesseract, models: MODEL_BASE, onnxRuntime: ORT_BASE};
+  if (IN_WORKER) {   /* the worker: {id, op: 'ready' | 'read', bitmap, opt} -> progress messages, then the result */
+    self.onmessage = async function (e) {
+      var m = e.data, say = function (f, label) { self.postMessage({id: m.id, prog: f, label: label}); };
+      try {
+        if (m.op === 'ready') { await ready(say); self.postMessage({id: m.id, done: true}); return; }
+        await ready(); var r = await read(m.bitmap, say, m.opt); if (m.bitmap.close) m.bitmap.close();
+        self.postMessage({id: m.id, done: true, result: r});
+      } catch (err) { self.postMessage({id: m.id, error: String(err && err.message || err)}); }
+    };
+    return;
+  }
+  /* the page: RapidOCR runs in a background worker (this same file), so a long page never freezes the screen; where a worker
+     cannot start (a page opened from a file, an old browser) it runs on the page as before */
+  var wk = null, wkSeq = 0, wkJobs = {}, wkBad = false;
+  function worker() {
+    if (wk || wkBad) return wk;
+    try {
+      if (!SELF_URL || typeof OffscreenCanvas === 'undefined' || /^file:/.test(SELF_URL)) throw new Error('no worker');
+      wk = new Worker(SELF_URL);
+      wk.onmessage = function (e) { var m = e.data, j = wkJobs[m.id]; if (!j) return; if (m.prog != null && j.prog) j.prog(m.prog, m.label);
+        if (m.done) { delete wkJobs[m.id]; j.ok(m.result); } else if (m.error) { delete wkJobs[m.id]; j.no(new Error(m.error)); } };
+      wk.onerror = function (e) { wkBad = true; wk = null; Object.keys(wkJobs).forEach(function (k) { var j = wkJobs[k]; delete wkJobs[k]; j.no(new Error('worker')); }); e.preventDefault && e.preventDefault(); };
+    } catch (e) { wkBad = true; wk = null; }
+    return wk;
+  }
+  function ask(msg, prog, transfer) { return new Promise(function (ok, no) { var id = ++wkSeq; wkJobs[id] = {ok: ok, no: no, prog: prog}; msg.id = id; wk.postMessage(msg, transfer || []); }); }
+  function readyP(onProg) { return worker() ? ask({op: 'ready'}, onProg).catch(function () { wkBad = true; wk = null; return ready(onProg); }) : ready(onProg); }
+  async function readP(src, onProg, opt) {
+    if (worker()) {
+      try { var bm = await createImageBitmap(src.getContext ? src : canvasOf(src)); return await ask({op: 'read', bitmap: bm, opt: opt || {}}, onProg, [bm]); }
+      catch (e) { if (String(e && e.message) !== 'worker') throw e; }
+    }
+    return read(src, onProg, opt);
+  }
+  G.MTRapidOCR = {ready: readyP, read: readP, asTesseract: asTesseract, models: MODEL_BASE, onnxRuntime: ORT_BASE};
 })();

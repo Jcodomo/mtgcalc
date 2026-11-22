@@ -98,7 +98,7 @@
   var SELF = (document.currentScript && document.currentScript.src) || '', kitP = null;
   function kit() {
     if (window.MTOcrBar && window.MTRapidOCR) return Promise.resolve(true);
-    if (!kitP) kitP = loadScript([SELF ? SELF.replace(/doc-center\.js[^\/]*$/, 'rapid-ocr.js?v=57.35') : 'assets/rapid-ocr.js?v=57.35']);
+    if (!kitP) kitP = loadScript([SELF ? SELF.replace(/doc-center\.js[^\/]*$/, 'rapid-ocr.js?v=57.36') : 'assets/rapid-ocr.js?v=57.35']);
     return kitP;
   }
   var NOBAR = {progress: function () {}, pages: function () {}, engine: function () {}, finish: function () {}, fail: function () {}};
@@ -128,7 +128,25 @@
           try { out = await rapidOcr(images, job, from, prog); }
           catch (e) { note = 'RapidOCR could not run (' + (e && e.message || e) + '), so Tesseract read it. '; engine = 'tesseract'; }
         }
-        if (engine !== 'rapid' || out == null) { job.engine('Tesseract'); out = await ocr(images, prog2, true); }
+        if (engine !== 'rapid' || out == null) {
+          job.engine('Tesseract'); out = await ocr(images, prog2, true);
+          /* 57.36: a second opinion where it pays: on a small file (up to 5 pages) a page Tesseract was unsure of (under 60, mostly
+             photos) is read again by RapidOCR in the background worker, and its reading is kept when it is clearly surer. A long file
+             is left to Tesseract alone - RapidOCR costs several seconds a page; press again to read all of it with RapidOCR. */
+          var cf = lastOcr.confs || [], tx = (lastOcr.texts || []).slice(), unsure = [];
+          cf.forEach(function (c, i) { if (c < 60) unsure.push(i); });
+          if (!opts.engine && window.MTRapidOCR && unsure.length && images.length <= 5) {
+            job.engine('Tesseract + RapidOCR');
+            try {
+              await MTRapidOCR.ready(function (f, label) { job.progress(0.9, label); });
+              for (var u = 0; u < unsure.length; u++) {
+                var pi = unsure[u], rr = await MTRapidOCR.read(prep(images[pi]), function (f, label) { job.progress(0.9 + 0.1 * (u + f) / unsure.length, 'second opinion on page ' + (pi + 1) + (label ? ' · ' + label : '')); });
+                if (rr && rr.text && rr.confidence >= (cf[pi] || 0) + 10) { tx[pi] = rr.text; note += 'Page ' + (pi + 1) + ' read better with RapidOCR. '; }
+              }
+              out = tx.map(function (s) { return (s || '') + '\n'; }).join('');
+            } catch (e2) { /* RapidOCR could not run: Tesseract's reading stands */ }
+          }
+        }
         var n = images.length, sec = Math.round((Date.now() - t0) / 100) / 10;
         if (own) job.finish(note + 'Read ' + n + ' page' + (n === 1 ? '' : 's') + ' with ' + (engine === 'rapid' ? 'RapidOCR' : 'Tesseract') + ' in ' + sec + ' s. ' +
           (engine === 'rapid' ? 'Read it again to go back to Tesseract.' : 'Press the same button again to read it with RapidOCR.'));
@@ -143,7 +161,7 @@
     await MTRapidOCR.ready(function (f, label) { job.progress(from * f, label); });
     var texts = [];
     for (var i = 0; i < images.length; i++) {
-      var r = await MTRapidOCR.read(prep(images[i]), function (f, label) { var g = (i + f) / images.length; job.progress(from + (1 - from) * g, label); if (prog) prog(g); });
+      var r = await MTRapidOCR.read(window.__rapidPrep === false ? images[i] : prep(images[i]), function (f, label) { var g = (i + f) / images.length; job.progress(from + (1 - from) * g, label); if (prog) prog(g); });
       if (r.turned) lastOcr.turned = (lastOcr.turned || 0) + 1;
       texts.push(r.text);
     }
@@ -151,7 +169,7 @@
   }
   async function tessOcr(images, prog, retried) {
     var T = await tess(); if (!T) throw new Error('The OCR engine could not be loaded - an internet connection is needed the first time OCR runs (cdnjs.cloudflare.com or cdn.jsdelivr.net may be blocked).');
-    var n = Math.min(poolSize(), images.length), texts = new Array(images.length), skipped = 0, next = 0, finished = 0;
+    var n = Math.min(poolSize(), images.length), texts = new Array(images.length), confs = new Array(images.length), skipped = 0, next = 0, finished = 0;
     try { await worker(T, 0); } catch (e) { throw new Error('The OCR engine could not start (' + (e && e.message || e) + '). Reload the page and try again.'); }
     /* 57.8: a page that hangs the engine is given up after 75 seconds - the engine is restarted and the next page goes on */
     var limit = function (pr, ms) { var t; return Promise.race([pr, new Promise(function (_, no) { t = setTimeout(function () { no(new Error('timeout')); }, ms); })]).then(function (v) { clearTimeout(t); return v; }, function (e) { clearTimeout(t); throw e; }); };
@@ -166,7 +184,7 @@
           /* 57.31: an unsure first reading may be a sideways or upside-down photo: turn it upright and read it again */
           if ((best.confidence || 0) < 60) { var turn = await upright(W, img, limit); if (turn) { img = turnCanvas(img, turn); lastOcr.turned = (lastOcr.turned || 0) + 1; var rt = await limit(W.recognize(img, {rotateAuto: true}), 75000); if ((rt.data.confidence || 0) > (best.confidence || 0)) best = rt.data; } }
           if ((best.confidence || 0) < 65) { await W.setParameters({tessedit_pageseg_mode: '6'}); try { var r2 = await limit(W.recognize(img, {rotateAuto: true}), 45000); if ((r2.data.confidence || 0) > (best.confidence || 0)) best = r2.data; } catch (e2) { if (String(e2 && e2.message) === 'timeout') throw e2; } }
-          texts[i] = best.text;
+          texts[i] = best.text; confs[i] = best.confidence || 0;
         } catch (e) {
           if (String(e && e.message) !== 'timeout') throw e;
           skipped++; dropWorker(k); W = await worker(T, k);
@@ -176,6 +194,7 @@
     }
     var lanes = []; for (var k = 0; k < n; k++) lanes.push(lane(k));
     await Promise.all(lanes);
+    lastOcr.texts = texts; lastOcr.confs = confs;
     var out = texts.map(function (t) { return (t || '') + '\n'; }).join('');
     lastOcr.skipped = skipped;
     curProg = null;

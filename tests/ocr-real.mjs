@@ -24,7 +24,7 @@ async function page(text, look) {
   return jpeg(c, look.jpeg);
 }
 async function jpeg(c, qy) {
-  const img = new Image(); img.src = c.toDataURL('image/jpeg', qy); await img.decode();
+  const img = new Image(); await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = c.toDataURL('image/jpeg', qy); });   // decode() never settles in a hidden tab
   const d = document.createElement('canvas'); d.width = c.width; d.height = c.height; d.getContext('2d').drawImage(img, 0, 0); return d;
 }
 // keep: true returns every page's OCR text (out.pages), to score reader changes again without running OCR again.
