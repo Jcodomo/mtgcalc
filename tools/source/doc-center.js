@@ -463,10 +463,17 @@
     var path = dest.slice(5), v = coerce(dest, value); if (v === null || v === '') return false;
     if (path === 'propertyTaxAmount') try { st.setField('propertyTaxBasis', 'Annual', 'Document'); } catch (e) {}
     if (path === 'insuranceAmount') try { st.setField('insuranceBasis', 'Annual', 'Document'); } catch (e) {}
-    st.setField(path, v, 'Document Center');
-    /* 57.30: the lender's own origination / processing fee from its Loan Estimate or fee sheet is kept when the closing estimate refreshes */
+    /* 57.32: a seller concession in dollars only counts when the concession is entered in dollars (it stayed on percent and was ignored) */
+    if (path === 'sellerConcessionAmount') try { st.setField('concessionInputMode', 'dollar', 'Document'); } catch (e) {}
+    /* 57.32: rent for unit 2, 3 or 4 needs that many units on the file to be used and shown */
+    var um = /^rental\.unit([234])\.gross$/.exec(path); if (um) try { var nu = +((st.activeInputs || {}).units) || 1; if (nu < +um[1]) st.setField('units', +um[1], 'Document'); } catch (e) {}
+    /* 57.30: the lender's own origination / processing fee from its Loan Estimate or fee sheet is kept when the closing estimate refreshes.
+       57.31: noted through the store BEFORE the fee is set (setting the fee refreshes the estimate at once, which compared against an older
+       note and put the estimate back), and in the loan file itself (activeInputs is replaced on every change, so a note written there was lost) */
     var fee = /^closing\.overrides\.(lenderOrigination|lenderProcessing)$/.exec(path);
-    if (fee) try { var ai = st.activeInputs, kept = Object.assign({}, ai.v530DocFees || {}); kept[fee[1]] = v; ai.v530DocFees = kept; } catch (e) {}
+    if (fee) try { var kept = Object.assign({}, (st.activeInputs || {}).v530DocFees || {}); kept[fee[1]] = v; st.setField('v530DocFees', kept, 'Document Center'); } catch (e) {}
+    st.setField(path, v, 'Document Center');
+    if (fee) try { var ai = st.activeInputs; if (ai && (!ai.v530DocFees || ai.v530DocFees[fee[1]] !== v)) { var k2 = Object.assign({}, ai.v530DocFees || {}); k2[fee[1]] = v; st.setField('v530DocFees', k2, 'Document Center'); } } catch (e) {}
     return true;
   }
   function applyCalc(dest, value, meta, docName) {

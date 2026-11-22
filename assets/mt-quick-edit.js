@@ -69,7 +69,7 @@
   function groupFor(label) { var t = String(label || '').toLowerCase(); for (var i = 0; i < GROUPS.length; i++) if (GROUPS[i][0].test(t)) return GROUPS[i]; return null; }
 
   function inputs() { var s = store(); return (s && s.activeInputs) || {}; }
-  function resolve(path) { if (path !== CONC) return path; return inputs().concessionInputMode === 'amount' ? 'sellerConcessionAmount' : 'sellerConcessionPct'; }
+  function resolve(path) { if (path !== CONC) return path; var m = inputs().concessionInputMode; return m === 'dollar' || m === 'amount' ? 'sellerConcessionAmount' : 'sellerConcessionPct'; }   /* 57.32: the engine's dollar mode is 'dollar' ('amount' was the quick form's old name for it) */
   function scopeOptions() { var p = inputs().loanProgram; return p === 'FHA' ? ['Auto', '203(k) Limited', '203(k) Standard'] : p === 'Conventional' ? ['Auto', 'HomeStyle'] : ['Auto']; }
   function fieldHtml(path) {
     var d = F[path]; if (!d) return '';

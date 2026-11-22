@@ -121,9 +121,9 @@ export const FIELDS: Field[] = [
   { id: 'taxInsuranceOverrideMonthly', path: 'taxInsuranceOverrideMonthly', label: 'Taxes and insurance together', section: 'housing', group: 'Manual overrides', kind: 'money', unit: '$ a month', override: true, calc: o => o.payment.monthlyTaxes + o.payment.monthlyInsurance, hint: 'Blank = calculated from the two lines above; $0 is flagged for review' },
 
   /* ---------------- Closing Costs & Funds */
-  { id: 'concessionInputMode', path: 'concessionInputMode', label: 'Enter the seller credit as', section: 'closing', kind: 'select', options: [['percent', '% of price'], ['amount', 'dollars']] },
-  { id: 'sellerConcessionPct', path: 'sellerConcessionPct', label: 'Seller credit', section: 'closing', kind: 'pct', unit: '% of price', digits: 2, when: i => i.concessionInputMode !== 'amount', keywords: 'seller concession ipc credit' },
-  { id: 'sellerConcessionAmount', path: 'sellerConcessionAmount', label: 'Seller credit', section: 'closing', kind: 'money', unit: '$', when: i => i.concessionInputMode === 'amount', keywords: 'seller concession ipc credit' },
+  { id: 'concessionInputMode', path: 'concessionInputMode', label: 'Enter the seller credit as', section: 'closing', kind: 'select', options: [['percent', '% of price'], ['dollar', 'dollars']] },
+  { id: 'sellerConcessionPct', path: 'sellerConcessionPct', label: 'Seller credit', section: 'closing', kind: 'pct', unit: '% of price', digits: 2, when: i => i.concessionInputMode !== 'dollar' && i.concessionInputMode !== 'amount', keywords: 'seller concession ipc credit' },
+  { id: 'sellerConcessionAmount', path: 'sellerConcessionAmount', label: 'Seller credit', section: 'closing', kind: 'money', unit: '$', when: i => i.concessionInputMode === 'dollar' || i.concessionInputMode === 'amount', keywords: 'seller concession ipc credit' },
   { id: 'concessionIncreasesPrice', path: 'concessionIncreasesPrice', label: 'The credit is added to the price', section: 'closing', kind: 'check' },
   { id: 'closing.earnestMoneyDeposit', path: 'closing.earnestMoneyDeposit', label: 'Deposit already paid', section: 'closing', kind: 'money', unit: '$', keywords: 'earnest money emd deposit' },
   { id: 'closing.originationPointsPct', path: 'closing.originationPointsPct', label: 'Origination points', section: 'closing', group: 'Program rules and lender assumptions', kind: 'pct', unit: '% of loan', digits: 3 },

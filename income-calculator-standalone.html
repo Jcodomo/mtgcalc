@@ -12314,10 +12314,17 @@ window.__mtgcalcBridge = {
     var path = dest.slice(5), v = coerce(dest, value); if (v === null || v === '') return false;
     if (path === 'propertyTaxAmount') try { st.setField('propertyTaxBasis', 'Annual', 'Document'); } catch (e) {}
     if (path === 'insuranceAmount') try { st.setField('insuranceBasis', 'Annual', 'Document'); } catch (e) {}
-    st.setField(path, v, 'Document Center');
-    /* 57.30: the lender's own origination / processing fee from its Loan Estimate or fee sheet is kept when the closing estimate refreshes */
+    /* 57.32: a seller concession in dollars only counts when the concession is entered in dollars (it stayed on percent and was ignored) */
+    if (path === 'sellerConcessionAmount') try { st.setField('concessionInputMode', 'dollar', 'Document'); } catch (e) {}
+    /* 57.32: rent for unit 2, 3 or 4 needs that many units on the file to be used and shown */
+    var um = /^rental\.unit([234])\.gross$/.exec(path); if (um) try { var nu = +((st.activeInputs || {}).units) || 1; if (nu < +um[1]) st.setField('units', +um[1], 'Document'); } catch (e) {}
+    /* 57.30: the lender's own origination / processing fee from its Loan Estimate or fee sheet is kept when the closing estimate refreshes.
+       57.31: noted through the store BEFORE the fee is set (setting the fee refreshes the estimate at once, which compared against an older
+       note and put the estimate back), and in the loan file itself (activeInputs is replaced on every change, so a note written there was lost) */
     var fee = /^closing\.overrides\.(lenderOrigination|lenderProcessing)$/.exec(path);
-    if (fee) try { var ai = st.activeInputs, kept = Object.assign({}, ai.v530DocFees || {}); kept[fee[1]] = v; ai.v530DocFees = kept; } catch (e) {}
+    if (fee) try { var kept = Object.assign({}, (st.activeInputs || {}).v530DocFees || {}); kept[fee[1]] = v; st.setField('v530DocFees', kept, 'Document Center'); } catch (e) {}
+    st.setField(path, v, 'Document Center');
+    if (fee) try { var ai = st.activeInputs; if (ai && (!ai.v530DocFees || ai.v530DocFees[fee[1]] !== v)) { var k2 = Object.assign({}, ai.v530DocFees || {}); k2[fee[1]] = v; st.setField('v530DocFees', k2, 'Document Center'); } } catch (e) {}
     return true;
   }
   function applyCalc(dest, value, meta, docName) {
@@ -13004,6 +13011,39 @@ window.__mtgcalcBridge = {
   function mountEmp() {
     const panel = byId('panel-w2'); if (!panel || byId('mtEmpCheck')) return;
     const d = document.createElement('div'); d.className = 'card no-print'; d.id = 'mtEmpCheck'; d.style.marginTop = '14px'; panel.appendChild(d); paintEmp();
+  }
+
+  /* ---------------------------------------------------------------- 7. a document read onto a worksheet: the right form, shown at once
+     - an entity worksheet takes the form of the document applied to it: Form 1120 -> C corporation, a 1120-S K-1 -> S corporation,
+       a 1065 K-1 -> partnership. Before, every new entity worksheet stayed a 1065, so a C corporation's taxable income, tax and NOL
+       went onto lines that form does not show or count. A "Goes to" choice only a 1120 has (taxable income, total tax, NOL) makes
+       it a 1120 too. An entity that already holds figures keeps its form and the user is told.
+     - Schedule E: the two-year view moves the figures into their year column after the base reader has drawn the worksheet; it is
+       drawn again so the inputs show them. */
+  if (typeof applyDoc === 'function' && !window.__mtRulesApply) {
+    const baseApply = applyDoc;
+    const FORM_OF = { k1_1065: '1065', k1_1120s: '1120S', f1120: '1120' }, ONLY1120 = ['taxable', 'tax', 'nol'];
+    applyDoc = window.applyDoc = function (id, quiet) {
+      const d = (typeof DOCS !== 'undefined' ? DOCS : []).find((x) => x.id === id);
+      const [k, rid] = String(d && d.target || '').split('|');
+      const before = k === 'corp' ? (S.corp || []).map((r) => r.id) : null;
+      const wasEmpty = k === 'corp' && rid && rid !== 'NEW' && typeof isEmptyRec === 'function' ? (() => { const r = (S.corp || []).find((x) => x.id === rid); return r ? isEmptyRec('corp', r) : false; })() : false;
+      const out = baseApply.apply(this, arguments);
+      try {
+        if (d && k === 'corp') {
+          const used = (d.fields || []).filter((f) => f.apply && f.slot && !f.readonly).map((f) => f.slot);
+          const form = used.some((s) => ONLY1120.includes(s)) ? '1120' : FORM_OF[d.type];
+          const [, nid] = String(d.target || '').split('|'), rec = (S.corp || []).find((x) => x.id === nid);
+          if (rec && form && rec.form !== form) {
+            if (!before.includes(rec.id) || wasEmpty) { rec.form = form; if (typeof renderCorp === 'function') renderCorp(); if (typeof RECALC === 'function') RECALC(); }
+            else if (!quiet && typeof toast === 'function') toast(`This worksheet is a Form ${rec.form}; the document is a Form ${form}. Change the form on the worksheet if it is the same business.`);
+          }
+        }
+        if (d && (k === 'sche' || d.type === 'schede') && typeof renderSchE === 'function') { renderSchE(); if (typeof RECALC === 'function') RECALC(); }
+      } catch (e) {}
+      return out;
+    };
+    window.__mtRulesApply = true;
   }
 
   function mount() { try { mountCompare(); } catch (e) {} try { mountEmp(); } catch (e) {} try { if (typeof renderSchE === 'function') renderSchE(); if (typeof renderGuides === 'function') renderGuides(); if (typeof RECALC === 'function') RECALC(); } catch (e) {} }
