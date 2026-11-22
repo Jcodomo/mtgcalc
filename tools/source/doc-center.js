@@ -93,7 +93,63 @@
     return best;
   }
   var lastOcr = {pages: 0, blank: 0, how: '', err: ''};
-  async function ocr(images, prog, retried) {
+  /* 57.35: every OCR shows the progress bar (assets/rapid-ocr.js), and reading the same pages again uses RapidOCR - the third
+     time Tesseract again, and so on. The pages are recognised by a small grey thumbnail of each. */
+  var SELF = (document.currentScript && document.currentScript.src) || '', kitP = null;
+  function kit() {
+    if (window.MTOcrBar && window.MTRapidOCR) return Promise.resolve(true);
+    if (!kitP) kitP = loadScript([SELF ? SELF.replace(/doc-center\.js[^\/]*$/, 'rapid-ocr.js?v=57.35') : 'assets/rapid-ocr.js?v=57.35']);
+    return kitP;
+  }
+  var NOBAR = {progress: function () {}, pages: function () {}, engine: function () {}, finish: function () {}, fail: function () {}};
+  function fingerprint(images) {
+    try { return images.map(function (im) { var c = document.createElement('canvas'); c.width = c.height = 20; var g = c.getContext('2d', {willReadFrequently: true}); g.drawImage(im, 0, 0, 20, 20);
+      var d = g.getImageData(0, 0, 20, 20).data, s = (im.naturalWidth || im.width) + 'x' + (im.naturalHeight || im.height) + ':';
+      for (var i = 0; i < d.length; i += 4) s += String.fromCharCode(65 + (((d[i] + d[i + 1] + d[i + 2]) / 3) >> 4)); return s; }).join('|'); } catch (e) { return ''; }
+  }
+  function timesRead(fp) {
+    if (!fp) return 0; var h = 2166136261; for (var i = 0; i < fp.length; i++) { h ^= fp.charCodeAt(i); h = Math.imul(h, 16777619); } var key = (h >>> 0).toString(36), m = {};
+    try { m = JSON.parse(sessionStorage.getItem('mt-ocr-seen') || '{}'); } catch (e) {}
+    var n = m[key] || 0; m[key] = n + 1; var ks = Object.keys(m); if (ks.length > 300) delete m[ks[0]];
+    try { sessionStorage.setItem('mt-ocr-seen', JSON.stringify(m)); } catch (e) {}
+    return n;
+  }
+  async function ocr(images, prog, retried, opts) {
+    opts = opts || {};
+    if (!retried) {
+      await kit();
+      var own = !opts.job, job = opts.job || (window.MTOcrBar ? MTOcrBar.job({title: opts.title || 'Reading text (OCR)', pages: images.length}) : NOBAR);
+      var engine = opts.engine || (timesRead(fingerprint(images)) % 2 === 1 ? 'rapid' : 'tesseract'), t0 = Date.now(), from = opts.from || 0, note = '';
+      job.pages(images.length);
+      var prog2 = function (f) { job.progress(from + (1 - from) * f); if (prog) prog(f); };
+      try {
+        var out;
+        if (engine === 'rapid' && window.MTRapidOCR) {
+          try { out = await rapidOcr(images, job, from, prog); }
+          catch (e) { note = 'RapidOCR could not run (' + (e && e.message || e) + '), so Tesseract read it. '; engine = 'tesseract'; }
+        }
+        if (engine !== 'rapid' || out == null) { job.engine('Tesseract'); out = await ocr(images, prog2, true); }
+        var n = images.length, sec = Math.round((Date.now() - t0) / 100) / 10;
+        if (own) job.finish(note + 'Read ' + n + ' page' + (n === 1 ? '' : 's') + ' with ' + (engine === 'rapid' ? 'RapidOCR' : 'Tesseract') + ' in ' + sec + ' s. ' +
+          (engine === 'rapid' ? 'Read it again to go back to Tesseract.' : 'Press the same button again to read it with RapidOCR.'));
+        lastOcr.engine = engine;
+        return out;
+      } catch (e) { if (own) job.fail(String(e && e.message || e)); throw e; }
+    }
+    return tessOcr(images, prog, retried);
+  }
+  async function rapidOcr(images, job, from, prog) {
+    job.engine('RapidOCR');
+    await MTRapidOCR.ready(function (f, label) { job.progress(from * f, label); });
+    var texts = [];
+    for (var i = 0; i < images.length; i++) {
+      var r = await MTRapidOCR.read(prep(images[i]), function (f, label) { var g = (i + f) / images.length; job.progress(from + (1 - from) * g, label); if (prog) prog(g); });
+      if (r.turned) lastOcr.turned = (lastOcr.turned || 0) + 1;
+      texts.push(r.text);
+    }
+    return texts.map(function (t) { return (t || '') + '\n'; }).join('');
+  }
+  async function tessOcr(images, prog, retried) {
     var T = await tess(); if (!T) throw new Error('The OCR engine could not be loaded - an internet connection is needed the first time OCR runs (cdnjs.cloudflare.com or cdn.jsdelivr.net may be blocked).');
     var n = Math.min(poolSize(), images.length), texts = new Array(images.length), skipped = 0, next = 0, finished = 0;
     try { await worker(T, 0); } catch (e) { throw new Error('The OCR engine could not start (' + (e && e.message || e) + '). Reload the page and try again.'); }
@@ -170,8 +226,12 @@
       if (prog) prog(p / pdf.numPages * 0.5);
     }
     if (readable(out)) return out;
+    await kit();
+    var job = window.MTOcrBar ? MTOcrBar.job({title: 'Reading ' + (file.name || 'the PDF'), pages: Math.min(pdf.numPages, 20)}) : NOBAR;
     var imgs = [], blanks = 0, how = 'drawn pages';
+    try {
     for (var k = 1; k <= Math.min(pdf.numPages, 20); k++) {
+      job.progress((k - 1) / Math.min(pdf.numPages, 20) * 0.1, 'preparing page ' + k);
       var page = await pdf.getPage(k);
       /* 57.6: a scanned page is one full-page picture - OCR the original scan (sharper and faster than drawing the page) */
       var own = await pdfImages(pdf, page, L);
@@ -187,7 +247,11 @@
       if (prog) prog(0.5 + k / pdf.numPages * 0.05);
     }
     lastOcr = {pages: pdf.numPages, blank: blanks, how: how, err: ''};
-    var txt = await ocr(imgs, function (f) { if (prog) prog(0.55 + f * 0.45); });
+    } catch (e) { job.fail(String(e && e.message || e)); throw e; }
+    var txt = await ocr(imgs, function (f) { if (prog) prog(0.55 + f * 0.45); }, false, {job: job, from: 0.1});
+    var sec = '', eng = lastOcr.engine === 'rapid' ? 'RapidOCR' : 'Tesseract';
+    job.finish('Read ' + imgs.length + ' page' + (imgs.length === 1 ? '' : 's') + ' of ' + (file.name || 'the PDF') + ' with ' + eng + '. ' +
+      (eng === 'RapidOCR' ? 'Read it again to go back to Tesseract.' : 'Press the same button again to read it with RapidOCR.'));
     if (!txt.replace(/\s/g, '')) throw new Error('OCR found no text in the ' + pdf.numPages + ' page' + (pdf.numPages === 1 ? '' : 's') + ' of this PDF (' + (blanks ? blanks + ' page image' + (blanks === 1 ? ' was' : 's were') + ' blank' : 'the page images were ' + how) + '). Try: reload the page and drop it again; or open the PDF, take a screenshot of each page (Win+Shift+S) and paste them with "Paste text / several".');
     return ocrFix(txt);
   }
@@ -197,7 +261,7 @@
     if (/^image\//.test(type) || /\.(png|jpe?g|webp|gif|bmp|tiff?)$/i.test(name)) {
       var img = await new Promise(function (res, rej) { var i = new Image(); i.onload = function () { res(i); }; i.onerror = function () { rej(new Error('This image could not be opened.')); }; i.src = URL.createObjectURL(file); });
       /* 57.31: OCR text leaves here cleaned (amounts: letters read for digits, split thousands); the clean-up is idempotent */
-      return ocr([img], prog).then(ocrFix);
+      return ocr([img], prog, false, {title: 'Reading ' + (name || 'the picture')}).then(ocrFix);
     }
     return file.text();
   }

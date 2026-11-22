@@ -28,7 +28,7 @@ async function jpeg(c, qy) {
   const d = document.createElement('canvas'); d.width = c.width; d.height = c.height; d.getContext('2d').drawImage(img, 0, 0); return d;
 }
 // keep: true returns every page's OCR text (out.pages), to score reader changes again without running OCR again.
-export async function run({ perType = 2, looks = ['print', 'scan', 'photo'], src = 'handoff-docs', keep = false } = {}) {
+export async function run({ perType = 2, looks = ['print', 'scan', 'photo'], src = 'handoff-docs', keep = false, engine = 'tesseract' } = {}) {
   const G = (n) => (0, eval)(n), all = await (await fetch(`/tests/_out/${src}.json?` + Date.now())).json();
   const LOOK = {
     print: () => ({ font: FONTS[Math.floor(rnd() * FONTS.length)], size: 26 + Math.floor(rnd() * 6), tilt: 0, blur: 0, specks: 0, paper: '#ffffff', jpeg: 0 }),
@@ -48,7 +48,7 @@ export async function run({ perType = 2, looks = ['print', 'scan', 'photo'], src
   const out = { docs: 0, typeOk: 0, fields: 0, ok: 0, wrong: 0, ms: 0, byLook: {}, misses: [], suite: { docs: 0, typeOk: 0, fields: 0, ok: 0, wrong: 0, flagged: 0 } };
   for (const lk of looks) for (const doc of docs) {
     const look = LOOK[lk](), c = await page(doc.text, look), t0 = performance.now();
-    const text = await MTDocs.ocr([c]); out.ms += performance.now() - t0;
+    const text = await MTDocs.ocr([c], null, false, { engine }); out.ms += performance.now() - t0;
     if (keep) (out.pages = out.pages || []).push({ gen: doc.gen, look: lk, type: doc.type, reader: doc.reader, want: doc.want, text });
     let type, got;
     if (doc.reader === 'income') {
