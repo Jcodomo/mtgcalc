@@ -223,9 +223,9 @@
   var TYPES = [
     {id: 'paystub', label: 'Pay stub', sec: 'income', income: 1, kw: [/pay\s*(stub|statement|slip)/i, /earnings statement/i, /gross pay/i, /net pay/i, /pay period/i, /\bytd\b/i]},
     {id: 'w2', label: 'W-2', sec: 'income', income: 1, kw: [/wage and tax statement/i, /form\s*w-?2\b/i, /\bw-2\b/i, /employer identification/i]},
-    {id: 'voe', label: 'Verification of employment', sec: 'income', income: 1, kw: [/verification of employment/i, /\bvoe\b/i, /work number/i]},
-    {id: 'taxreturn', label: 'Tax return (1040, Schedule C / E, K-1, 1120-S, 1065)', sec: 'income', income: 1, kw: [/form 1040/i, /schedule c\b/i, /schedule e\b/i, /schedule k-1/i, /1120-?s/i, /form 1065/i, /u\.s\. individual income tax/i]},
-    {id: 'benefits', label: 'Social Security / pension / 1099', sec: 'income', income: 1, kw: [/social security/i, /ssa-1099/i, /1099-r/i, /pension/i, /annuity/i, /award letter/i, /benefit statement/i]},
+    {id: 'voe', label: 'Verification of employment', sec: 'income', income: 1, kw: [/verification of employment/i, /\bvoe\b/i, /work number/i, /employment data report/i, /employment status/i, /date of employment/i, /form 1005/i]},
+    {id: 'taxreturn', label: 'Tax return (1040, Schedule C / E, K-1, 1120-S, 1065)', sec: 'income', income: 1, kw: [/form 1040/i, /schedule c\b/i, /schedule e\b/i, /schedule k-1/i, /1120-?s/i, /form 1065/i, /u\.s\. individual income tax/i, /profit or loss from business/i, /supplemental income and loss/i, /(partner|shareholder)'?s share of/i, /form 1120\b/i, /corporation income tax return/i, /net profit or \(loss\)/i]},
+    {id: 'benefits', label: 'Social Security / pension / 1099', sec: 'income', income: 1, kw: [/social security/i, /ssa-1099/i, /1099-r/i, /pension/i, /annuity/i, /award letter/i, /benefit statement/i, /notice of award/i, /monthly benefit/i, /pension benefit/i]},
     {id: 'bank', label: 'Bank statement', sec: 'assets', kw: [/statement period/i, /beginning balance/i, /ending balance/i, /deposits and (other )?(credits|additions)/i, /\bchecking\b/i, /\bsavings\b/i, /account summary/i]},
     {id: 'retirement', label: 'Retirement / investment statement', sec: 'assets', kw: [/401\s*\(?k\)?/i, /403\s*\(?b\)?/i, /\bira\b/i, /vested (balance|value)/i, /brokerage/i, /investment account/i, /portfolio value/i, /total account value/i]},
     {id: 'gift', label: 'Gift letter', sec: 'assets', kw: [/gift letter/i, /\bdonor\b/i, /gift of \$/i, /no repayment/i, /is a gift/i]},
@@ -276,22 +276,46 @@
   /* 57.30: OCR clean-up before reading. Letters OCR reads for digits inside amounts (O and o for 0, l I | for 1, S for 5,
      B for 8), a space after a thousands comma ("1, 234.56"), a decimal comma ("1,234,56"), and runs of spaces. Only tokens
      that are amounts change (two or more digits and a comma or point); words, dates and section numbers are left alone. */
+  /* 57.34: an "S" in front of an amount is a "$" read wrong when the amounts beside it carry a "$" (or an "S") too - it was turned
+     into a 5 (S29,508.30 read 529,508.30). On a row whose other amounts carry no sign it is a 5 read wrong ("S2,496.96" for
+     52,496.96) and is left to the digit clean-up */
+  function fixDollarS(s){
+    var A = '[0-9OolI|B](?:[0-9OolIS|B,]*[.,][0-9OolIS|B]{2}|[0-9OolIS|B]{0,2}(?:,[0-9OolIS|B]{3})+)(?![0-9])', docDollar = /\$\s?\d/.test(s) || (s.match(new RegExp('(?:^|[\\s(|:])S ?' + A, 'g')) || []).length >= 3;
+    var sre = new RegExp('(^|[\\s(|:])(?<!\\$\\s?)S ?(?=' + A + ')', 'g'), any = new RegExp(A, 'g');
+    return s.split('\n').map(function (ln) {
+      var nS = (ln.match(sre) || []).length; if (!nS) return ln;
+      var nD = (ln.match(/\$\s?[0-9OolI|B]/g) || []).length, nAll = (ln.match(any) || []).length;
+      return (nD > 0 || nS >= 2 || (nAll <= nS && docDollar)) ? ln.replace(sre, '$1$$') : ln;
+    }).join('\n');
+  }
   function ocrFix(text){
     var s = String(text == null ? '' : text).replace(/\r\n?/g, '\n').replace(/[ \t ]+/g, ' ')
-      .replace(/(^|[^A-Za-z0-9])(\$?\s?[0-9OolIS|B][0-9OolIS|B,.]*[0-9OolIS|B])(?![A-Za-z0-9])/g, function (m, p, t) {
+      .replace(/^[\s\S]*$/, fixDollarS)   /* 57.34: "$" read as "S" */
+    .replace(/(^|[^A-Za-z0-9])(\$?\s?[0-9OolIS|B][0-9OolIS|B,.]*[0-9OolIS|B])(?![A-Za-z0-9])/g, function (m, p, t) {
         if ((t.match(/[0-9]/g) || []).length < 2 || !/[,.]/.test(t) || !/[OolIS|B]/.test(t)) return m;
         return p + t.replace(/[Oo]/g, '0').replace(/[lI|]/g, '1').replace(/S/g, '5').replace(/B/g, '8'); });
+    s = s.replace(/^([ \t]*\$?[ \t]?)(\d{1,3}) (\d{3}[.,]\d{2})[ \t]*$/gm, '$1$2,$3')   /* 57.34: "148 983.24" alone on its row: a space for the comma */
+    .replace(/(^|[^\d.,])(\d{1,3}),(\d{2}) (\d)(?=\.?[ \t]*$)/gm, '$1$2,$3$4')   /* 57.34: "31 140,91 1": the last digit split off */
+    .replace(/(\d{1,3}); ?(?=\d{3}(?!\d))/g, '$1,').replace(/(^|[^\d\/])(\d{1,3})\/ (\d{3})(?![\d\/])/g, '$1$2,$3')   /* 57.34: "20/ 591": a slash for the comma */
+       /* 57.34: "2;022", "58; 173.47": a semicolon for the comma */
+    .replace(/(\d{1,3}), ?(\d{3}): ?(\d{2})(?!\d)/g, '$1,$2.$3')   /* 57.34: "42, 560: 00": a colon for the decimal point */
+    .replace(/(^|[^\d.])(\$?\s?\d{1,3}(?:, ?\d{3})*|\d{4,})\. (\d{2})(?![\d.,%])/g, function (m, p, a, c, at, all) { var e = all.indexOf('\n', at), ln = all.slice(all.lastIndexOf('\n', at) + 1, e < 0 ? all.length : e);
+        return /^[ \t]+[A-Za-z]{3}/.test(all.slice(at + m.length)) && (ln.replace(m, '').match(/\d\.\d{2}(?!\d)/g) || []).length < 2 ? m : p + a + '.' + c; })   /* 57.34: "32. 87", "123, 520. 08": a space after the decimal point */
+      .replace(/(^|[^\d:])(\d{1,3}):(\d{3})(?=[.,]\d{2}(?!\d))/g, '$1$2,$3')   /* 57.34: "61:268.00": a colon for the comma */
+      .replace(/(^|[^\d.,])(\d{1,3}(?:,\d{3})*), ?(\d{3})(\d{2})(?![\d.,])/g, '$1$2,$3.$4');   /* 57.34: "145,92148", "7, 43583": the decimal point lost (a group after a comma is never five digits) */
     for (var k = 0; k < 3; k++) s = s
       .replace(/(\$ ?\d{1,3}(?:,\d{3})*), (\d{3})(?!\d)/g, '$1,$2')                                       /* "$1, 090,000" */
       .replace(/(^|[^\d,.$])(\d{1,3}(?:,\d{3})*), (\d{3}(?:,\d{3})*[.,]\d{2}|\d{3}(?:,\d{3})+)(?!\d)/gm, '$1$2,$3')   /* "22, 500.00 to", "1, 554,000 as of": cents or more groups make it one amount */
-      .replace(/(^|[^\d,.$])(\d{1,3}(?:,\d{3})*), (\d{3}(?:,\d{3})*(?:[.,]\d{2})?\)?\.?)(?=[ \t]*$|[ \t]+[\d$(%])/gm, '$1$2,$3');   /* "39, 289" and "(15, 193)" at the end of a row */
+      .replace(/(^|[^\d,.$])(\d{1,3}(?:,\d{3})*), (\d{3}(?:,\d{3})*(?:[.,]\d{2})?\)?\.?)(?=[ \t]*$|[ \t]+[\d$(%]|[ \t]+[A-Z]{1,2}[ \t]+\(?\d|[ \t]+(?:[a-cA-C]|\d{1,2}[a-z]?)[ \t]+[A-Za-z]{3}|[ \t]+[^\s\d$(]{1,3}[ \t]*$)/gm, '$1$2,$3');   /* 57.34: "3, 069 A 91, 988" (K-1 box codes), "1, 098. b Other" (the next item) */   /* "39, 289" and "(15, 193)" at the end of a row */
     s = s
       .replace(/(^|[^\d.,])(\d{1,3}(?:\.\d{3})+)\.(\d{2})(?![\d.,%])/g, function (m, p, a, c) { return p + a.replace(/\./g, ',') + '.' + c; })   /* "192.251.37" */
       .replace(/(^|[^\d.,$])(\d{1,3}(?:\.\d{3})+)(\.?)(?=[ \t]*$)/gm, function (m, p, a, e) { return p + a.replace(/\./g, ',') + e; });   /* "3.160." at the end of a tax-form row */
     s = s.replace(/(^|[^\d.,])(\d{1,3}),(\d{2}) (\d)\.(\d{2})(?![\d.,])/g, '$1$2,$3$4.$5')   /* "192,25 1.37": a space inside an amount */
-      .replace(/(^|[^\d.,])(\d{1,3})[.,](\d{3}) (\d{2})(?![\d.,%])/g, '$1$2,$3.$4')   /* "192.251 37": a space for the decimal point */
+      .replace(/(^|[^\d.,])(\d{1,3})[.,](\d{3}) (\d{2})(?![\d.,%])/g, function (m, p, a, b, c, at, all) { var e = all.indexOf('\n', at), ln = all.slice(all.lastIndexOf('\n', at) + 1, e < 0 ? all.length : e);
+        return /^[ \t]+[A-Za-z]{3}/.test(all.slice(at + m.length)) && (ln.match(/\d\.\d{2}(?!\d)/g) || []).length < 2 ? m : p + a + ',' + b + '.' + c; })   /* not "13 1,353 21 Repairs": the next item's line number */
+        /* "192.251 37": a space for the decimal point */
       .replace(/(\d{1,3},\d{3}|\$ ?\d{1,3}):(\d{2})(?!\d)/g, '$1.$2');   /* "$4,649:90": a colon for the decimal point (never a time: it needs $ or a thousands group) */
-      s = s.replace(/^(\s*\d{1,2}[a-z]?\s.*\s\d{1,2}[a-z]?\s+)(\(?\d{1,3}) (\d{3}\)?)(\.?)[ \t]*$/gm, '$1$2,$3$4');   /* "20 ... 20 23 418.": a space read for the comma, at the end of a numbered form row */
+      s = s.replace(/^(\s*\d{1,2}[a-z]?\s.*[\s\-]\d{1,2}[a-z]?\s+)(\(?\d{1,2}) (\d{3}\)?)(\.?)[ \t]*$/gm, '$1$2,$3$4');   /* "20 ... 20 23 418.": a space read for the comma, at the end of a numbered form row */
       return s
       .replace(/(\d{1,3}(?:,\d{3})+),(\d{2})(?![\d,])/g, '$1.$2')       /* "1,234,56" */
       .replace(/(\$ ?\d{1,3}),(\d{2})(?![\d,])/g, '$1.$2')               /* "$234,56" */

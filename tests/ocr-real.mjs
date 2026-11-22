@@ -3,7 +3,12 @@
 // Documents from tests/_out/handoff-docs.json (node tests/ocr-slam.mjs --emit=6), clean text only, are drawn as page images
 // the way a phone photo or a scan looks - a font and size, a slight tilt, blur, specks, a grey paper tone, JPEG compression -
 // then read by OCR and by the readers, and every figure is checked against the document.
-const near = (a, b) => Math.abs((+a || 0) - (+b || 0)) < 0.006;
+// 57.34: run({src: 'income-battle'}) reads the income battle documents instead (node tests/ocr-income-battle.mjs --emit):
+// pay stubs, W-2s, VOEs, Schedules C / E, K-1s and Form 1120 in the layouts payroll services and the IRS print.
+const near = (a, b) => (typeof b === 'string' ? String(a) === b : Math.abs((+a || 0) - (+b || 0)) < 0.006);
+/* a figure the reader should find: [slot, value, kind, year column]; kind 'none' is a figure it must leave blank */
+const pickF = (F, k, col) => { const c = F.filter((x) => x.slot === k && !x.generic && (!col || x.col === col)); return c.find((x) => !/— check:/.test(x.label) && x.apply !== false) || c[0]; };
+const judge = (g, want, kind) => (kind === 'none' ? (g === undefined || g === 0 ? 'ok' : 'wrong') : g !== undefined && (kind === 'd' ? g === want : near(g, want)) ? 'ok' : g === undefined ? 'blank' : 'wrong');
 let seed = 4242; const rnd = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
 const FONTS = ['Arial', 'Times New Roman', 'Courier New', 'Verdana', 'Georgia'];
 async function page(text, look) {
@@ -22,8 +27,9 @@ async function jpeg(c, qy) {
   const img = new Image(); img.src = c.toDataURL('image/jpeg', qy); await img.decode();
   const d = document.createElement('canvas'); d.width = c.width; d.height = c.height; d.getContext('2d').drawImage(img, 0, 0); return d;
 }
-export async function run({ perType = 2, looks = ['print', 'scan', 'photo'] } = {}) {
-  const G = (n) => (0, eval)(n), all = await (await fetch('/tests/_out/handoff-docs.json?' + Date.now())).json();
+// keep: true returns every page's OCR text (out.pages), to score reader changes again without running OCR again.
+export async function run({ perType = 2, looks = ['print', 'scan', 'photo'], src = 'handoff-docs', keep = false } = {}) {
+  const G = (n) => (0, eval)(n), all = await (await fetch(`/tests/_out/${src}.json?` + Date.now())).json();
   const LOOK = {
     print: () => ({ font: FONTS[Math.floor(rnd() * FONTS.length)], size: 26 + Math.floor(rnd() * 6), tilt: 0, blur: 0, specks: 0, paper: '#ffffff', jpeg: 0 }),
     scan: () => ({ font: FONTS[Math.floor(rnd() * FONTS.length)], size: 22 + Math.floor(rnd() * 6), tilt: (rnd() - 0.5) * 1.6, blur: 0.4, specks: 250, paper: '#ecebe6', jpeg: 0.7 }),
@@ -33,28 +39,48 @@ export async function run({ perType = 2, looks = ['print', 'scan', 'photo'] } = 
   };
   const pick = (list) => { const by = {}; list.filter((d) => d.level === 'clean').forEach((d) => { (by[d.gen] = by[d.gen] || []).push(d); }); return Object.values(by).flatMap((a) => a.slice(0, perType)); };
   const docs = pick(all.income).map((d) => ({ ...d, reader: 'income' })).concat(pick(all.center).map((d) => ({ ...d, reader: 'center' })));
-  /* 57.31: the Loan Suite's own (minified) income reader reads the same OCR text as the Income Calculator's, scored separately */
+  /* 57.31: the Loan Suite's own income reader reads the same OCR text as the Income Calculator's, scored separately;
+     57.34: loaded as the Loan Suite pages load it, with assets/income-reader.js, to which it hands the work */
   const suSrc = await (await fetch('/assets/js/06-docs-let-auto-apply-0-window-pdfjsli.js?' + Date.now())).text();
+  const irSrc = await (await fetch('/assets/income-reader.js?' + Date.now())).text();
   const stub = { getElementById: () => null, querySelector: () => null, querySelectorAll: () => [], addEventListener() {} };
-  const SU = new Function('window', 'document', 'MTOcrFix', suSrc + '\n;return {classify, extractFields};')({ MTOcrFix: window.MTOcrFix }, stub, window.MTOcrFix);
+  const SU = new Function('window', 'document', 'MTOcrFix', irSrc + '\n' + suSrc + '\n;return {classify, extractFields};')({ MTOcrFix: window.MTOcrFix }, stub, window.MTOcrFix);
   const out = { docs: 0, typeOk: 0, fields: 0, ok: 0, wrong: 0, ms: 0, byLook: {}, misses: [], suite: { docs: 0, typeOk: 0, fields: 0, ok: 0, wrong: 0, flagged: 0 } };
   for (const lk of looks) for (const doc of docs) {
     const look = LOOK[lk](), c = await page(doc.text, look), t0 = performance.now();
     const text = await MTDocs.ocr([c]); out.ms += performance.now() - t0;
+    if (keep) (out.pages = out.pages || []).push({ gen: doc.gen, look: lk, type: doc.type, reader: doc.reader, want: doc.want, text });
     let type, got;
     if (doc.reader === 'income') {
       const st = out.suite, sF = SU.extractFields(doc.type, text); st.docs++; if (SU.classify(text) === doc.type) st.typeOk++;
-      for (const [k, want, kind] of doc.want) { st.fields++; const fx = sF.find((x) => x.slot === k && !x.generic), g = fx && !/— check:/.test(fx.label) ? fx.value : undefined; if (fx && /— check:/.test(fx.label)) st.flagged++; if (kind === 'd' ? g === want : g !== undefined && near(g, want)) st.ok++; else if (g !== undefined) st.wrong++; }
+      for (const [k, want, kind, col] of doc.want) { st.fields++; const fx = pickF(sF, k, col), g = fx && !/— check:/.test(fx.label) ? fx.value : undefined; if (fx && /— check:/.test(fx.label)) st.flagged++; const j = judge(g, want, kind); if (j === 'ok') st.ok++; else if (j === 'wrong') st.wrong++; }
     }
-    if (doc.reader === 'income') { type = G('classify')(text); const F = G('extractFields')(doc.type, text); got = (k) => { const f = F.find((x) => x.slot === k && !x.generic); if (f && /— check:/.test(f.label)) { out.flagged = (out.flagged || 0) + 1; return undefined; } return f ? f.value : undefined; }; }   // flagged for checking, not applied: blank
+    if (doc.reader === 'income') { type = G('classify')(text); const F = G('extractFields')(doc.type, text); got = (k, col) => { const f = pickF(F, k, col); if (f && /— check:/.test(f.label)) { out.flagged = (out.flagged || 0) + 1; return undefined; } return f ? f.value : undefined; }; }   // flagged for checking, not applied: blank
     else { type = MTDocs.detect(text, ''); const d = MTDocs.extract({ docType: doc.type, text }); got = (k) => { const r = d.rows.find((x) => x.dest === k); return r ? r.value : undefined; }; }
     const B = out.byLook[lk] || (out.byLook[lk] = { docs: 0, fields: 0, ok: 0 }); B.docs++; out.docs++;
     if (type === doc.type) out.typeOk++; else out.misses.push(`${doc.gen} [${lk}, ${look.font} ${look.size}px] type ${type}`);
-    for (const [k, want, kind] of doc.want) {
-      out.fields++; B.fields++; const g = got(k), right = kind === 'd' ? g === want : g !== undefined && near(g, want);
-      if (right) { out.ok++; B.ok++; } else { if (g !== undefined) out.wrong++; out.misses.push(`${doc.gen} [${lk}, ${look.font} ${look.size}px] ${k}: want ${want} got ${g}`); if ((out.texts = out.texts || []).length < 40) out.texts.push({ doc: doc.gen, look: lk, key: k, want, got: g, ocr: text }); }
+    for (const [k, want, kind, col] of doc.want) {
+      out.fields++; B.fields++; const g = got(k, col), j = judge(g, want, kind);
+      if (j === 'ok') { out.ok++; B.ok++; } else { if (j === 'wrong') { out.wrong++; (out.wrongs = out.wrongs || []).push(`${doc.gen} [${lk}] ${k}${col ? ' ' + col : ''}: want ${want} got ${g}`); } out.misses.push(`${doc.gen} [${lk}, ${look.font} ${look.size}px] ${k}${col ? ' ' + col : ''}: want ${want} got ${g}`); out.texts = out.texts || []; if (j === 'wrong' ? out.texts.filter((x) => x.got !== undefined).length < 60 : out.texts.filter((x) => x.got === undefined).length < 25) out.texts.push({ doc: doc.gen, look: lk, key: k, want, got: g, ocr: text }); }
     }
   }
   out.secondsPerPage = +(out.ms / out.docs / 1000).toFixed(2); delete out.ms;
+  return out;
+}
+/* 57.34: score the OCR text a run kept (run({keep: true}).pages) with the income reader as it is now on disk
+   (assets/income-reader.js, rebuilt from income-calculator.html) - a reader change checked in seconds, without running OCR again */
+export async function rescore(pages) {
+  const ctx = { window: {} };
+  new Function('window', (await (await fetch('/assets/income-reader.js?' + Date.now())).text()))(ctx.window);
+  const R = ctx.window.MTIncomeReader, out = { docs: 0, typeOk: 0, fields: 0, ok: 0, wrong: 0, byLook: {}, wrongs: [] };
+  for (const p of pages.filter((x) => x.reader === 'income')) {
+    const B = out.byLook[p.look] || (out.byLook[p.look] = { fields: 0, ok: 0 }); out.docs++;
+    if (R.classify(p.text) === p.type) out.typeOk++;
+    const F = R.extractFields(p.type, p.text);
+    for (const [k, want, kind, col] of p.want) {
+      const f = pickF(F, k, col), g = f && !/— check:/.test(f.label) ? f.value : undefined, j = judge(g, want, kind);
+      out.fields++; B.fields++; if (j === 'ok') { out.ok++; B.ok++; } else if (j === 'wrong') { out.wrong++; out.wrongs.push(`${p.gen} [${p.look}] ${k}${col ? ' ' + col : ''}: want ${want} got ${g}`); }
+    }
+  }
   return out;
 }

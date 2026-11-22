@@ -34,12 +34,13 @@ function docCenter() {
 }
 const IC = incomeReader('income-calculator.html');
 const DC = docCenter();
-// the Loan Suite's Documents pages read income documents with their own (minified) copy of the reader
+// the Loan Suite's Documents pages read income documents through assets/js/06-..., which hands the work to the Income
+// Calculator's reader (assets/income-reader.js, loaded on those pages since 57.34)
 function suiteReader() {
   const ctx = { console, window: {}, document: { getElementById: () => null, querySelector: () => null, querySelectorAll: () => [], addEventListener() {} } };
   ctx.window.MTOcrFix = globalThis.__dcFix; ctx.MTOcrFix = globalThis.__dcFix; vm.createContext(ctx);
   const src = readFileSync(path.join(root, 'assets/js/06-docs-let-auto-apply-0-window-pdfjsli.js'), 'utf8');
-  vm.runInContext(src + '\n;this.__R={classify,extractFields};', ctx);
+  vm.runInContext(readFileSync(path.join(root, 'assets/income-reader.js'), 'utf8') + '\n' + src + '\n;this.__R={classify,extractFields};', ctx);
   return ctx.__R;
 }
 const SU = suiteReader();
