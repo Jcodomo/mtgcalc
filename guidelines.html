@@ -5,7 +5,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
-<link rel="stylesheet" href="assets/mt-motion.css?v=57.30">
+<link rel="stylesheet" href="assets/mt-motion.css?v=57.31">
 <title>Guidelines · Mortgage Suite</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%233d84e6'/%3E%3Ccircle cx='14' cy='14' r='6' stroke='white' stroke-width='2.5' fill='none'/%3E%3Cpath d='M19 19 L25 25' stroke='white' stroke-width='2.5' stroke-linecap='round'/%3E%3C/svg%3E">
 <script>!function(){try{var t=localStorage.getItem("gl-theme");"light"!==t&&"dark"!==t||(document.documentElement.dataset.theme=t)}catch(e){}}();</script>
@@ -74,6 +74,7 @@ main{max-width:1280px;margin:0 auto;padding:18px clamp(14px,3vw,32px) 60px}
 .res h4{margin:4px 0;font-size:15px;color:var(--strong);line-height:1.3}
 .res .sn{font-size:13.5px;color:var(--text);margin:4px 0 8px}
 .badge{display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:2px 8px;border-radius:999px;border:1px solid currentColor}
+.updbox{border:1px solid var(--line,#8884);border-radius:10px;padding:10px 14px}.updbox.due{border-color:#d97706;background:rgba(217,119,6,.08)}.updl{margin:6px 0 0;padding-left:18px;font-size:13px}.updl li{margin:3px 0}.updres{margin-top:10px;font-size:13.5px;line-height:1.5;white-space:pre-wrap}#stats .due{color:#d97706}
 .b-Fannie{color:var(--c-fannie)}.b-Freddie{color:var(--c-freddie)}.b-FHA{color:var(--c-fha)}.b-VA{color:var(--c-va)}.b-Other{color:var(--c-other)}
 .sec{font:600 12px ui-monospace,Consolas,monospace;color:var(--muted);margin-left:6px}
 .act{display:flex;gap:8px;flex-wrap:wrap}
@@ -191,9 +192,11 @@ kbd{font:600 11px ui-monospace,Consolas,monospace;border:1px solid var(--line-2)
   <p class="note">The key is kept only while this tab is open, unless you tick Remember (then it stays in this browser's storage). It is sent only to api.anthropic.com. Do not tick Remember on a shared computer.</p>
 </div></dialog>
 
-<script src="assets/guidelines/fannie.js?v=2026-11-20"></script>
-<script src="assets/guidelines/fha.js?v=2026-11-20"></script>
-<script src="assets/guidelines/curated.js?v=2026-11-20"></script>
+<script src="assets/guidelines/fannie.js?v=2026-11-22"></script>
+<script src="assets/guidelines/freddie.js?v=2026-11-22"></script>
+<script src="assets/guidelines/changes.js?v=2026-11-22"></script>
+<script src="assets/guidelines/fha.js?v=2026-11-22"></script>
+<script src="assets/guidelines/curated.js?v=2026-11-22"></script>
 <script>
 "use strict";
 /* ============ helpers ============ */
@@ -264,31 +267,31 @@ const CANNED=["self-employed income 2 years","large deposit sourcing","gift fund
    borrowers and loan officers ask most), each pinned to the sections that answer it: when a search is one of these
    questions, or a short form of it, those sections come first. pin: "Agency section|a word that must be in it" (a pin
    whose section moved or changed in a refresh is skipped; test/faq.js lists them). ag: a question about that agency. */
-const FAQ=[{"q":"Can a pay raise or increase in pay be included as qualifying income?","k":["pay raise income","future pay increase","raise in pay qualifying income"],"pin":["Fannie B3-3.2-02|increase"]},
-{"q":"How should income be evaluated when a borrower has multiple jobs at the same time?","k":["multiple jobs income","two jobs at the same time","second job income"],"pin":["Fannie B3-3.2-02|multiple jobs","FHA 4000.1 p.251|Part-Time"]},
-{"q":"Is it acceptable if an employment gap exceeds 30 days?","k":["employment gap","gap in employment","job gap over 30 days","gaps in employment"],"pin":["Fannie B3-3.2-02|gap","FHA 4000.1 p.257|Gaps in Employment"]},
-{"q":"What is required when a borrower is employed by family or an interested party?","k":["employed by family","family owned business employment","works for a relative"],"pin":["Fannie B3-3.2-02|family","FHA 4000.1 p.253|Family-Owned"]},
-{"q":"When can nontaxable income be used to adjust the gross income?","k":["nontaxable income gross up","grossing up income","gross up nontaxable income"],"pin":["Fannie B3-3.1-01|nontaxable","FHA 4000.1 p.273|Nontaxable"]},
-{"q":"What is required when using a lease agreement to calculate rental income?","k":["lease agreement rental income","using a lease for rental income"],"pin":["Fannie B3-3.8-01|lease","Fannie B3-3.8-04|lease","FHA 4000.1 p.265|Rental Income"]},
-{"q":"When can a lease agreement be used to determine qualifying rental income from an investment property?","k":["lease agreement investment property","lease instead of tax returns rental"],"pin":["Fannie B3-3.8-04|lease","Fannie B3-3.8-01|lease"]},
+const FAQ=[{"q":"Can a pay raise or increase in pay be included as qualifying income?","k":["pay raise income","future pay increase","raise in pay qualifying income"],"pin":["Fannie B3-3.2-02|increase","Freddie 5303.2|future"]},
+{"q":"How should income be evaluated when a borrower has multiple jobs at the same time?","k":["multiple jobs income","two jobs at the same time","second job income"],"pin":["Fannie B3-3.2-02|multiple jobs","FHA 4000.1 p.251|Part-Time","Freddie 5303.1|secondary employment"]},
+{"q":"Is it acceptable if an employment gap exceeds 30 days?","k":["employment gap","gap in employment","job gap over 30 days","gaps in employment"],"pin":["Fannie B3-3.2-02|gap","FHA 4000.1 p.257|Gaps in Employment","Freddie 5303.1|gaps in employment"]},
+{"q":"What is required when a borrower is employed by family or an interested party?","k":["employed by family","family owned business employment","works for a relative"],"pin":["Fannie B3-3.2-02|family","FHA 4000.1 p.253|Family-Owned","Freddie 5303.1|family"]},
+{"q":"When can nontaxable income be used to adjust the gross income?","k":["nontaxable income gross up","grossing up income","gross up nontaxable income"],"pin":["Fannie B3-3.1-01|nontaxable","FHA 4000.1 p.273|Nontaxable","Freddie 5305.1|tax-exempt"]},
+{"q":"What is required when using a lease agreement to calculate rental income?","k":["lease agreement rental income","using a lease for rental income"],"pin":["Fannie B3-3.8-01|lease","Fannie B3-3.8-04|lease","FHA 4000.1 p.265|Rental Income","Freddie 5306.1|lease"]},
+{"q":"When can a lease agreement be used to determine qualifying rental income from an investment property?","k":["lease agreement investment property","lease instead of tax returns rental"],"pin":["Fannie B3-3.8-04|lease","Fannie B3-3.8-01|lease","Freddie 5306.1|lease"]},
 {"q":"How should lenders use market analysis tools or validated rental data when determining rental income?","k":["market rent analysis tools","rental comparables market rent","validated rental data"],"pin":["Fannie B3-3.8-03|rental","Fannie B3-3.8-05|rent","Fannie B3-3.8-06|rent"]},
-{"q":"What is considered an interested party contribution (IPC)?","k":["interested party contributions","seller concessions limit","seller credit limit","ipc limits"],"pin":["Fannie B3-4.1-02|interested party","FHA 4000.1 p.285|Interested Party"]},
-{"q":"What is required to document gift funds?","k":["gift funds","gift letter requirements","gift funds documentation","gift money for down payment"],"pin":["Fannie B3-4.3-04|gift","FHA 4000.1 p.283|Gifts"]},
-{"q":"What is required when using assets from a retirement account?","k":["retirement account assets","401k for down payment","ira for closing costs","use my 401k"],"pin":["Fannie B3-4.3-03|retirement","FHA 4000.1 p.282|Retirement"]},
+{"q":"What is considered an interested party contribution (IPC)?","k":["interested party contributions","seller concessions limit","seller credit limit","ipc limits"],"pin":["Fannie B3-4.1-02|interested party","FHA 4000.1 p.285|Interested Party","Freddie 5501.6|interested part"]},
+{"q":"What is required to document gift funds?","k":["gift funds","gift letter requirements","gift funds documentation","gift money for down payment"],"pin":["Fannie B3-4.3-04|gift","FHA 4000.1 p.283|Gifts","Freddie 5501.4|gift"]},
+{"q":"What is required when using assets from a retirement account?","k":["retirement account assets","401k for down payment","ira for closing costs","use my 401k"],"pin":["Fannie B3-4.3-03|retirement","FHA 4000.1 p.282|Retirement","Freddie 5501.3|retirement"]},
 {"q":"What is required when using borrowed funds secured by an asset?","k":["borrowed funds secured by an asset","401k loan for down payment","secured borrowed funds"],"pin":["Fannie B3-4.3-15|secured","FHA 4000.1 p.294|Collateralized"]},
-{"q":"What is required when using business assets to qualify?","k":["business assets for down payment","business funds for closing","business bank account down payment"],"pin":["Fannie B3-4.2-02|business","Fannie B3-3.5-01|business assets"]},
+{"q":"What is required when using business assets to qualify?","k":["business assets for down payment","business funds for closing","business bank account down payment"],"pin":["Fannie B3-4.2-02|business","Fannie B3-3.5-01|business assets","Freddie 5501.3|business assets"]},
 {"q":"Are authorized user tradelines considered in the DTI ratio calculation?","k":["authorized user accounts dti","authorized user tradelines"],"pin":["Fannie B3-5.3-06|authorized","Fannie B3-5.3-09|authorized"]},
 {"q":"Can you have late payments on a prior mortgage in the last twelve months?","k":["mortgage late payments","late mortgage payment 12 months","mortgage lates","previous mortgage payment history"],"pin":["Fannie B3-5.3-03|mortgage","FHA 4000.1 p.235|Mortgage Payment History"]},
 {"q":"Is a loan still eligible for delivery if the credit report reflects frozen credit?","k":["frozen credit","credit freeze","frozen credit report"],"pin":["Fannie B3-5.1-01|frozen","Fannie B3-5.2-02|frozen"]},
 {"q":"Can I submit loans to DU when the borrowers do not have a credit score?","k":["no credit score du","borrower without a credit score","no credit score mortgage"],"pin":["Fannie B3-5.4-01|credit score","Fannie B3-5.4-02|credit score"]},
 {"q":"How many nontraditional credit references are required for a borrower without a credit score?","k":["nontraditional credit references","non traditional credit","alternative credit references"],"pin":["Fannie B3-5.4-02|nontraditional","FHA 4000.1 p.306|Non-traditional"]},
 {"q":"Are collection accounts and non-mortgage charge-offs required to be paid off?","k":["collection accounts","pay off collections","charge off accounts","collections paid at closing"],"pin":["Fannie B3-6-07|collection","Fannie B3-5.3-09|collection","FHA 4000.1 p.245|Collection"]},
-{"q":"What is required for a student loan monthly debt obligation?","k":["student loan payment","deferred student loans","student loan dti","income driven student loan payment"],"pin":["Fannie B3-6-05|student","FHA 4000.1 p.242|Student"]},
-{"q":"When can debt paid by others be excluded from the DTI ratio?","k":["debt paid by others","debts paid by someone else","exclude debt paid by another"],"pin":["Fannie B3-6-05|paid by","FHA 4000.1 p.244|Contingent"]},
+{"q":"What is required for a student loan monthly debt obligation?","k":["student loan payment","deferred student loans","student loan dti","income driven student loan payment"],"pin":["Fannie B3-6-05|student","FHA 4000.1 p.242|Student","Freddie 5401.2|student"]},
+{"q":"When can debt paid by others be excluded from the DTI ratio?","k":["debt paid by others","debts paid by someone else","exclude debt paid by another"],"pin":["Fannie B3-6-05|paid by","FHA 4000.1 p.244|Contingent","Freddie 5401.2|paid by"]},
 {"q":"When can business debt be excluded from the DTI ratio?","k":["business debt dti","business debt in borrower name"],"pin":["Fannie B3-6-05|business debt"]},
 {"q":"What are property insurance coverage sufficiency requirements for one-to four-unit properties?","k":["property insurance coverage amount","hazard insurance coverage","homeowners insurance coverage required"],"pin":["Fannie B7-3-02|insurance"]},
 {"q":"What perils are required to be covered under a property insurance policy?","k":["perils covered by property insurance","insurance perils required"],"pin":["Fannie B7-3-02|perils"]},
-{"q":"What is required for a delayed financing exception?","k":["delayed financing","delayed financing exception","cash purchase then refinance"],"pin":["Fannie B2-1.3-03|delayed financing"]},
+{"q":"What is required for a delayed financing exception?","k":["delayed financing","delayed financing exception","cash purchase then refinance"],"pin":["Fannie B2-1.3-03|delayed financing","Freddie 4301.5|delayed financing"]},
 {"q":"What is required for non-arm's length transactions?","k":["non arms length transaction","non arm s length transactions","non-arm length purchase"],"pin":["Fannie B2-1.3-01|arm","FHA 4000.1 p.205|Identit"]},
 {"q":"What are the FHA identity-of-interest rules?","k":["identity of interest","identity of interest transaction","identity-of-interest ltv"],"pin":["FHA 4000.1 p.205|Identit","Fannie B2-1.3-01|arm"]},
 {"q":"When purchasing a primary residence for a parent or disabled adult child, how is this submitted to DU?","k":["buying a home for my parents","home for disabled adult child","parent occupancy"],"pin":["Fannie B2-1.1-01|parent"]},
@@ -297,40 +300,44 @@ const FAQ=[{"q":"Can a pay raise or increase in pay be included as qualifying in
 {"q":"What is the minimum credit score for a mortgage?","k":["minimum credit score","credit score minimum","lowest credit score allowed","what credit score do i need"],"pin":["Fannie B3-5.1-01|credit score","FHA 4000.1 p.204|580"]},
 {"q":"How much down payment do I need?","k":["minimum down payment","do i need 20 percent down","how much down","down payment requirements"],"pin":["Fannie B2-1.2-01|LTV","FHA 4000.1 p.279|Minimum Required Investment"]},
 {"q":"What is the minimum down payment for an FHA loan?","k":["fha down payment","fha minimum required investment","fha 3.5 percent down"],"pin":["FHA 4000.1 p.279|Minimum Required Investment","FHA 4000.1 p.207|Minimum Required Investment"],"ag":"FHA"},
-{"q":"What is the maximum debt-to-income ratio?","k":["maximum dti","dti limit","debt to income ratio limit","max debt to income"],"pin":["Fannie B3-6-02|debt-to-income","FHA 4000.1 p.382|Qualifying Ratios"]},
+{"q":"What is the maximum debt-to-income ratio?","k":["maximum dti","dti limit","debt to income ratio limit","max debt to income"],"pin":["Fannie B3-6-02|debt-to-income","FHA 4000.1 p.382|Qualifying Ratios","Freddie 5401.2|debt payment-to-income"]},
 {"q":"How do I remove mortgage insurance?","k":["remove pmi","cancel mortgage insurance","drop pmi","remove fha mip","mortgage insurance cancellation"],"pin":["FHA 4000.1 p.1198|Termination","Fannie B7-1-01|mortgage insurance"]},
 {"q":"How much is FHA mortgage insurance and how long does it last?","k":["fha mip","fha mortgage insurance premium","annual mip","upfront mip","ufmip"],"pin":["FHA 4000.1 p.1774|Annual","FHA 4000.1 p.1775|Annual MIP","FHA 4000.1 p.207|Upfront"],"ag":"FHA"},
-{"q":"How long after bankruptcy can I get a mortgage?","k":["bankruptcy waiting period","chapter 7 waiting period","chapter 13 bankruptcy mortgage","mortgage after bankruptcy"],"pin":["Fannie B3-5.3-07|bankruptcy","FHA 4000.1 p.233|Bankruptcy"]},
-{"q":"How long after foreclosure can I get a mortgage?","k":["foreclosure waiting period","mortgage after foreclosure"],"pin":["Fannie B3-5.3-07|foreclosure","FHA 4000.1 p.234|Foreclosure"]},
+{"q":"How long after bankruptcy can I get a mortgage?","k":["bankruptcy waiting period","chapter 7 waiting period","chapter 13 bankruptcy mortgage","mortgage after bankruptcy"],"pin":["Fannie B3-5.3-07|bankruptcy","FHA 4000.1 p.233|Bankruptcy","Freddie 5202.1|bankruptcy"]},
+{"q":"How long after foreclosure can I get a mortgage?","k":["foreclosure waiting period","mortgage after foreclosure"],"pin":["Fannie B3-5.3-07|foreclosure","FHA 4000.1 p.234|Foreclosure","Freddie 5202.1|foreclosure"]},
 {"q":"How long after a short sale can I buy a house?","k":["short sale waiting period","pre-foreclosure sale waiting period","buy after short sale"],"pin":["Fannie B3-5.3-07|preforeclosure","FHA 4000.1 p.234|Pre-Foreclosure"]},
 {"q":"What is the waiting period after a deed in lieu of foreclosure?","k":["deed in lieu waiting period","deed-in-lieu"],"pin":["Fannie B3-5.3-07|deed-in-lieu","FHA 4000.1 p.235|Deed-in-Lieu"]},
-{"q":"How many months of reserves do I need?","k":["reserves required","reserve requirements","months of reserves"],"pin":["Fannie B3-4.1-01|reserve","FHA 4000.1 p.278|Reserves"]},
-{"q":"How much can the seller pay toward closing costs?","k":["seller paid closing costs","seller contributions","seller paying closing costs"],"pin":["Fannie B3-4.1-02|interested party","FHA 4000.1 p.285|Interested Party"]},
-{"q":"How long do I need to be self-employed to qualify?","k":["self employed two years","self-employment history","self employed income requirements"],"pin":["Fannie B3-3.5-01|self-employed","FHA 4000.1 p.255|Self-Employment"]},
-{"q":"How are overtime and bonus income calculated?","k":["overtime income","bonus income","commission income","overtime bonus commission income"],"pin":["Fannie B3-3.3-02|overtime","FHA 4000.1 p.251|Overtime"]},
-{"q":"How is rental income calculated?","k":["rental income calculation","schedule e rental income"],"pin":["Fannie B3-3.8-01|rental","FHA 4000.1 p.265|Rental Income"]},
-{"q":"How do I document a large deposit?","k":["large deposits","large deposit sourcing","source of large deposit"],"pin":["Fannie B3-4.2-02|large deposit"]},
+{"q":"How many months of reserves do I need?","k":["reserves required","reserve requirements","months of reserves"],"pin":["Fannie B3-4.1-01|reserve","FHA 4000.1 p.278|Reserves","Freddie 5501.2|reserves"]},
+{"q":"How much can the seller pay toward closing costs?","k":["seller paid closing costs","seller contributions","seller paying closing costs"],"pin":["Fannie B3-4.1-02|interested party","FHA 4000.1 p.285|Interested Party","Freddie 5501.6|interested part"]},
+{"q":"How long do I need to be self-employed to qualify?","k":["self employed two years","self-employment history","self employed income requirements"],"pin":["Fannie B3-3.5-01|self-employed","FHA 4000.1 p.255|Self-Employment","Freddie 5304.1|self-employed"]},
+{"q":"How are overtime and bonus income calculated?","k":["overtime income","bonus income","commission income","overtime bonus commission income"],"pin":["Fannie B3-3.3-02|overtime","FHA 4000.1 p.251|Overtime","Freddie 5303.1|overtime"]},
+{"q":"How is rental income calculated?","k":["rental income calculation","schedule e rental income"],"pin":["Fannie B3-3.8-01|rental","Freddie 5306.1|rental","FHA 4000.1 p.265|Rental Income"]},
+{"q":"Can rental income from a departing residence be used to qualify?","k":["departing residence rental income","converting my home to a rental","vacating primary residence rent"],"pin":["Fannie B3-3.8-05|departing","Freddie 5306.1|Conversion of a Primary Residence","FHA 4000.1 p.267|vacated"]},
+{"q":"Can rental income from an ADU be used to qualify?","k":["adu rental income","accessory dwelling unit income","granny flat rent income"],"pin":["Fannie B3-3.8-02|ADU","Freddie 5306.1|ADU","FHA 4000.1 p.266|ADU"]},
+{"q":"How is short-term rental income calculated?","k":["short-term rental income","airbnb rental income","vacation rental income"],"pin":["Fannie B3-3.8-03|short-term"]},
+{"q":"Can rental income from an investment property bought within 45 days be used?","k":["investment property purchased within 45 days","recently purchased rental no lease"],"pin":["Fannie B3-3.8-06|45","Freddie 5306.1|45 days"]},
+{"q":"How do I document a large deposit?","k":["large deposits","large deposit sourcing","source of large deposit"],"pin":["Fannie B3-4.2-02|large deposit","Freddie 5501.3|large deposit"]},
 {"q":"Can a non-occupant co-borrower be added to the loan?","k":["non occupant co borrower","non-occupying co-borrower","co-signer who will not live there"],"pin":["Fannie B2-2-04|non-occupant","FHA 4000.1 p.206|Non-Occupying"]},
-{"q":"How old can credit documents and pay stubs be?","k":["age of documents","document age","how old can paystubs be","credit documents age"],"pin":["Fannie B1-1-03|age","FHA 4000.1 p.151|Document Age"]},
+{"q":"How old can credit documents and pay stubs be?","k":["age of documents","document age","how old can paystubs be","credit documents age"],"pin":["Fannie B1-1-03|age","FHA 4000.1 p.151|Document Age","Freddie 5102.4|age"]},
 {"q":"How long is an appraisal good for?","k":["appraisal age","appraisal validity","appraisal expiration","age of appraisal"],"pin":["Fannie B4-1.2-04|appraisal","FHA 4000.1 p.152|Appraisal Validity"]},
 {"q":"What is the maximum LTV for a cash-out refinance?","k":["cash out refinance ltv","cash-out refinance","max ltv cash out"],"pin":["Fannie B2-1.3-03|cash-out","FHA 4000.1 p.461|Cash-Out"]},
 {"q":"How long do I have to own a home before a cash-out refinance?","k":["cash out seasoning","cash-out refinance seasoning","six months before cash out"],"pin":["Fannie B2-1.3-03|cash-out","FHA 4000.1 p.461|Cash-Out"]},
-{"q":"How is child support or alimony income used to qualify?","k":["child support income","alimony income","child support alimony income"],"pin":["Fannie B3-3.4-02|child support","FHA 4000.1 p.259|Child Support"]},
-{"q":"Can social security income be grossed up?","k":["social security income","social security gross up"],"pin":["Fannie B3-3.4-15|social security","FHA 4000.1 p.263|Social Security"]},
+{"q":"How is child support or alimony income used to qualify?","k":["child support income","alimony income","child support alimony income"],"pin":["Fannie B3-3.4-02|child support","FHA 4000.1 p.259|Child Support","Freddie 5305.1|child support"]},
+{"q":"Can social security income be grossed up?","k":["social security income","social security gross up"],"pin":["Fannie B3-3.4-15|social security","FHA 4000.1 p.263|Social Security","Freddie 5305.1|social security"]},
 {"q":"What is the difference between a second home and an investment property?","k":["occupancy types","second home requirements","second home vs investment property"],"pin":["Fannie B2-1.1-01|second home","FHA 4000.1 p.186|Secondary Residence"]},
 {"q":"What are the conforming loan limits?","k":["loan limits","conforming loan limit","high balance loan limits"],"pin":["Other FHFA Loan Limits|loan limit","Fannie B2-1.5-01|loan limit"]},
 {"q":"Can I get a mortgage on a manufactured home?","k":["manufactured home eligibility","mobile home mortgage","manufactured housing"],"pin":["Fannie B5-2-02|manufactured","Fannie B2-3-02|manufactured"]},
 {"q":"What is an FHA 203(k) rehabilitation loan?","k":["203k loan","fha 203k","fha rehab loan","limited 203k"],"pin":["FHA 4000.1 p.415|203(k)"]},
 {"q":"What is an FHA streamline refinance?","k":["fha streamline","streamline refinance"],"pin":["FHA 4000.1 p.470|Streamline"]},
-{"q":"Do I need a two-year employment history?","k":["two year employment history","2 year work history","employment history requirement"],"pin":["Fannie B3-3.2-02|history","FHA 4000.1 p.249|two years"]},
-{"q":"Can I get a mortgage after a recent job change?","k":["new job mortgage","changed jobs recently","job change during loan"],"pin":["Fannie B3-3.2-02|employment","Fannie B3-3.3-03|employment"]},
-{"q":"What are the requirements for an employment offer letter?","k":["offer letter","future employment income","employment offer or contract"],"pin":["Fannie B3-3.3-03|offer"]},
+{"q":"Do I need a two-year employment history?","k":["two year employment history","2 year work history","employment history requirement"],"pin":["Fannie B3-3.2-02|history","FHA 4000.1 p.249|two years","Freddie 5303.1|two-year"]},
+{"q":"Can I get a mortgage after a recent job change?","k":["new job mortgage","changed jobs recently","job change during loan"],"pin":["Fannie B3-3.2-02|employment","Fannie B3-3.3-03|employment","Freddie 5303.1|chang"]},
+{"q":"What are the requirements for an employment offer letter?","k":["offer letter","future employment income","employment offer or contract"],"pin":["Fannie B3-3.3-03|offer","Freddie 5303.2|new employment"]},
 {"q":"What is HomeReady?","k":["homeready income limits","homeready requirements","home ready"],"pin":["Fannie B5-6-01|HomeReady"]},
 {"q":"Are condos eligible for financing?","k":["condo approval","condo project eligibility","warrantable condo"],"pin":["Fannie B4-2.1-01|project","Fannie B4-2.2-01|project","FHA 4000.1 p.522|Condominium"]},
 {"q":"Is an appraisal waiver available?","k":["appraisal waiver","value acceptance","piw"],"pin":["Fannie B4-1.4-10|value acceptance"]},
-{"q":"Can I use a gift of equity?","k":["gift of equity","gifts of equity"],"pin":["Fannie B3-4.3-05|gift","FHA 4000.1 p.283|equity"]},
+{"q":"Can I use a gift of equity?","k":["gift of equity","gifts of equity"],"pin":["Fannie B3-4.3-05|gift","FHA 4000.1 p.283|equity","Freddie 5501.4|gift of equity"]},
 {"q":"Can a DACA or non-permanent resident borrower get a mortgage?","k":["daca borrower eligibility","non permanent resident alien","non us citizen borrower"],"pin":["Fannie B2-2-02|citizen","FHA 4000.1 p.178|Citizenship"]},
-{"q":"Do co-signed debts count in my DTI?","k":["cosigned debt","co-signed loan dti","contingent liability"],"pin":["Fannie B3-6-05|contingent","FHA 4000.1 p.244|Contingent"]},
+{"q":"Do co-signed debts count in my DTI?","k":["cosigned debt","co-signed loan dti","contingent liability"],"pin":["Fannie B3-6-05|contingent","FHA 4000.1 p.244|Contingent","Freddie 5401.2|contingent"]},
 {"q":"Can boarder or roommate rent be used as income?","k":["boarder income","roommate rent income"],"pin":["Fannie B3-3.4-04|boarder","FHA 4000.1 p.268|Boarders"]},
 {"q":"Is flood insurance required?","k":["flood insurance","flood zone insurance"],"pin":["Fannie B7-3-06|flood"]},
 {"q":"Can a power of attorney be used at closing?","k":["power of attorney","poa at closing"],"pin":["Fannie B8-5-05|power of attorney","FHA 4000.1 p.399|Power of Attorney"]},
@@ -358,7 +365,8 @@ function faqMatch(P){ if(P.codeLike||P.phrases.length||P.not.length) return null
     if(x.f.ag&&P.ag.size&&!P.ag.has(x.f.ag)) continue;
     const named=x.f.ag&&(P.ag.has(x.f.ag)||(sel&&sel.size===1&&sel.has(x.f.ag)));
     for(const kt of x.keys) for(const q0 of [qa,qb,qm]){ const qt=kt.some(w=>w[0]==="@")?q0:q0.filter(w=>w[0]!=="@"); if(!kt.length||!qt.length) continue;
-      const inter=kt.filter(w=>qt.includes(w)).length; let s; const ql=q0===qm?Math.max(qa.length,qb.length)-(q0.length-qt.length):qt.length;
+      /* a word typed with a small mistake that the guides cannot correct (the question's own word, e.g. roommate) still counts */
+      const inter=kt.filter(w=>qt.includes(w)||(w.length>=6&&w[0]!=="@"&&qt.some(u=>u.length>=6&&u[0]!=="@"&&!kt.includes(u)&&ed(u,w,2)<=2))).length; let s; const ql=q0===qm?Math.max(qa.length,qb.length)-(q0.length-qt.length):qt.length;
       if(kt.length===1||ql===1){ s=(kt.length===1&&ql===1&&inter===1)?1:0; }
       else { if(inter<2) continue; const j=inter/(kt.length+ql-inter); s=(inter===kt.length&&ql-kt.length<=(kt.length>=3?2:1))?Math.max(j,0.75):(j>=0.7?j:0); }
       if(x.f.ag) s+=named?0.05:-0.1;   /* an FHA question wins when FHA is named, and gives way to the general one otherwise */
@@ -576,7 +584,7 @@ function cite(d){return AGCOL[d.a]+' '+(d.s?d.s+' - ':'')+d.t+' - '+d.u}
 
 function stats(){ const c={}; D.forEach(d=>c[d.a]=(c[d.a]||0)+1); const parts=Object.entries(c).map(([k,v])=>`${AGCOL[k]||k}: ${v.toLocaleString()} ${k==='FHA'?'pages':'sections'}`);
   const built=Object.values(META).map(m=>m.built).filter(Boolean).sort().pop();
-  $('#stats').innerHTML='Indexed locally &mdash; '+(parts.join(' &middot; ')||'nothing loaded')+(built?' &middot; built '+built:'')+(FE?' &middot; meaning search: MiniLM model ('+MINI.doc.length.toLocaleString()+' passages)':MSTATE==='loading'?' &middot; meaning search on, loading the MiniLM model…':SEM?' &middot; meaning search on ('+SEM.doc.length.toLocaleString()+' passages)':'')+' &middot; tokens used: '+(tokUsed.in+tokUsed.out).toLocaleString();
+  $('#stats').innerHTML=(typeof updDue==='function'&&updDue()?'<b class="due">Guides over 6 months old &mdash; run refresh.bat or check for changes on the start screen.</b> ':'')+'Indexed locally &mdash; '+(parts.join(' &middot; ')||'nothing loaded')+(built?' &middot; built '+built:'')+(FE?' &middot; meaning search: MiniLM model ('+MINI.doc.length.toLocaleString()+' passages)':MSTATE==='loading'?' &middot; meaning search on, loading the MiniLM model…':SEM?' &middot; meaning search on ('+SEM.doc.length.toLocaleString()+' passages)':'')+' &middot; tokens used: '+(tokUsed.in+tokUsed.out).toLocaleString();
   let w=''; if(!c.Fannie) w+='Fannie Mae data not found. Run <b>refresh.bat</b> (or <code>python crawl_fannie.py</code> then <code>python build_index.py</code>) to download the Selling Guide copy. ';
   if(!c.FHA) w+='FHA data not found. Run <b>refresh.bat</b> to download HUD 4000.1. ';
   $('#warn').innerHTML=w?'<div class="warn">'+w+'</div>':''; }
@@ -592,7 +600,7 @@ function webURL(q,ags,eng){ const sites=[...ags].flatMap(a=>SITES[a]||[]); const
 function webHTML(q){ let h='<div class="lbl">Free web search (no tokens) &mdash; opens official-site searches in a new tab</div><div style="margin:8px 0">';
   for(const a of ['Fannie','Freddie','FHA','VA','Other']) h+=`<a class="btn" target="_blank" rel="noopener" href="${esc(webURL(q,[a],'g'))}">${AGCOL[a]} site</a>`;
   h+=`<a class="btn pri" target="_blank" rel="noopener" href="${esc(webURL(q,agSel,'g'))}">All selected &middot; Google</a><a class="btn" target="_blank" rel="noopener" href="${esc(webURL(q,agSel,'ddg'))}">DuckDuckGo</a><a class="btn" target="_blank" rel="noopener" href="${esc(webURL(q,agSel,'bing'))}">Bing</a></div>`;
-  h+='<div class="note">Site-restricted searches. Freddie Mac and VA text is not stored offline, so use these for those. Always confirm the effective date on the official page.</div>'; return h; }
+  h+='<div class="note">Site-restricted searches. VA text is not stored offline, so use these for VA. Always confirm the effective date on the official page.</div>'; return h; }
 
 /* ============ results ============ */
 function render(q){ lastQ=q; const t0=performance.now(); const r=run(q,agSel); lastRun=r; const box=$('#results');
@@ -651,7 +659,7 @@ async function askAI(q){ if(!cfg.key){ $('#dlg').showModal(); return; } const ou
   out.innerHTML='<div class="skel"></div><div class="skel" style="width:80%"></div><div class="skel" style="width:60%"></div>';
   const sys="You are a mortgage guideline assistant for loan officers and underwriters. Answer concisely. Use the provided guide excerpts as the primary source and cite them by agency, section code and URL. If the excerpts do not answer the question, say so"+(cfg.web==='1'?" and use web search of official sources (fanniemae.com, freddiemac.com, hud.gov, va.gov, consumerfinance.gov)":" and say what to look up")+". Flag anything time-sensitive (limits, fees, rates) as 'verify current'. Never invent section numbers or figures.";
   const body={model:cfg.model,max_tokens:Math.max(200,+cfg.max||700),system:sys,messages:[{role:'user',content:`Question: ${q}\n\nLocal guide excerpts:\n${ctxFor()||'(none found)'}`}]};
-  if(cfg.web==='1') body.tools=[{type:'web_search_20250305',name:'web_search',max_uses:3}];
+  if(cfg.web==='1') body.tools=[{type:wsTool(cfg.model),name:'web_search',max_uses:3}];
   try{ const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':cfg.key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify(body)});
     const j=await r.json(); if(!r.ok) throw new Error((j.error&&j.error.message)||r.status);
     const txt=(j.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n'); out.innerHTML=md(txt||'(empty answer)');
@@ -713,11 +721,42 @@ function homeHTML(){ const ids=seen.map(byKey).filter(i=>i!=null).slice(0,6);
   return '<div class="empty">Type to search, or pick a topic above. Press <kbd>/</kbd> to search, <kbd>&darr;</kbd> to move through results.</div>'+(ids.length?listHTML('Recently read',ids,''):'')+
     `<div class="lbl" style="margin:14px 0 8px">Most asked questions</div><div class="faql">${FAQ_TOP.map(b).join('')}</div>`+
     `<details class="faqd"><summary>All ${FAQ.length} most asked questions</summary><div class="faql">${rest.map(b).join('')}</div></details>`+
-    '<p class="note">From Fannie Mae&rsquo;s top trending Selling Guide FAQs, HUD&rsquo;s FHA FAQs and the questions borrowers ask most. Each opens the sections that answer it first.</p>'; }
+    '<p class="note">From Fannie Mae&rsquo;s top trending Selling Guide FAQs, HUD&rsquo;s FHA FAQs and the questions borrowers ask most. Each opens the sections that answer it first.</p>'+updHTML(); }
+
+/* ============ guideline updates: how old the stored guides are, what the last refreshes changed, and a check for newer
+   changes with Claude and web search (the user's own key; tokens only when the button is pressed). A reminder shows once the
+   copy or the last check is more than six months old. ============ */
+const UPD_DAYS=182;
+function wsTool(model){ return /haiku/.test(model||'')?'web_search_20250305':'web_search_20260209'; }
+function builtDate(){ return Object.values(META).map(m=>m.built).filter(Boolean).sort().pop()||''; }
+function daysSince(iso){ const d=Date.parse(iso); return isNaN(d)?Infinity:Math.floor((Date.now()-d)/864e5); }
+function updDue(){ const last=(LS.get('gl-upd',null)||{}).at||''; return Math.min(daysSince(builtDate()),daysSince(last))>UPD_DAYS; }
+function updHTML(){ const b=builtDate(), age=daysSince(b), log=((window.GL&&GL.changes&&GL.changes.log)||[]), last=LS.get('gl-upd',null);
+  const kinds={new:'New',changed:'Changed',removed:'Removed'};
+  const items=log.flatMap(x=>(x.items||[]).map(it=>Object.assign({built:x.built},it))).slice(0,40);
+  let h='<div class="lbl" style="margin:18px 0 8px">Guideline updates</div><div class="updbox'+(updDue()?' due':'')+'" id="updbox">';
+  h+='<p>Stored copy built <b>'+esc(b||'unknown')+'</b>'+(isFinite(age)?' ('+age+' day'+(age===1?'':'s')+' ago)':'')+' &mdash; Fannie Mae Selling Guide, Freddie Mac Guide (selling chapters) and HUD Handbook 4000.1, each with its own effective dates.'+(updDue()?' <b>It is more than six months since the guides were refreshed or checked</b>: run <code>refresh.bat</code>, or check for changes below.':' Refresh it at least every six months (<code>refresh.bat</code>).')+'</p>';
+  if(items.length) h+='<details'+(daysSince(items[0].built)<45?' open':'')+'><summary>'+items.length+' section'+(items.length===1?'':'s')+' changed in recent refreshes</summary><ul class="updl">'+items.map(it=>'<li><span class="badge b-'+esc(it.a)+'">'+esc(AGCOL[it.a]||it.a)+'</span> '+esc(kinds[it.kind]||it.kind)+' '+esc(it.built)+': <a href="'+esc(it.u)+'" target="_blank" rel="noopener">'+esc((it.s?it.s+' ':'')+it.t)+'</a>'+(it.was?' <span class="meta">(was '+esc(it.was)+')</span>':'')+'</li>').join('')+'</ul></details>';
+  h+='<div class="act" style="margin-top:8px"><button class="btn pri" id="updBtn">Check for changes since '+esc(b||'the last refresh')+' (Claude + web search)</button><span class="tok">Uses your API key and a few thousand tokens; nothing runs until you press it.</span></div>';
+  if(last&&last.text) h+='<div class="updres"><div class="meta">Last checked '+esc(last.at)+' with '+esc(last.model||'')+'</div>'+md(last.text)+'</div>';
+  return h+'</div>'; }
+async function checkUpdates(){ if(!cfg.key){ $('#dlg').showModal(); return; }
+  const box=$('#updbox'); if(!box) return; const b=builtDate(), today=new Date().toISOString().slice(0,10);
+  box.insertAdjacentHTML('beforeend','<div class="updres" id="updrun"><div class="skel"></div><div class="skel" style="width:70%"></div></div>');
+  const prompt='Today is '+today+'. A loan officer keeps an offline copy of the agency mortgage guides, built on '+(b||'an unknown date')+'. Using web search of the official sites only (singlefamily.fanniemae.com and selling-guide.fanniemae.com announcements and lender letters, guide.freddiemac.com bulletins, hud.gov Handbook 4000.1 updates and mortgagee letters), list every change published after '+(b||'the build date')+' to the rules for income (employment, self-employment, rental, other income), assets and reserves, credit and liabilities, or DTI, for Fannie Mae, Freddie Mac and FHA. For each change give: agency, announcement / bulletin / mortgagee letter number, publication date, effective date, the guide sections changed, one sentence on what changed, and the link. Leave out changes that are not about these topics. If you find none for an agency, say so. End with one line: what to refresh.';
+  const body={model:cfg.model,max_tokens:1800,messages:[{role:'user',content:prompt}],tools:[{type:wsTool(cfg.model),name:'web_search',max_uses:6}]};
+  try{ const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':cfg.key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify(body)});
+    const j=await r.json(); if(!r.ok) throw new Error((j.error&&j.error.message)||r.status);
+    const txt=(j.content||[]).filter(x=>x.type==='text').map(x=>x.text).join('\n').trim();
+    LS.set('gl-upd',{at:today,model:cfg.model,text:txt||'(no answer)'});
+    if(j.usage){ tokUsed.in+=j.usage.input_tokens||0; tokUsed.out+=j.usage.output_tokens||0; LS.set('gl-tok',tokUsed); }
+    box.outerHTML=updHTML();
+  }catch(e){ const run=$('#updrun'); if(run) run.innerHTML='<div class="warn">The check failed: '+esc(e.message)+'</div>'; } }
+document.addEventListener('click',e=>{ if(e.target.closest('#updBtn')) checkUpdates(); });
 // compare: the best match from each agency side by side
 function compareHTML(r,tl){ const ags=['Fannie','Freddie','FHA','VA'].filter(a=>agSel.has(a)); let h='<div class="cmp">';
   for(const a of ags){ const hit=r.res.find(([i])=>D[i].a===a); h+=`<div class="cmpc"><div class="lbl">${AGCOL[a]}</div>`;
-    if(!hit){ h+='<div class="empty" style="padding:18px 6px">No match in the stored copy'+(a==='Freddie'||a==='VA'?' (only pointers are stored; use + Web)':'')+'.</div></div>'; continue; }
+    if(!hit){ h+='<div class="empty" style="padding:18px 6px">No match in the stored copy'+(a==='VA'?' (only pointers are stored; use + Web)':'')+'.</div></div>'; continue; }
     const ba=bestAnswer([hit],r.P,2); h+=cardHTML(hit[0],tl,ba?`<div class="sn">${ba.lines.map(l=>hl(l,tl)).join(' ')}</div>`:'')+'</div>'; }
   return h+'</div>'; }
 const _render=render;
@@ -782,7 +821,7 @@ setTimeout(()=>{ const m=location.hash.match(/#doc=(.+)$/); if(m){ const i=byKey
 
 window.GLsearch=q=>{ $('#q').value=q; go(); $('#q').focus(); };
 </script>
-<script src="assets/workflow-ui.js?v=57.30"></script>
-<script src="assets/mt-search.js?v=57.30"></script>
+<script src="assets/workflow-ui.js?v=57.31"></script>
+<script src="assets/mt-search.js?v=57.31"></script>
 </body>
 </html>

@@ -9,12 +9,12 @@ import path from 'node:path';
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), '..');
 const src = process.argv[2];
 if (!src || !fs.existsSync(path.join(src, 'index.html'))) { console.error('usage: node tools/guidelines-sync.mjs <guideline-lookup folder>'); process.exit(1); }
-const VER = '57.30';
+const VER = '57.31';
 
 const outData = path.join(root, 'assets/guidelines');
 fs.mkdirSync(outData, {recursive: true});
 let built = '';
-for (const f of ['fannie', 'fha', 'curated', 'semantic', 'minilm']) {
+for (const f of ['fannie', 'freddie', 'fha', 'curated', 'changes', 'semantic', 'minilm']) {
   if (!fs.existsSync(path.join(src, 'data', f + '.js'))) continue;
   const js = fs.readFileSync(path.join(src, 'data', f + '.js'), 'utf8');
   const m = js.match(/"built":\s*"([\d-]+)"/); if (m && m[1] > built) built = m[1];
@@ -25,7 +25,7 @@ let s = fs.readFileSync(path.join(src, 'index.html'), 'utf8');
 const R = (a, b) => { if (s.split(a).length !== 2) throw new Error('expected exactly once: ' + a.slice(0, 80)); s = s.replace(a, b); };
 R('<title>Guideline Lookup</title>', '<title>Guidelines · Mortgage Suite</title>');
 R('<meta name="color-scheme" content="light dark">', '<meta name="color-scheme" content="light dark">\n<link rel="stylesheet" href="assets/mt-motion.css?v=' + VER + '">');
-for (const f of ['fannie', 'fha', 'curated']) R('<script src="data/' + f + '.js"></script>', '<script src="assets/guidelines/' + f + '.js?v=' + built + '"></script>');
+for (const f of ['fannie', 'freddie', 'changes', 'fha', 'curated']) R('<script src="data/' + f + '.js"></script>', '<script src="assets/guidelines/' + f + '.js?v=' + built + '"></script>');
 R('<span class="sub">Fannie Mae &middot; Freddie Mac &middot; FHA &middot; VA &middot; instant, offline-first</span>',
   '<span class="sub">Fannie Mae &middot; Freddie Mac &middot; FHA &middot; VA &middot; searched on this computer, nothing is sent</span>');
 // the dock and Ctrl+K search of the rest of the suite

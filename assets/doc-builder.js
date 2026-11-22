@@ -1257,6 +1257,12 @@
     'h1{text-align:center;font-weight:400;font-size:20pt;margin:4px 0 14px}p{margin:0 0 8px;line-height:1.32}.two{display:flex;justify-content:space-between}.two>div:last-child{width:3.1in}table.terms{width:100%;border-collapse:collapse;margin:6px 0 12px}table.terms td{padding:0 4px 0 0;vertical-align:top}table.terms td:nth-child(1){width:1.85in}table.terms td:nth-child(2){width:1.6in}table.terms td:nth-child(3){width:2.05in}' +
     'table.esc{margin:4px 0 10px 1.6in;border-collapse:collapse}table.esc td{padding:0 40px 0 0}ol{margin:4px 0 10px;padding-left:.45in}ol li{margin:0 0 3px;line-height:1.3;padding-left:4px}.lsig{border-bottom:1px solid #000;width:3in;height:30px}table.bs{width:100%;border-collapse:collapse;margin-top:26px}table.bs td{border-top:1px solid #000;padding:2px 6px 34px;vertical-align:top;width:25%}table.bs td:nth-child(2n){text-align:right;width:15%}table.bs span{font-size:10pt}';
   var COND_HEAD = /(Prior\s*to\s*Approval|Prior\s*to\s*Docs|Prior\s*to\s*Funding|At\s*Closing|Prior\s*to\s*Purchase)\s*[({\[]\s*["“”'`]*\s*(PTA|PTD|PTF|AC|PTP)\s*["“”'`]*\s*[)}\]]\s*Conditions:?/gi;   /* 57.5: OCR reads ( as { or [ */
+  /* 57.31: a section heading OCR garbled ("Prior to Apptoval (PTA) Conditives:", "Prior to Docs (PTD)-Conditions", "Pr1or t0
+     Fund1ng PTF Cond1tions") is still a heading; its stage comes from its words when the code itself is misread. Tried after
+     the exact heading, and only on a line of its own. */
+  var COND_HEAD_LOOSE = /^[ \t"“”'‘’`.,]*(Pr[il1|]?or\s*t[o0]\s*(?:Ap\w{4,7}|D[o0]c\w{0,2}|F\w{2}d\w{2,4}|Pur\w{4,6})|At\s*C[l1I|][o0]s\w{2,4})\W{0,4}(P[T7][ADFP]|AC|A[C(]|P[T7][A-Z0-9])?\W{0,6}C[o0][nm]d\w{2,9}\W{0,3}$/gim;
+  var STAGE_OF = function (words, code) { code = String(code || '').toUpperCase().replace(/7/g, 'T'); if (/^(PTA|PTD|PTF|AC|PTP)$/.test(code)) return code;
+    return /^At/i.test(words) ? 'AC' : /D[o0]c/i.test(words) ? 'PTD' : /F\w{2}d/i.test(words) ? 'PTF' : /Pur/i.test(words) ? 'PTP' : 'PTA'; };
   function flipName(n) { n = String(n || '').trim(); var m = n.match(/^([A-Za-z'.-]+),\s*(.+)$/); return m ? m[2].trim() + ' ' + m[1] : n; }
   /* ---------------------------------------------------------- condition lists from a loan system (56.7)
      Rows copied from a conditions grid or spreadsheet (Condition Name, Documents, External Description, Prior To, ..., Latest Status,
@@ -1458,6 +1464,7 @@
     /* an approval with its own section headings (PTA / PTD / PTF / AC / PTP) is read by section; otherwise a grid or a
        screenshot of one supplies the conditions, and the header fields are still read below */
     COND_HEAD.lastIndex = 0; var heads = COND_HEAD.test(T); COND_HEAD.lastIndex = 0;
+    if (!heads) { COND_HEAD_LOOSE.lastIndex = 0; heads = COND_HEAD_LOOSE.test(T); COND_HEAD_LOOSE.lastIndex = 0; }
     var grid = heads ? null : parseCondTable(T); if (grid) o.conds = grid;
     var g = function (re) { var m = T.match(re); return m ? String(m[1]).trim() : ''; };
     o.b1 = flipName(g(/\bBorrower:\s*([A-Za-z'.-]+,\s*[A-Za-z'.-]+)/)); o.b2 = flipName(g(/Co-?Borr(?:ower)?:\s*([A-Za-z'.-]+,\s*[A-Za-z'.-]+)/));
@@ -1483,7 +1490,9 @@
     /* 57.5: a scanned approval read with OCR comes out column by column - "Lender: / Contact: / Phone: / Loan #" and then
        the values, "Loan Program: / Purpose: / ..." and then the values. Fill what the label-value reading missed from the
        values' own shapes (only blanks are filled). */
-    var hcut = T.search(/Prior\s*to\s*(?:Approval|Docs)\s*[({\[]/i), head = hcut > 0 ? T.slice(0, hcut) : T;   /* page 1's own 'See Section 2' line is not the end of it */
+    var hcut = T.search(/Prior\s*to\s*(?:Approval|Docs)\s*[({\[]/i);
+    if (hcut < 0) { COND_HEAD_LOOSE.lastIndex = 0; var lh = COND_HEAD_LOOSE.exec(T); COND_HEAD_LOOSE.lastIndex = 0; if (lh) hcut = lh.index; }   /* 57.31: a garbled first heading */
+    var head = hcut > 0 ? T.slice(0, hcut) : T;   /* page 1's own 'See Section 2' line is not the end of it */
     var Lns = head.split('\n').map(function (l) { return l.replace(/\s+/g, ' ').trim(); }).filter(Boolean);
     var line = function (re) { for (var i = 0; i < Lns.length; i++) { var mm = Lns[i].match(re); if (mm) return mm[1] != null ? mm[1].trim() : mm[0].trim(); } return ''; };
     var CO = /^([A-Z][A-Za-z0-9&.,' -]{2,60}?(?:,?\s*(?:LLC|L\.L\.C\.|Inc\.?|Corp\.?|Corporation|Company|Co\.|Bank|N\.A\.|FSB|LP|Ltd\.?)))$/;
@@ -1521,17 +1530,21 @@
     if (!o.nmls) o.nmls = g(/Company[ \t]*NMLS[ \t]*(?:ID|#)?[ \t]*:?[ \t]*#?[ \t]*(\d{3,10})/i); if (!o.loNmls) o.loNmls = g(/(?:Loan[ \t]*Officer|LO|Originator)[ \t]*NMLS[ \t]*(?:ID|#)?[ \t]*:?[ \t]*#?[ \t]*(\d{3,10})/i);
     if (!o.underwriter) { var un = T.match(/Underwriter(?:\s*Name)?\s*:?\s*\n?\s*([A-Z][a-z'.-]+(?:\s[A-Z][a-z'.-]*\.?)?\s[A-Z][A-Za-z'.-]+)(?=\s*(?:\n|$|Date|Processor|Underwriter))/); if (un && !/^(Date|Processor|Signature|Approved)/.test(un[1])) o.underwriter = un[1].trim(); }
     var marks = [], m; COND_HEAD.lastIndex = 0; while ((m = COND_HEAD.exec(T))) marks.push({i: m.index, end: m.index + m[0].length, code: m[2].toUpperCase()});
+    /* 57.31: headings OCR garbled, where no exact heading starts within them */
+    COND_HEAD_LOOSE.lastIndex = 0; while ((m = COND_HEAD_LOOSE.exec(T))) { var mi = m.index, me = mi + m[0].length; if (!marks.some(function (k) { return k.i < me && k.end > mi; })) marks.push({i: mi, end: me, code: STAGE_OF(m[1], m[2])}); }
+    marks.sort(function (a, b) { return a.i - b.i; });
     marks.forEach(function (k, n) {
       var chunk = T.slice(k.end, n + 1 < marks.length ? marks[n + 1].i : T.length)
         .replace(/Underwriting\s*Conditional\s*Approval\s*p\d+[^\n]*/gi, '').replace(/Section\s*2\s*[-–]\s*Underwriting\s*Conditions/gi, '');
       var items = chunk.split(/\n\s*[-–—_~=]{1,3}\s*(?=\n|$)/);
       /* conditions whose separator line was lost in OCR: split again where a new "Category -" starts a line or follows a closing asterisk */
-      var SPLIT = /(?:\n|\*\s+)(?=(?:FHA\s*203\s*\(?k\)?|FHA|VA|USDA|Conv(?:entional)?|Assets|Credit|Income|Property|Title|Legal|Approval|Disclosures|Escrow\s*\/\s*Closing\s*Agent|Closing\s*Agent|Funder\s*Task|FUNDER\s*TO\s*CLEAR\s*PTD|Post\s*Closer|Closing)\s*[-–—:]\s)/;
+      /* 57.31: OCR also puts a quote, a dot or a comma before the category, and reads its dash as ~ */
+      var SPLIT = /(?:\n|\*\s+)(?=["“”'‘’`.,]?\s*(?:FHA\s*203\s*\(?k\)?|FHA|VA|USDA|Conv(?:entional)?|Assets|Credit|Income|Property|Title|Legal|Approval|Disclosures|Escrow\s*\/\s*Closing\s*Agent|Closing\s*Agent|Funder\s*Task|FUNDER\s*TO\s*CLEAR\s*PTD|Post\s*Closer|Closing)\s*[-–—~:]\s)/;
       items = [].concat.apply([], items.map(function (it) { return it.split(SPLIT); }));
       items.forEach(function (it) {
-        var t = it.replace(/\s*\n\s*/g, ' ').replace(/\s+\*+\s*$/, '').replace(/\s{2,}/g, ' ').trim().replace(/^[-–—*]+\s*/, '');
-        if (t.length < 8 || /^[A-Za-z0-9 \/&().]{1,40}\s*[-–—]\s*\*?$/.test(t)) return;
-        var cm = t.match(/^([A-Za-z0-9][A-Za-z0-9 /&().]{1,40}?)\s*[-–—]\s+(.+)$/), cat = cm ? cm[1].trim() : '', body = cm ? cm[2].trim() : t;
+        var t = it.replace(/\s*\n\s*/g, ' ').replace(/\s+\*+\s*$/, '').replace(/\s{2,}/g, ' ').trim().replace(/^[-–—*"“”'‘’`.,\s]+/, '');
+        if (t.length < 8 || /^[A-Za-z0-9 \/&().]{1,40}\s*[-–—~]\s*\*?$/.test(t)) return;
+        var cm = t.match(/^([A-Za-z0-9][A-Za-z0-9 /&().]{1,40}?)\s*[-–—~]\s+(.+)$/), cat = cm ? cm[1].trim() : '', body = cm ? cm[2].trim() : t;
         if (!body || /^\*?$/.test(body)) return;
         body = body.replace(/^\*+\s*/, '');
         var internal = /^(Funder|FUNDER|Post\s*Closer|Approval|Disclosures)/i.test(cat) || /^(Underwriter|Underwriters|Funder|UW\b|Reno\s*Funder|Processor\s*Cert)/i.test(body) || /\bby\s+U\/W\b|\bUnderwriter\s+to\b/i.test(body);

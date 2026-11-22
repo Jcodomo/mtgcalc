@@ -176,7 +176,7 @@
     "Driver's License", "Photo ID", "Passport", "Green Card", "Visa", "SSN Card",
     "Social Security Award Letter", "Pension Statement", "Retirement Statement", "401(k) Statement", "IRA Statement",
     "Investment Statement", "Brokerage Statement", "Life Insurance Statement", "Annuity Statement", "Asset Statement", "VOD", "Gift Letter", "Gift Donor Proof",
-    "Earnest Money", "Mortgage Statement", "Homeowners Insurance", "Flood Insurance",
+    "Earnest Money", "Mortgage Statement", "Homeowners Insurance", "Flood Insurance", "Lease Agreement", "Contractor Estimate",
     "Property Tax Bill", "TitlePro Property Profile", "HOA Statement", "Purchase Contract", "Contract Addendum",
     "Appraisal", "Rent Schedule 1007", "Operating Income Statement 216",
     "Credit Report", "AUS Findings", "DU Findings", "LPA Findings",
@@ -258,7 +258,14 @@
     ["LOE", [/letter of explanation/i, /to whom it may concern/i]],
     ["VA COE", [/certificate of eligibility/i, /department of veterans affairs/i]],
     ["DD-214", [/dd form 214/i, /certificate of release or discharge/i]],
-    ["Homeowners Insurance", [/homeowners insurance/i, /hazard insurance/i, /policy premium/i]],
+    /* 57.31: documents the organizer had no type for (they were filed as Other, and as duplicates of each other) */
+    ["Gift Letter", [/gift letter/i, /\bdonor\b/i, /no repayment/i]],
+    ["Flood Insurance", [/flood insurance/i, /national flood insurance program/i, /flood (?:zone|declarations)/i]],
+    ["HOA Statement", [/homeowners? association/i, /\bhoa\b/i, /(?:common charges|association dues|assessment)/i]],
+    ["Rent Schedule 1007", [/form 1007/i, /comparable rent schedule/i, /market rent/i]],
+    ["Lease Agreement", [/lease agreement/i, /\btenant\b/i, /\blandlord\b/i, /monthly rent/i]],
+    ["Contractor Estimate", [/contractor/i, /scope of work/i, /\b(?:estimate|proposal|bid)\b/i, /\blabor\b|materials/i]],
+    ["Homeowners Insurance", [/homeowners insurance/i, /hazard insurance/i, /policy premium/i, /dwelling coverage/i]],
     ["TitlePro Property Profile", [/titlepro/i, /property profile/i, /property detail report/i]],
     ["Property Tax Bill", [/property tax/i, /tax collector/i, /assessed value/i, /school tax/i, /general tax/i]],
     ["Title Commitment", [/title commitment/i, /commitment for title insurance/i]]
@@ -502,6 +509,9 @@
 
   async function ocrCanvas(canvas, it, label) {
     it._status = `OCR ${label}…`; render();
+    /* 57.31: the suite's shared reader - small images enlarged, contrast stretched, dark screens flipped, tilted pages straightened,
+       sideways pages turned upright, an unsure page read again - then the money clean-up (letters read for digits, split amounts) */
+    if (window.MTDocs && MTDocs.ocr) { const tx = await MTDocs.ocr([canvas], (p) => { it._status = `OCR ${label} — ${Math.round((p || 0) * 100)}%`; render(); }); return window.MTOcrFix ? MTOcrFix(tx) : tx; }
     const r=await Tesseract.recognize(canvas,"eng",{logger:m=>{if(m.status==="recognizing text"){it._status=`OCR ${label} — ${Math.round((m.progress||0)*100)}%`; render();}}});
     return r.data.text||"";
   }
@@ -511,10 +521,10 @@
     for(let i=1;i<=max;i++){it._status=`Reading PDF page ${i}/${max}…`;render();const pg=await pdf.getPage(i);const tc=await pg.getTextContent();/* 55.13: keep the rows - group text by baseline and read each row left to right (labels and amounts used to run together) */const its=tc.items.filter(x=>String(x.str||"").trim()).map(x=>({s:String(x.str),x:+(x.transform&&x.transform[4])||0,y:+(x.transform&&x.transform[5])||0})).sort((a,b)=>b.y-a.y||a.x-b.x);const rows=[];its.forEach(o=>{let r=rows[rows.length-1];if(!r||Math.abs(r.y-o.y)>2){r={y:o.y,a:[]};rows.push(r);}r.a.push(o);});text += "\n"+rows.map(r=>r.a.sort((a,b)=>a.x-b.x).map(o=>o.s).join(" ").replace(/\s+/g," ").trim()).join("\n");}
     if(text.replace(/\s/g,"").length>=120) return text;
     text=""; const ocrMax=Math.min(pdf.numPages,3);
-    for(let i=1;i<=ocrMax;i++){const pg=await pdf.getPage(i);const vp=pg.getViewport({scale:1.6});const c=document.createElement("canvas");c.width=vp.width;c.height=vp.height;await pg.render({canvasContext:c.getContext("2d"),viewport:vp}).promise;text += "\n"+await ocrCanvas(c,it,`page ${i}/${ocrMax}`);}
+    for(let i=1;i<=ocrMax;i++){const pg=await pdf.getPage(i);const vp=pg.getViewport({scale:window.MTDocs&&MTDocs.ocr?3:1.6});const c=document.createElement("canvas");c.width=vp.width;c.height=vp.height;await pg.render({canvasContext:c.getContext("2d"),viewport:vp}).promise;text += "\n"+await ocrCanvas(c,it,`page ${i}/${ocrMax}`);}
     return text;
   }
-  async function extractImageText(file,it){const img=await createImageBitmap(file);const max=1800,scale=Math.min(1,max/Math.max(img.width,img.height));const c=document.createElement("canvas");c.width=Math.round(img.width*scale);c.height=Math.round(img.height*scale);c.getContext("2d").drawImage(img,0,0,c.width,c.height);return ocrCanvas(c,it,"image");}
+  async function extractImageText(file,it){const img=await createImageBitmap(file);const max=window.MTDocs&&MTDocs.ocr?4000:1800,scale=Math.min(1,max/Math.max(img.width,img.height));const c=document.createElement("canvas");c.width=Math.round(img.width*scale);c.height=Math.round(img.height*scale);c.getContext("2d").drawImage(img,0,0,c.width,c.height);return ocrCanvas(c,it,"image");}
 
   async function analyzeRow(it) {
     const wantsSecondPass = (it._analysisPass||0) >= 1 && (it._localConfidence||0) < 75;
@@ -1040,13 +1050,13 @@
 
 <script src="assets/loan-ux.js?v=57.12"></script>
 <script src="assets/sync-bridge.js?v=57.12"></script>
-<script src="assets/workflow-ui.js?v=57.30"></script>
+<script src="assets/workflow-ui.js?v=57.31"></script>
 <script src="assets/mt-addr.js?v=57.24"></script>
 <script src="assets/mt-paste.js?v=57.12"></script>
 <script src="assets/mt-search.js?v=57.27"></script>
 <script src="assets/mt-bizid.js?v=57.25"></script>
-<script src="assets/doc-center.js?v=57.30"></script>
-<script src="assets/mt-build-lazy.js?v=57.19"></script>
+<script src="assets/doc-center.js?v=57.31"></script>
+<script src="assets/mt-build-lazy.js?v=57.31"></script>
 <script>
 /* v57.4: the Documents page - paste box, income documents, Document Builder buttons */
 (function () {

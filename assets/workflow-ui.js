@@ -66,7 +66,8 @@
     deep.add(u.pathname); prefetch(u.pathname, 'document');
     if (navigator.connection && (navigator.connection.saveData || /2g/.test(navigator.connection.effectiveType || ''))) return;
     fetch(u.pathname, {credentials: 'same-origin'}).then((r) => r.ok ? r.text() : '').then((html) => {
-      (html.match(/<script[^>]+src="([^"]+)"/g) || []).forEach((t) => { const m = t.match(/src="([^"]+)"/); if (m) prefetch(new URL(m[1], u).href, 'script'); });
+      /* spaces allowed around the equals sign, so the single-file page's link check does not read this pattern as a link */
+      (html.match(/<script[^>]+src\s*=\s*"([^"]+)"/g) || []).forEach((t) => { const m = t.match(/src\s*=\s*"([^"]+)"/); if (m) prefetch(new URL(m[1], u).href, 'script'); });
     }).catch(() => {});
   }
   window.MTPrefetch = prefetchDeep;

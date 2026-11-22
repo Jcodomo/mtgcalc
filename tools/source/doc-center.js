@@ -82,6 +82,16 @@
     g.putImageData(d, 0, 0);
     return c;
   }
+  /* 57.31 (from the Ghost Calligrapher reader): a page turned by 90, 180 or 270 degrees reads with low confidence; a small copy
+     is read at each turn and one clearly surer (10 points) than upright wins */
+  function turnCanvas(c, deg) { var k = document.createElement('canvas'), q = deg === 90 || deg === 270; k.width = q ? c.height : c.width; k.height = q ? c.width : c.height; var g = k.getContext('2d'); g.translate(k.width / 2, k.height / 2); g.rotate(deg * Math.PI / 180); g.drawImage(c, -c.width / 2, -c.height / 2); return k; }
+  async function upright(W, c, limit) {
+    var s = Math.min(1, 1000 / Math.max(c.width, c.height)), sm = document.createElement('canvas'); sm.width = Math.round(c.width * s); sm.height = Math.round(c.height * s); sm.getContext('2d').drawImage(c, 0, 0, sm.width, sm.height);
+    var conf = async function (d) { try { var r = await limit(W.recognize(d ? turnCanvas(sm, d) : sm), 30000); return (r.data && r.data.confidence) || 0; } catch (e) { if (String(e && e.message) === 'timeout') throw e; return 0; } };
+    var best = 0, bc = await conf(0), ds = [180, 90, 270];
+    for (var i = 0; i < ds.length; i++) { var v = await conf(ds[i]); if (v > bc + 10) { bc = v; best = ds[i]; } }
+    return best;
+  }
   var lastOcr = {pages: 0, blank: 0, how: '', err: ''};
   async function ocr(images, prog, retried) {
     var T = await tess(); if (!T) throw new Error('The OCR engine could not be loaded - an internet connection is needed the first time OCR runs (cdnjs.cloudflare.com or cdn.jsdelivr.net may be blocked).');
@@ -96,8 +106,10 @@
         var i = next++, img = prep(images[i]); progs[k] = 0;
         try {
           await W.setParameters({tessedit_pageseg_mode: '3'});
-          var r = await limit(W.recognize(img), 75000), best = r.data;
-          if ((best.confidence || 0) < 65) { await W.setParameters({tessedit_pageseg_mode: '6'}); try { var r2 = await limit(W.recognize(img), 45000); if ((r2.data.confidence || 0) > (best.confidence || 0)) best = r2.data; } catch (e2) { if (String(e2 && e2.message) === 'timeout') throw e2; } }
+          var r = await limit(W.recognize(img, {rotateAuto: true}), 75000), best = r.data;
+          /* 57.31: an unsure first reading may be a sideways or upside-down photo: turn it upright and read it again */
+          if ((best.confidence || 0) < 60) { var turn = await upright(W, img, limit); if (turn) { img = turnCanvas(img, turn); lastOcr.turned = (lastOcr.turned || 0) + 1; var rt = await limit(W.recognize(img, {rotateAuto: true}), 75000); if ((rt.data.confidence || 0) > (best.confidence || 0)) best = rt.data; } }
+          if ((best.confidence || 0) < 65) { await W.setParameters({tessedit_pageseg_mode: '6'}); try { var r2 = await limit(W.recognize(img, {rotateAuto: true}), 45000); if ((r2.data.confidence || 0) > (best.confidence || 0)) best = r2.data; } catch (e2) { if (String(e2 && e2.message) === 'timeout') throw e2; } }
           texts[i] = best.text;
         } catch (e) {
           if (String(e && e.message) !== 'timeout') throw e;
@@ -177,14 +189,15 @@
     lastOcr = {pages: pdf.numPages, blank: blanks, how: how, err: ''};
     var txt = await ocr(imgs, function (f) { if (prog) prog(0.55 + f * 0.45); });
     if (!txt.replace(/\s/g, '')) throw new Error('OCR found no text in the ' + pdf.numPages + ' page' + (pdf.numPages === 1 ? '' : 's') + ' of this PDF (' + (blanks ? blanks + ' page image' + (blanks === 1 ? ' was' : 's were') + ' blank' : 'the page images were ' + how) + '). Try: reload the page and drop it again; or open the PDF, take a screenshot of each page (Win+Shift+S) and paste them with "Paste text / several".');
-    return txt;
+    return ocrFix(txt);
   }
   async function readText(file, prog) {
     var name = file.name || '', type = file.type || '';
     if (/\.pdf$/i.test(name) || type === 'application/pdf') return pdfText(file, prog);
     if (/^image\//.test(type) || /\.(png|jpe?g|webp|gif|bmp|tiff?)$/i.test(name)) {
       var img = await new Promise(function (res, rej) { var i = new Image(); i.onload = function () { res(i); }; i.onerror = function () { rej(new Error('This image could not be opened.')); }; i.src = URL.createObjectURL(file); });
-      return ocr([img], prog);
+      /* 57.31: OCR text leaves here cleaned (amounts: letters read for digits, split thousands); the clean-up is idempotent */
+      return ocr([img], prog).then(ocrFix);
     }
     return file.text();
   }
