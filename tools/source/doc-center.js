@@ -234,13 +234,15 @@
   ];
   var TYPE = {}; TYPES.forEach(function (t) { TYPE[t.id] = t; });
   function detect(text, name) {
-    var head = String(text).slice(0, 8000), best = 'other', score = 0;
+    var head = ocrFix(String(text).slice(0, 8000)), best = 'other', score = 0;
     TYPES.forEach(function (t) {
       var s = 0; t.kw.forEach(function (k) { if (k.test(head)) s++; if (k.test(name || '')) s += 2; });
       if (s > score) { score = s; best = t.id; }
     });
     if (best === 'nqmbank' && TYPE.bank.kw.filter(function (k) { return k.test(head); }).length < 2) best = 'bank';
     if (best === 'bank' && /profit\s*(and|&)\s*loss/i.test(head)) best = 'pl';
+    /* 57.30: a 401(k) or IRA statement also prints beginning and ending balances; it is a retirement account, not cash */
+    if (best === 'bank' && TYPE.retirement.kw.filter(function (k) { return k.test(head); }).length >= 2) best = 'retirement';
     return score >= 1 ? best : 'other';
   }
 
@@ -258,14 +260,42 @@
 
   var MONEY = /\(?-?\$?\s?\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?\)?|\(?-?\$?\s?\d+\.\d{2}\)?|\$\s?\d+(?:\.\d{1,2})?/g;
   function moneys(s) { return (String(s).match(MONEY) || []).map(N); }
-  function lines(t) { return String(t || '').split(/\r?\n/).map(function (l) { return l.replace(/\s+/g, ' ').trim(); }).filter(Boolean); }
+  /* 57.30: OCR clean-up before reading. Letters OCR reads for digits inside amounts (O and o for 0, l I | for 1, S for 5,
+     B for 8), a space after a thousands comma ("1, 234.56"), a decimal comma ("1,234,56"), and runs of spaces. Only tokens
+     that are amounts change (two or more digits and a comma or point); words, dates and section numbers are left alone. */
+  function ocrFix(text){
+    var s = String(text == null ? '' : text).replace(/\r\n?/g, '\n').replace(/[ \t ]+/g, ' ')
+      .replace(/(^|[^A-Za-z0-9])(\$?\s?[0-9OolIS|B][0-9OolIS|B,.]*[0-9OolIS|B])(?![A-Za-z0-9])/g, function (m, p, t) {
+        if ((t.match(/[0-9]/g) || []).length < 2 || !/[,.]/.test(t) || !/[OolIS|B]/.test(t)) return m;
+        return p + t.replace(/[Oo]/g, '0').replace(/[lI|]/g, '1').replace(/S/g, '5').replace(/B/g, '8'); });
+    for (var k = 0; k < 3; k++) s = s
+      .replace(/(\$ ?\d{1,3}(?:,\d{3})*), (\d{3})(?!\d)/g, '$1,$2')                                       /* "$1, 090,000" */
+      .replace(/(^|[^\d,.$])(\d{1,3}(?:,\d{3})*), (\d{3}(?:,\d{3})*[.,]\d{2}|\d{3}(?:,\d{3})+)(?!\d)/gm, '$1$2,$3')   /* "22, 500.00 to", "1, 554,000 as of": cents or more groups make it one amount */
+      .replace(/(^|[^\d,.$])(\d{1,3}(?:,\d{3})*), (\d{3}(?:,\d{3})*(?:[.,]\d{2})?\)?\.?)(?=[ \t]*$|[ \t]+[\d$(%])/gm, '$1$2,$3');   /* "39, 289" and "(15, 193)" at the end of a row */
+    s = s
+      .replace(/(^|[^\d.,])(\d{1,3}(?:\.\d{3})+)\.(\d{2})(?![\d.,%])/g, function (m, p, a, c) { return p + a.replace(/\./g, ',') + '.' + c; })   /* "192.251.37" */
+      .replace(/(^|[^\d.,$])(\d{1,3}(?:\.\d{3})+)(\.?)(?=[ \t]*$)/gm, function (m, p, a, e) { return p + a.replace(/\./g, ',') + e; });   /* "3.160." at the end of a tax-form row */
+    s = s.replace(/(^|[^\d.,])(\d{1,3}),(\d{2}) (\d)\.(\d{2})(?![\d.,])/g, '$1$2,$3$4.$5')   /* "192,25 1.37": a space inside an amount */
+      .replace(/(^|[^\d.,])(\d{1,3})[.,](\d{3}) (\d{2})(?![\d.,%])/g, '$1$2,$3.$4')   /* "192.251 37": a space for the decimal point */
+      .replace(/(\d{1,3},\d{3}|\$ ?\d{1,3}):(\d{2})(?!\d)/g, '$1.$2');   /* "$4,649:90": a colon for the decimal point (never a time: it needs $ or a thousands group) */
+      s = s.replace(/^(\s*\d{1,2}[a-z]?\s.*\s\d{1,2}[a-z]?\s+)(\(?\d{1,3}) (\d{3}\)?)(\.?)[ \t]*$/gm, '$1$2,$3$4');   /* "20 ... 20 23 418.": a space read for the comma, at the end of a numbered form row */
+      return s
+      .replace(/(\d{1,3}(?:,\d{3})+),(\d{2})(?![\d,])/g, '$1.$2')       /* "1,234,56" */
+      .replace(/(\$ ?\d{1,3}),(\d{2})(?![\d,])/g, '$1.$2')               /* "$234,56" */
+      .replace(/(^|[^\d,.])(\d{4,}|\d{1,3}),(\d{2})(?![\d,])/g, '$1$2.$3');   /* "165934,60", "66,44", "33,33%": two digits after a comma are cents, never thousands */
+  }
+  window.MTOcrFix = ocrFix;
+  function lines(t) { return ocrFix(t).split(/\r?\n/).map(function (l) { return l.replace(/\s+/g, ' ').trim(); }).filter(Boolean); }
+  /* 57.30: OCR often drops the $ and the commas ("Opinion of Market Rent 3200 per month"): after a money label a plain number of
+     three or more digits counts, never a year, a date or part of one */
+  function bare(s) { return (String(s).match(/(?<!\d, ?)(^|[^\d\/.,\-])(\d{3,9})(?![\d\/,%]|\.\d)/g) || []).map(function (x) { return +x.replace(/\D/g, ''); }).filter(function (n) { return !(n >= 1900 && n <= 2099); }); }
   /* first amount printed after a label (same line, else the next line) */
   function amt(L, labels, opt) {
     opt = opt || {};
     for (var a = 0; a < labels.length; a++) for (var i = 0; i < L.length; i++) {
       var low = L[i].toLowerCase(), k = low.indexOf(labels[a]); if (k < 0) continue;
       if (opt.avoid && opt.avoid.test(low)) continue;
-      var v = moneys(L[i].slice(k + labels[a].length)); if (!v.length && L[i + 1]) v = moneys(L[i + 1]);
+      var v = moneys(L[i].slice(k + labels[a].length)); if (!v.length) v = bare(L[i].slice(k + labels[a].length)); if (!v.length && L[i + 1]) v = moneys(L[i + 1]); if (!v.length && L[i + 1]) v = bare(L[i + 1]);
       v = v.filter(function (x) { return (opt.min == null || Math.abs(x) >= opt.min) && (opt.max == null || Math.abs(x) <= opt.max); });
       if (v.length) return {v: Math.abs(opt.last ? v[v.length - 1] : v[0]), line: L[i]};
     }
@@ -401,7 +431,7 @@
     }
   };
   function extract(doc) {
-    var f = EX[doc.docType]; doc.rows = f ? f(lines(doc.text), doc.text || '') : [];
+    var f = EX[doc.docType], t = ocrFix(doc.text || ''); doc.rows = f ? f(lines(t), t) : [];
     return doc;
   }
 
@@ -420,7 +450,11 @@
     var path = dest.slice(5), v = coerce(dest, value); if (v === null || v === '') return false;
     if (path === 'propertyTaxAmount') try { st.setField('propertyTaxBasis', 'Annual', 'Document'); } catch (e) {}
     if (path === 'insuranceAmount') try { st.setField('insuranceBasis', 'Annual', 'Document'); } catch (e) {}
-    st.setField(path, v, 'Document Center'); return true;
+    st.setField(path, v, 'Document Center');
+    /* 57.30: the lender's own origination / processing fee from its Loan Estimate or fee sheet is kept when the closing estimate refreshes */
+    var fee = /^closing\.overrides\.(lenderOrigination|lenderProcessing)$/.exec(path);
+    if (fee) try { var ai = st.activeInputs, kept = Object.assign({}, ai.v530DocFees || {}); kept[fee[1]] = v; ai.v530DocFees = kept; } catch (e) {}
+    return true;
   }
   function applyCalc(dest, value, meta, docName) {
     var S = calcState(); if (!S) return false;

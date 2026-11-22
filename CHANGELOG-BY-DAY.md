@@ -4,23 +4,32 @@ Every change, by the day it was released (newest first), then by section of the 
 the full release notes are in [CHANGELOG.md](CHANGELOG.md). The same list is on the site: https://jcodomo.github.io/mtgcalc/changelog.html
 This file is built from CHANGELOG.md with `npm run changelog`.
 
-## 2026-11-22 - Release 57.29
+## 2026-11-22 - Release 57.30
+
+### Loan Suite & calculations
+- (57.30) **Appraised value into the Loan Suite:** a value from an appraisal (or any import) was replaced by the purchase price within a second; it now stays, as a typed value does.
+
+### Income Calculator
+- (57.30) **W-2s and tax forms:** box amounts below a stray OCR line are found; on a form in capitals the next line's amount is no longer taken; a form line number OCR joined to its amount ("16 Taxes ... 167,762.") is shown unticked to check. The Loan Suite's own document reader has the same fixes.
+- (57.30) **Schedule E into the Income Calculator:** an uploaded return went into a column labelled 2025 beside an empty 2026 column that counted as the most recent year, so the rental income came out at $0. The columns are now the last two filed tax years, a return goes into the column for its own tax year, and the other year of the same property goes on the same worksheet (two years averaged, or the most recent when income fell). Files saved with an empty 2026 column move back a year.
+
+### Documents & OCR
+- (57.30) Tested with 30,000 generated documents of 19 kinds (pay stubs, W-2s, The Work Number, Schedule C, Schedule E, K-1s, bank, 401(k) and IRA statements, gift letters, contracts, Loan Estimates, mortgage statements, appraisals, tax bills, insurance, HOA, leases, contractor bids, credit reports), clean and with the damage OCR does, and with real OCR on documents drawn as printed, scanned and photographed pages.
+- (57.30) **Reading:** the right document type for 30,000 of 30,000 (was 94.4%); figures 99.99% right on clean and lightly damaged copies and 99.6% on heavily damaged ones (were 97.9% / 96.8% / 77.2%). A figure the reader cannot be sure of is left blank or shown unticked with a note to check it, never put in quietly: 0 wrong figures in the Income Calculator's reader.
+- (57.30) **OCR clean-up before reading** (every reader): letters read for digits inside amounts (O for 0, l for 1, S for 5, B for 8), "1, 234.56", "1,234,56", "192.251.37", "192,25 1.37", "$4,649:90", "23 418." and runs of spaces; words, dates, rates and percentages are left alone. Dates OCR could not have meant (2626) are not used.
+- (57.30) **The Work Number:** "Average Hours Worked/Pay Period" is read (40 hours a week from 80 a bi-weekly period), a doubled space no longer hides "Rate of Pay", and income rows without a $ are read, so the current year is no longer taken from last year's row.
+- (57.30) **401(k) and IRA statements** were read as bank statements, so their balance went to liquid assets; they are retirement accounts now.
+- (57.30) **The lender's origination and processing fees** read from its Loan Estimate or fee sheet are kept when the New York closing estimate refreshes.
+- (57.30) **Real OCR** (the suite's Tesseract reader) on drawn pages, 288 figures: printed 95 of 96, scanned 90 of 96, phone photos (tilted, blurred, JPEG) 69 of 96; wrong figures 27 before these fixes, 15 after - most of the rest are digits OCR misread in photos, which no reader can know.
+- (57.30) Tests: tests/ocr-slam.mjs (in npm test), tests/ocr-handoff.mjs and tests/ocr-real.mjs (run in the page; see their headers).
+
+### Search, layout & pages
+- (57.30) **Handoff tested in the pages:** 108 income documents put on worksheets with every figure and the monthly income checked by hand (628 of 628); Document Center: 54 of 54 values into the Income Calculator, 358 of 358 into the Loan Suite, and everything waiting in the queue placed when the Loan Suite opened.
+
+## 2026-11-21 - Release 57.25, 57.26, 57.27, 57.28, 57.29
 
 ### Loan Suite & calculations
 - (57.29) Asked in full, by a short form ("gift funds", "fha mip", "mdcs"), misspelled, or with Fannie or FHA named, the right section opens first: 630 of 630 test searches. The 527 earlier test searches stay at 99.4%.
-
-### Income Calculator
-- (57.29) **73 most asked questions** on the Guidelines page, each pinned to the sections that answer it: all 27 of Fannie Mae's top trending Selling Guide FAQs (updated 2026-11-18), HUD's FHA trending FAQs, and what borrowers and loan officers ask most (down payment, minimum credit score, maximum DTI, removing mortgage insurance, FHA MIP, waiting periods after bankruptcy or foreclosure, reserves, seller contributions, gift funds, student loans, rental and self-employed income, and more).
-
-### Document Builder
-- (57.29) Fix: word forms (verified / verify, funded / fund) now match for every word; words containing the letter d were skipped.
-
-### Search, layout & pages
-- (57.29) The start screen lists the 12 most asked (all 73 one click away), the search box suggests them as you type, and results say when a most asked question was recognised.
-
-## 2026-11-21 - Release 57.25, 57.26, 57.27, 57.28
-
-### Loan Suite & calculations
 - (57.27) **Everyday questions:** "can my parents help with the down payment", "grandma wants to pay closing costs", "income that is going to end soon", "seller is paying my closing costs" go to the right sections.
 - (57.27) **Ctrl+K page finder:** 189 test searches find the right page or document builder in the top 3 every time (was 70.4%): typing mistakes ("escrw cushion", "renovaton budget", "guidlines"), shorthand (dti, le, cd, mip, fico, rehab, p&l, 1003) and plain English ("where do I enter the transfer tax"). tests/page-finder.mjs is part of npm test.
 - (57.25) **FHA MIP band:** a loan sized at exactly 95% stays in the 95%-or-less band (the loan-to-cost ratio is rounded to 6 places, so rounding the loan to cents cannot push it into the next band).
@@ -29,15 +38,18 @@ This file is built from CHANGELOG.md with `npm run changelog`.
 - (57.25) **Same business:** "Elm Street Bakery" is recognised as a business name, while "Number, street, and room or suite no." is treated as form instructions.
 
 ### Income Calculator
+- (57.29) **73 most asked questions** on the Guidelines page, each pinned to the sections that answer it: all 27 of Fannie Mae's top trending Selling Guide FAQs (updated 2026-11-18), HUD's FHA trending FAQs, and what borrowers and loan officers ask most (down payment, minimum credit score, maximum DTI, removing mortgage insurance, FHA MIP, waiting periods after bankruptcy or foreclosure, reserves, seller contributions, gift funds, student loans, rental and self-employed income, and more).
 - (57.26) **Browse topics** with one click (income, self-employed, gifts, large deposits, bankruptcy and foreclosure, DTI and reserves, condos, renovation, manufactured homes, co-borrowers, VA entitlement, student loans).
 - (57.26) **Compare agencies:** the best match from Fannie Mae, Freddie Mac, FHA and VA side by side, each with its answer lines.
 - (57.26) **Income Calculator, PITIA:** the total is now the sum of the rounded lines shown above it (as on a Loan Estimate). Before, $2,022.62 + $666.67 + $150.00 could show as $2,839.28.
 - (57.25) **W-2 reading:** each box is read from its own label (box 1 and box 2 often share a line); a W-2 for a finished year is not read as year-to-date pay; "Cat. No." and form numbers are not read as amounts.
 
 ### Document Builder
+- (57.29) Fix: word forms (verified / verify, funded / fund) now match for every word; words containing the letter d were skipped.
 - (57.27) **Typing mistakes** (swapped letters, a rare word one letter from a common one) are corrected and the corrected words are used for the whole ranking; **word forms** (verify / verified / verification), **accents**, **phrases with small words** ("gift of equity") and **titles without their small words** all match.
 
 ### Search, layout & pages
+- (57.29) The start screen lists the 12 most asked (all 73 one click away), the search box suggests them as you type, and results say when a most asked question was recognised.
 - (57.28) **Meaning search with a real language model:** questions on the Guidelines page are now also read by MiniLM (all-MiniLM-L6-v2, the small sentence model qdrant's page search uses). Every guideline passage (11,953) and section title was read once ahead of time; the model reads your question in about 10 ms. It runs in the browser: the model (23 MB) is downloaded once from Hugging Face and kept, and searches are not sent anywhere. Turn it off in Settings; offline, or turned off, the meaning search built from the guides is used as before.
 - (57.28) **70 everyday questions that avoid the guide's own words** ("my ex pays me every month for the kids", "I rent my place out on Airbnb", "I'm on maternity leave right now", "the house sits on a steel chassis"): the right section is in the top 5 for 47 (was 31), and first or second far more often (mean reciprocal rank 0.550, was 0.274). The 527 earlier test searches are unchanged at 99.4%.
 - (57.28) **Real words are no longer "corrected":** a word the guides never use but that is ordinary English stays as typed (kids no longer becomes bids, visa no longer via, fired no longer filed); misspellings are still corrected.

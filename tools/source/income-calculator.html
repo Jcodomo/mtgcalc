@@ -4136,7 +4136,31 @@ function afterPhrase(text, phrase, max){
   if(!isFinite(v) || (max && v>max)) return null;
   return {value:v, src:m[0].replace(/\s+/g,' ').trim()};
 }
-function lines(text){ return text.split(/\r?\n/).map(l=>l.replace(/\s+/g,' ').trim()).filter(Boolean); }
+/* 57.30: OCR clean-up before reading. Letters OCR reads for digits inside amounts (O and o for 0, l I | for 1, S for 5,
+   B for 8), a space after a thousands comma ("1, 234.56"), a decimal comma ("1,234,56"), and runs of spaces. Only tokens
+   that are amounts change (two or more digits and a comma or point); words, dates and section numbers are left alone. */
+function ocrFix(text){
+  var s = String(text == null ? '' : text).replace(/\r\n?/g, '\n').replace(/[ \t ]+/g, ' ')
+    .replace(/(^|[^A-Za-z0-9])(\$?\s?[0-9OolIS|B][0-9OolIS|B,.]*[0-9OolIS|B])(?![A-Za-z0-9])/g, function (m, p, t) {
+      if ((t.match(/[0-9]/g) || []).length < 2 || !/[,.]/.test(t) || !/[OolIS|B]/.test(t)) return m;
+      return p + t.replace(/[Oo]/g, '0').replace(/[lI|]/g, '1').replace(/S/g, '5').replace(/B/g, '8'); });
+  for (var k = 0; k < 3; k++) s = s
+    .replace(/(\$ ?\d{1,3}(?:,\d{3})*), (\d{3})(?!\d)/g, '$1,$2')                                       /* "$1, 090,000" */
+    .replace(/(^|[^\d,.$])(\d{1,3}(?:,\d{3})*), (\d{3}(?:,\d{3})*[.,]\d{2}|\d{3}(?:,\d{3})+)(?!\d)/gm, '$1$2,$3')   /* "22, 500.00 to", "1, 554,000 as of": cents or more groups make it one amount */
+    .replace(/(^|[^\d,.$])(\d{1,3}(?:,\d{3})*), (\d{3}(?:,\d{3})*(?:[.,]\d{2})?\)?\.?)(?=[ \t]*$|[ \t]+[\d$(%])/gm, '$1$2,$3');   /* "39, 289" and "(15, 193)" at the end of a row */
+  s = s
+    .replace(/(^|[^\d.,])(\d{1,3}(?:\.\d{3})+)\.(\d{2})(?![\d.,%])/g, function (m, p, a, c) { return p + a.replace(/\./g, ',') + '.' + c; })   /* "192.251.37" */
+    .replace(/(^|[^\d.,$])(\d{1,3}(?:\.\d{3})+)(\.?)(?=[ \t]*$)/gm, function (m, p, a, e) { return p + a.replace(/\./g, ',') + e; });   /* "3.160." at the end of a tax-form row */
+  s = s.replace(/(^|[^\d.,])(\d{1,3}),(\d{2}) (\d)\.(\d{2})(?![\d.,])/g, '$1$2,$3$4.$5')   /* "192,25 1.37": a space inside an amount */
+    .replace(/(^|[^\d.,])(\d{1,3})[.,](\d{3}) (\d{2})(?![\d.,%])/g, '$1$2,$3.$4')   /* "192.251 37": a space for the decimal point */
+    .replace(/(\d{1,3},\d{3}|\$ ?\d{1,3}):(\d{2})(?!\d)/g, '$1.$2');   /* "$4,649:90": a colon for the decimal point (never a time: it needs $ or a thousands group) */
+  s = s.replace(/^(\s*\d{1,2}[a-z]?\s.*\s\d{1,2}[a-z]?\s+)(\(?\d{1,3}) (\d{3}\)?)(\.?)[ \t]*$/gm, '$1$2,$3$4');   /* "20 ... 20 23 418.": a space read for the comma, at the end of a numbered form row */
+  return s
+    .replace(/(\d{1,3}(?:,\d{3})+),(\d{2})(?![\d,])/g, '$1.$2')       /* "1,234,56" */
+    .replace(/(\$ ?\d{1,3}),(\d{2})(?![\d,])/g, '$1.$2')               /* "$234,56" */
+    .replace(/(^|[^\d,.])(\d{4,}|\d{1,3}),(\d{2})(?![\d,])/g, '$1$2.$3');   /* "165934,60", "66,44", "33,33%": two digits after a comma are cents, never thousands */
+}
+function lines(text){ return ocrFix(text).split(/\r?\n/).map(l=>l.replace(/\s+/g,' ').trim()).filter(Boolean); }
 
 /* find the first line matching `re`; returns {line, idx} */
 /* 55.13: tax forms print a line or box number beside each label ("14 Self-employment earnings", "3b Ordinary dividends"),
@@ -4161,11 +4185,16 @@ function amountForTax(L, re){
   const hit = findLine(L, re); if (!hit) return null;
   const m = hit.line.match(re), at = m ? m.index + m[0].length : 0;
   let v = taxMoneyOn(hit.line, at);                        /* the first amount after the label: two-column rows hold another item's amount further right */
+  /* 57.30: a form row reads "16 Taxes ... 16 7,762"; when OCR loses the space the right-hand 16 joins the amount (167,762). The
+     amount is still shown, but not ticked, so it is checked against the form before it is used */
+  const ln = /^\s*(\d{1,2})[a-z]?\s+[A-Za-z]/.exec(hit.line);
+  if (v.length && ln && !new RegExp('\\s' + ln[1] + '[a-z]?\\s+\\(?\\$?\\d').test(hit.line.slice(at)) && String(Math.abs(v[0])).indexOf(ln[1]) === 0) return {value: v[0], src: hit.line, unsure: true};
   if (v.length) return {value: v[0], src: hit.line};
-  for (let k = 1; k <= 4; k++) {                           /* the amount can sit a few rows down (K-1 boxes, wrapped instructions) - but not on a new numbered line item */
+  for (let k = 1, first = true; k <= 5; k++) {             /* the amount can sit a few rows down (K-1 boxes, wrapped instructions) - but not on a new numbered line item */
     const ln = L[hit.idx + k]; if (ln == null) break;
-    if (/^\s*\d{1,2}[a-z]?\s+[A-Z][a-z]/.test(ln)) break;
-    if (k === 1) { v = taxMoneyOn(ln, 0); if (v.length) return {value: v[v.length - 1], src: hit.line + ' / ' + ln}; continue; }   /* K-1 boxes: the row below */
+    if (/^\s*\d{1,2}[a-z]?\s+[A-Za-z][A-Za-z]/.test(ln)) break;   /* 57.30: "12 MORTGAGE INTEREST" on a form OCR read in capitals is a new line item too */
+    if (!/\d/.test(ln)) continue;                              /* 57.30: a stray OCR line ('* * *', a web address) between a label and its amount */
+    if (first) { first = false; v = taxMoneyOn(ln, 0); if (v.length) return {value: v[v.length - 1], src: hit.line + ' / ' + ln}; continue; }   /* K-1 boxes: the row below */
     /* further down only the amount column counts: a figure at the end of the row, formatted as tax software prints amounts
        (a comma, cents or the trailing period) - not a count inside the instructions, such as square footage */
     const m2 = /(\(?-?\$?\d[\d,]*(?:\.\d{1,2})?\)?)(\.?)\s*$/.exec(String(ln).replace(/[\s|\]\[]+$/, ''));
@@ -4184,8 +4213,10 @@ function boxFor(L, re){
   const m = hit.line.match(re), at = m ? m.index + m[0].length : 0;
   const same = taxMoneyOn(hit.line, at);
   if (same.length) return {value: same[0], src: hit.line};
-  const next = L[hit.idx + 1]; if (next == null) return null;
-  const vals = taxMoneyOn(next, 0); if (!vals.length) return null;
+  /* 57.30: the row of amounts can sit below a stray OCR line ('| |', 'CONFIDENTIAL'), never past the next row of box labels */
+  let next = null, vals = [];
+  for (let j = hit.idx + 1; j <= hit.idx + 2 && L[j] != null; j++) { vals = taxMoneyOn(L[j], 0); if (vals.length) { next = L[j]; break; } if (/^\s*\d{1,2}[a-z]?\s+[A-Za-z]/.test(L[j])) break; }
+  if (!next) return null;
   const starts = [], bre = /(?:^|\s)(\d{1,2}[a-z]?)\s+[A-Za-z]/g; let b;
   while ((b = bre.exec(hit.line))) starts.push(b.index);
   const col = Math.max(0, starts.filter(i => i <= (m ? m.index : 0)).length - 1);
@@ -4211,13 +4242,14 @@ function dateFor(L, re){
   if(!all) return null;
   const m = all[all.length-1].match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
   let y = +m[3]; if(y<100) y += 2000;
+  if (y < 1940 || y > new Date().getFullYear() + 2 || +m[1] < 1 || +m[1] > 12 || +m[2] < 1 || +m[2] > 31) return null;   /* 57.30: OCR read a digit wrong (2626 for 2026) */
   const iso = `${y}-${String(+m[1]).padStart(2,'0')}-${String(+m[2]).padStart(2,'0')}`;
   return {value: iso, src: hit.line, isDate:true};
 }
 
 /* ---------- document classification ---------- */
 function classify(text){
-  const t = text.toLowerCase();
+  const t = ocrFix(text).toLowerCase();
   /* 55.13: a K-1 says whose share it is; Schedule E page 2 mentions "(Form 1065)" in its instructions and is not a K-1 */
   const isK1 = /(partner|shareholder)\W{0,3}s?\s*share of (current year )?income/.test(t);
   if (isK1 && /1120-?s|shareholder/.test(t))                 return 'k1_1120s';
@@ -4263,10 +4295,11 @@ const docType = t => DOC_TYPES[t] || DOC_TYPES.other;
 
 /* ---------- per-type extraction ---------- */
 function extractFields(type, text){
+  text = ocrFix(text);
   const L = lines(text), F = [];
   const push = (slot,label,hit,yearScoped)=>{ if(hit) F.push({
-      slot, label, value:hit.value, src:hit.src, yearScoped:yearScoped!==false,
-      isDate:!!hit.isDate, apply:true }); };
+      slot, label:hit.unsure ? label+' — check: the line number may be joined to the amount' : label, value:hit.value, src:hit.src, yearScoped:yearScoped!==false,
+      isDate:!!hit.isDate, apply:!hit.unsure }); };
 
   if (type==='wvoe'){
     /* --- identification ------------------------------------------------ */
@@ -4314,7 +4347,7 @@ function extractFields(type, text){
     if (useFreq)
       F.push({slot:'freq', label:'Pay frequency (rate basis)', value:useFreq,
               src:(basis?basisLine:periodLine).line, yearScoped:false, isText:true, apply:true});
-    const hrs = text.match(/avg\.?\s*hrs?\.?\s*worked\s*\/?\s*pay\s*period\s*[:\-]?\s*([\d,.]+)/i)
+    const hrs = text.match(/(?:avg\.?|average)\s*(?:hrs?\.?|hours?)\s*(?:worked\s*)?(?:\/|per)?\s*pay\s*period\s*[:\-]?\s*([\d,.]+)/i)
              || text.match(/average\s*hours?\s*(?:worked\s*)?per\s*(?:pay\s*period)\s*[:\-]?\s*([\d,.]+)/i);
     const hrsWk = text.match(/average\s*hours?\s*(?:worked\s*)?per\s*week\s*[:\-]?\s*([\d,.]+)/i);
     if (hrsWk){
@@ -4348,7 +4381,7 @@ function extractFields(type, text){
       });
       if (!order.length) order = null;
     }
-    const TOKEN = /\(?-?\$\s?[\d,]+(?:\.\d{1,2})?\)?|data not provided|not provided|\bn\/a\b|--/gi;
+    const TOKEN = /\(?-?\$\s?[\d,]+(?:\.\d{1,2})?\)?|\(?-?\d[\d,]*\.\d{2}\)?|data not provided|not provided|\bn\/a\b|--/gi;
     const yrRows = [];
     L.forEach(l=>{
       const clean = l.replace(/annual income summary.*$/i,'').trim();
@@ -4356,7 +4389,7 @@ function extractFields(type, text){
       if (!m) return;
       const toks = m[2].match(TOKEN);
       if (!toks || toks.length < 2) return;
-      yrRows.push({year:+m[1], vals: toks.map(t=>/\$/.test(t) ? toNum(t) : 0), src:clean});
+      yrRows.push({year:+m[1], vals: toks.map(t=>/\$|\.\d{2}/.test(t) ? toNum(t) : 0), src:clean});
     });
     yrRows.sort((a,b)=>b.year-a.year);
     const COLS = ['y1','y2','y3'], SL = {base:'base salary', ot:'overtime', comm:'commissions',
@@ -4394,7 +4427,8 @@ function extractFields(type, text){
   else if (type==='paystub'){
     const earn = (re, slot, label) => {
       const hit = findLine(L, re); if(!hit) return;
-      const v = moneyOn(hit.line);
+      const v = moneyOn(hit.line), nx = L[hit.idx+1];
+      if (nx && /^\(?-?\$?\s?[\d,]+\.\d{2}\)?$/.test(nx)) v.push(...moneyOn(nx));   /* 57.30: the YTD figure OCR put on the line below */
       if(!v.length) return;
       /* a paystub earnings row typically reads: rate, hours, current, YTD */
       F.push({slot, label:label+' (YTD)', value:v[v.length-1], src:hit.line, yearScoped:true, apply:true});
@@ -8285,9 +8319,9 @@ window.__mtgcalcBridge = {
   }
 };
 </script>
-<script src="income-enhancements.js"></script>
+<script src="income-enhancements.js?v=57.30"></script>
 <script src="sync-bridge.js?v=55.12"></script>
-<script src="workflow-ui.js?v=55.12"></script>
+<script src="workflow-ui.js?v=57.30"></script>
 <script src="income-features.js?v=55.16"></script>
 <script src="income-extras.js?v=56.1"></script>
 <script src="mt-live.js?v=56.0"></script>
@@ -8296,7 +8330,7 @@ window.__mtgcalcBridge = {
 <script src="mt-addr.js?v=56.5"></script>
 <script src="mt-paste.js?v=56.7"></script>
 <script src="mt-search.js?v=57.20"></script>
-<script src="doc-center.js?v=57.19"></script>
+<script src="doc-center.js?v=57.30"></script>
 <script src="mt-data.js?v=56.1"></script>
 <script src="mt-build-lazy.js?v=57.19"></script>
 <script src="ic-simple.js?v=57.2"></script>

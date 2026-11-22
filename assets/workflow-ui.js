@@ -143,7 +143,7 @@
      rate; picking the table rate again returns the file to automatic. */
   (function hookSuite(tries) {
     const s = window.mortgageSuite && window.mortgageSuite.store;
-    if (!s) { if (/(?:full-suite|all-in-one|loan-suite)/.test(path) && tries < 60) setTimeout(() => hookSuite(tries + 1), 250); return; }
+    if (!s) { if (/(?:full-suite|all-in-one|loan-suite|renovation-suite)/.test(path) && tries < 60) setTimeout(() => hookSuite(tries + 1), 250); return; }
     if (s.__v5512) return; s.__v5512 = true;
     guardHeaderMoves();
     const setField = s.setField.bind(s);
@@ -151,7 +151,11 @@
       if (field === 'fhaAnnualMipRate') {
         try { const sug = s.outputs.payment.fhaMipSuggestedRate; s.activeInputs.fhaMipManual = !(sug > 0 && Math.abs(Number(value) - sug) < 1e-9); } catch (_) {}
       }
-      return setField.apply(s, arguments);
+      const out = setField.apply(s, arguments);
+      /* 57.30: a value set for the as-is / appraised value - read from an appraisal, imported, or typed - is that value; it no
+         longer follows the purchase price (the page used to put the price back within a second, so a low appraisal was lost) */
+      if (field === 'asIsValue' && Number(value) > 0) try { s.activeInputs.v20ValueAuto = false; } catch (_) {}
+      return out;
     };
     let pending = false;
     const sync = () => {

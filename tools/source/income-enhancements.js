@@ -5,6 +5,8 @@
   'use strict';
 
   const yearNow = new Date().getFullYear();
+  /* 57.30: the two Schedule E columns are the last two tax years that can have been filed (a 2026 return is filed in 2027) */
+  const lastFiled = yearNow - 1;
   const rentalKeys = ['rents', 'ins', 'mortInt', 'taxes', 'depr', 'otherAdd', 'totalExp', 'fairDays', 'personalDays', 'pitia', 'line21'];
   const n = (v) => {
     let t = String(v == null ? '' : v).trim(); const neg = /^\(.*\)$/.test(t) || /-$/.test(t);
@@ -22,10 +24,13 @@
 
   function ensureRental(p) {
     if (!p || typeof p !== 'object') return p;
-    if (!p.y1 || typeof p.y1 !== 'object') p.y1 = blankYear(yearNow - 1);
-    if (!p.y2 || typeof p.y2 !== 'object') p.y2 = blankYear(yearNow);
-    if (!n(p.y1.yr)) p.y1.yr = yearNow - 1;
-    if (!n(p.y2.yr)) p.y2.yr = yearNow;
+    if (!p.y1 || typeof p.y1 !== 'object') p.y1 = blankYear(lastFiled - 1);
+    if (!p.y2 || typeof p.y2 !== 'object') p.y2 = blankYear(lastFiled);
+    if (!n(p.y2.yr)) p.y2.yr = lastFiled;
+    if (!n(p.y1.yr)) p.y1.yr = n(p.y2.yr) - 1;
+    /* 57.30: files saved by 55.4-57.29 labelled the columns this year and last year; a return for this year cannot exist yet,
+       so an empty column for it moves back one year (anything typed in it is left where it is) */
+    if (n(p.y2.yr) > lastFiled && !yearHasAmounts(p.y2)) { const older = p.y1; p.y2 = older; p.y1 = blankYear(n(older.yr) - 1); }
     rentalKeys.forEach(k => {
       if (p.y1[k] == null) p.y1[k] = k === 'fairDays' ? 365 : 0;
       if (p.y2[k] == null) p.y2[k] = k === 'fairDays' ? 365 : 0;
@@ -47,6 +52,18 @@
     return p;
   }
 
+  function yearHasAmounts(y) { return !!y && rentalKeys.filter(k => !['fairDays', 'personalDays', 'pitia'].includes(k)).some(k => n(y[k]) !== 0); }
+  /* the tax year printed on an uploaded Schedule E: the latest 20xx on it that can have been filed */
+  function taxYearOf(text) { const ys = (String(text || '').match(/\b(20\d{2})\b/g) || []).map(Number).filter(y => y <= lastFiled && y >= lastFiled - 6); return ys.length ? Math.max.apply(null, ys) : 0; }
+  /* the column for that year, moving the years along when a newer return arrives; no year printed: the most recent empty column */
+  function columnForReturn(p, yr) {
+    if (!yr) return yearHasAmounts(p.y2) && !yearHasAmounts(p.y1) ? 'y1' : 'y2';
+    if (n(p.y2.yr) === yr) return 'y2';
+    if (n(p.y1.yr) === yr) return 'y1';
+    if (yr > n(p.y2.yr)) { p.y1 = yearHasAmounts(p.y2) ? p.y2 : blankYear(yr - 1); p.y2 = blankYear(yr); return 'y2'; }
+    if (!yearHasAmounts(p.y1)) { p.y1 = blankYear(yr); return 'y1'; }
+    return 'y1';
+  }
   function rentalNet(y) {
     const fair = Math.max(0, n(y.fairDays));
     const personal = Math.max(0, n(y.personalDays));
@@ -167,7 +184,7 @@
     const legacyNew = newSchE;
     window.newSchE = function () {
       const p = legacyNew();
-      p.y1 = blankYear(yearNow - 1); p.y2 = blankYear(yearNow); p.__twoYearRental = true;
+      p.y1 = blankYear(lastFiled - 1); p.y2 = blankYear(lastFiled); p.__twoYearRental = true;
       return p;
     };
     newSchE = window.newSchE;
@@ -413,11 +430,18 @@
     const legacyApply = applyDoc;
     window.applyDoc = function (id, quiet) {
       const d = (typeof DOCS !== 'undefined' ? DOCS : []).find(x => x.id === id);
+      /* 57.30: the other tax year of a property already on a worksheet goes on that worksheet - one worksheet, two years */
+      if (d && d.type === 'schede' && /\|NEW$/.test(String(d.target || ''))) {
+        const yr = taxYearOf(d.text), open = (S.sche || []).filter(p => { ensureRental(p); const col = yr ? (n(p.y2.yr) === yr ? 'y2' : n(p.y1.yr) === yr ? 'y1' : null) : (yearHasAmounts(p.y2) ? 'y1' : 'y2'); return col && !yearHasAmounts(p[col]) && (yearHasAmounts(p.y1) || yearHasAmounts(p.y2)); });
+        if (open.length === 1) d.target = 'sche|' + open[0].id;
+      }
       const out = legacyApply(id, quiet);
       if (d && d.type === 'schede' && d.target) {
         const parts = d.target.split('|'), p = (S.sche || []).find(x => x.id === parts[1]);
         if (p) {
-          ensureRental(p); const y = d.yearCol === 'y2' ? 'y2' : 'y1';
+          ensureRental(p); const y = columnForReturn(p, taxYearOf(d.text));
+          /* the base reader wrote the figures onto the flat fields, which mirror the most recent year: keep the columns as the truth */
+          if (y === 'y1') { const keep = Object.assign({}, p.y2); (d.fields || []).forEach(f => { if (rentalKeys.includes(f.slot)) p[f.slot] = n(keep[f.slot]); }); }
           (d.fields || []).forEach(f => { if (f.apply && !f.readonly && rentalKeys.includes(f.slot)) p[y][f.slot] = n(f.value); });
           ensureRental(p); if (typeof RECALC === 'function') RECALC();
         }
