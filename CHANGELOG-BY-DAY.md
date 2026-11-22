@@ -4,6 +4,20 @@ Every change, by the day it was released (newest first), then by section of the 
 the full release notes are in [CHANGELOG.md](CHANGELOG.md). The same list is on the site: https://jcodomo.github.io/mtgcalc/changelog.html
 This file is built from CHANGELOG.md with `npm run changelog`.
 
+## 2026-11-22 - Release 57.29
+
+### Loan Suite & calculations
+- (57.29) Asked in full, by a short form ("gift funds", "fha mip", "mdcs"), misspelled, or with Fannie or FHA named, the right section opens first: 630 of 630 test searches. The 527 earlier test searches stay at 99.4%.
+
+### Income Calculator
+- (57.29) **73 most asked questions** on the Guidelines page, each pinned to the sections that answer it: all 27 of Fannie Mae's top trending Selling Guide FAQs (updated 2026-11-18), HUD's FHA trending FAQs, and what borrowers and loan officers ask most (down payment, minimum credit score, maximum DTI, removing mortgage insurance, FHA MIP, waiting periods after bankruptcy or foreclosure, reserves, seller contributions, gift funds, student loans, rental and self-employed income, and more).
+
+### Document Builder
+- (57.29) Fix: word forms (verified / verify, funded / fund) now match for every word; words containing the letter d were skipped.
+
+### Search, layout & pages
+- (57.29) The start screen lists the 12 most asked (all 73 one click away), the search box suggests them as you type, and results say when a most asked question was recognised.
+
 ## 2026-11-21 - Release 57.25, 57.26, 57.27, 57.28
 
 ### Loan Suite & calculations

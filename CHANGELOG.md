@@ -739,3 +739,10 @@ Ideas from [qdrant/page-search](https://github.com/qdrant/page-search) and [Aper
 - **70 everyday questions that avoid the guide's own words** ("my ex pays me every month for the kids", "I rent my place out on Airbnb", "I'm on maternity leave right now", "the house sits on a steel chassis"): the right section is in the top 5 for 47 (was 31), and first or second far more often (mean reciprocal rank 0.550, was 0.274). The 527 earlier test searches are unchanged at 99.4%.
 - **Real words are no longer "corrected":** a word the guides never use but that is ordinary English stays as typed (kids no longer becomes bids, visa no longer via, fired no longer filed); misspellings are still corrected.
 - The What's new page now lists releases 57.24 to 57.28.
+
+## Release 57.29 - the most asked guideline questions come up right first
+
+- **73 most asked questions** on the Guidelines page, each pinned to the sections that answer it: all 27 of Fannie Mae's top trending Selling Guide FAQs (updated 2026-11-18), HUD's FHA trending FAQs, and what borrowers and loan officers ask most (down payment, minimum credit score, maximum DTI, removing mortgage insurance, FHA MIP, waiting periods after bankruptcy or foreclosure, reserves, seller contributions, gift funds, student loans, rental and self-employed income, and more).
+- Asked in full, by a short form ("gift funds", "fha mip", "mdcs"), misspelled, or with Fannie or FHA named, the right section opens first: 630 of 630 test searches. The 527 earlier test searches stay at 99.4%.
+- The start screen lists the 12 most asked (all 73 one click away), the search box suggests them as you type, and results say when a most asked question was recognised.
+- Fix: word forms (verified / verify, funded / fund) now match for every word; words containing the letter d were skipped.

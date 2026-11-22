@@ -109,7 +109,7 @@ dialog input[type=password],dialog input[type=text],dialog select{width:100%;pad
 .find{display:flex;gap:8px;align-items:center;margin-top:8px}.find input{flex:1;padding:6px 9px;border:1px solid var(--input-line);background:var(--input);color:var(--strong);border-radius:7px;font:13px var(--font)}
 mark.fm{background:var(--mark)}mark.fm.on{outline:2px solid var(--accent);outline-offset:1px}
 .rel{border-top:1px solid var(--line);padding:10px 14px;display:flex;flex-direction:column;gap:4px;max-height:34%;overflow:auto}.rel a{color:var(--accent-text);text-decoration:none;font-size:13px}.rel a:hover{text-decoration:underline}
-.topics{display:flex;gap:6px;flex-wrap:wrap}.chip.tp{font-weight:600}.star.on{color:#d4a017}.tips{background:var(--surface-2);border:1px solid var(--line);border-radius:9px;padding:8px 10px;line-height:1.9}
+.topics{display:flex;gap:6px;flex-wrap:wrap}.faql{display:flex;flex-wrap:wrap;gap:6px}.faqb{font:inherit;font-size:13px;text-align:left;cursor:pointer;background:var(--surface-2);color:inherit;border:1px solid var(--line);border-radius:8px;padding:6px 10px}.faqb:hover{border-color:var(--accent,#4a7bd0)}.faqd{margin-top:10px}.faqd summary{cursor:pointer;font-size:13px;margin-bottom:8px}.faqn{margin:0 0 8px}.chip.tp{font-weight:600}.star.on{color:#d4a017}.tips{background:var(--surface-2);border:1px solid var(--line);border-radius:9px;padding:8px 10px;line-height:1.9}
 #mic{position:absolute;right:38px;top:8px;border:0;background:transparent;font-size:17px;cursor:pointer;padding:4px 6px;opacity:.75}#mic.on{opacity:1;filter:drop-shadow(0 0 4px var(--bad))}
 .res:focus{outline:2px solid var(--accent);outline-offset:1px}
 .sw:has(#mic) #q{padding-right:76px}
@@ -260,6 +260,110 @@ const PHR=[
  [/appraiser|appraisal\s+(waiver|rep)|value\s+too\s+low|low\s+appraisal|reconsideration/,["appraisal","reconsideration of value","appraisal waiver","value"]]
 ];
 const CANNED=["self-employed income 2 years","large deposit sourcing","gift funds requirements","debt-to-income ratio limits","second FHA loan","VA split entitlement","VA loan limits","manufactured home eligibility","chipping paint peeling paint appraisal","assets as qualifying income","future employment income offer letter","rental income calculation","non-occupant co-borrower","student loan payment calculation","collection accounts","bankruptcy waiting period","foreclosure waiting period","mortgage insurance cancellation","age of appraisal","condo project eligibility","flood insurance","cash-out refinance seasoning","temporary buydown","HomeReady","Home Possible","203k rehabilitation loan","occupancy requirements","overtime bonus commission income","part-time second job income","social security retirement income","child support alimony income","credit score minimum","LTV limits","reserves requirements","VA funding fee exempt","FHA mortgage insurance premium MIP","FHA minimum property requirements","power of attorney","non-traditional credit","rent history","delayed financing","jumbo conforming loan limits","TRID tolerance","ATR QM"];
+/* Most asked questions (Fannie Mae top trending selling FAQs of 2026-11-18, HUD FHA trending FAQs, and the questions
+   borrowers and loan officers ask most), each pinned to the sections that answer it: when a search is one of these
+   questions, or a short form of it, those sections come first. pin: "Agency section|a word that must be in it" (a pin
+   whose section moved or changed in a refresh is skipped; test/faq.js lists them). ag: a question about that agency. */
+const FAQ=[{"q":"Can a pay raise or increase in pay be included as qualifying income?","k":["pay raise income","future pay increase","raise in pay qualifying income"],"pin":["Fannie B3-3.2-02|increase"]},
+{"q":"How should income be evaluated when a borrower has multiple jobs at the same time?","k":["multiple jobs income","two jobs at the same time","second job income"],"pin":["Fannie B3-3.2-02|multiple jobs","FHA 4000.1 p.251|Part-Time"]},
+{"q":"Is it acceptable if an employment gap exceeds 30 days?","k":["employment gap","gap in employment","job gap over 30 days","gaps in employment"],"pin":["Fannie B3-3.2-02|gap","FHA 4000.1 p.257|Gaps in Employment"]},
+{"q":"What is required when a borrower is employed by family or an interested party?","k":["employed by family","family owned business employment","works for a relative"],"pin":["Fannie B3-3.2-02|family","FHA 4000.1 p.253|Family-Owned"]},
+{"q":"When can nontaxable income be used to adjust the gross income?","k":["nontaxable income gross up","grossing up income","gross up nontaxable income"],"pin":["Fannie B3-3.1-01|nontaxable","FHA 4000.1 p.273|Nontaxable"]},
+{"q":"What is required when using a lease agreement to calculate rental income?","k":["lease agreement rental income","using a lease for rental income"],"pin":["Fannie B3-3.8-01|lease","Fannie B3-3.8-04|lease","FHA 4000.1 p.265|Rental Income"]},
+{"q":"When can a lease agreement be used to determine qualifying rental income from an investment property?","k":["lease agreement investment property","lease instead of tax returns rental"],"pin":["Fannie B3-3.8-04|lease","Fannie B3-3.8-01|lease"]},
+{"q":"How should lenders use market analysis tools or validated rental data when determining rental income?","k":["market rent analysis tools","rental comparables market rent","validated rental data"],"pin":["Fannie B3-3.8-03|rental","Fannie B3-3.8-05|rent","Fannie B3-3.8-06|rent"]},
+{"q":"What is considered an interested party contribution (IPC)?","k":["interested party contributions","seller concessions limit","seller credit limit","ipc limits"],"pin":["Fannie B3-4.1-02|interested party","FHA 4000.1 p.285|Interested Party"]},
+{"q":"What is required to document gift funds?","k":["gift funds","gift letter requirements","gift funds documentation","gift money for down payment"],"pin":["Fannie B3-4.3-04|gift","FHA 4000.1 p.283|Gifts"]},
+{"q":"What is required when using assets from a retirement account?","k":["retirement account assets","401k for down payment","ira for closing costs","use my 401k"],"pin":["Fannie B3-4.3-03|retirement","FHA 4000.1 p.282|Retirement"]},
+{"q":"What is required when using borrowed funds secured by an asset?","k":["borrowed funds secured by an asset","401k loan for down payment","secured borrowed funds"],"pin":["Fannie B3-4.3-15|secured","FHA 4000.1 p.294|Collateralized"]},
+{"q":"What is required when using business assets to qualify?","k":["business assets for down payment","business funds for closing","business bank account down payment"],"pin":["Fannie B3-4.2-02|business","Fannie B3-3.5-01|business assets"]},
+{"q":"Are authorized user tradelines considered in the DTI ratio calculation?","k":["authorized user accounts dti","authorized user tradelines"],"pin":["Fannie B3-5.3-06|authorized","Fannie B3-5.3-09|authorized"]},
+{"q":"Can you have late payments on a prior mortgage in the last twelve months?","k":["mortgage late payments","late mortgage payment 12 months","mortgage lates","previous mortgage payment history"],"pin":["Fannie B3-5.3-03|mortgage","FHA 4000.1 p.235|Mortgage Payment History"]},
+{"q":"Is a loan still eligible for delivery if the credit report reflects frozen credit?","k":["frozen credit","credit freeze","frozen credit report"],"pin":["Fannie B3-5.1-01|frozen","Fannie B3-5.2-02|frozen"]},
+{"q":"Can I submit loans to DU when the borrowers do not have a credit score?","k":["no credit score du","borrower without a credit score","no credit score mortgage"],"pin":["Fannie B3-5.4-01|credit score","Fannie B3-5.4-02|credit score"]},
+{"q":"How many nontraditional credit references are required for a borrower without a credit score?","k":["nontraditional credit references","non traditional credit","alternative credit references"],"pin":["Fannie B3-5.4-02|nontraditional","FHA 4000.1 p.306|Non-traditional"]},
+{"q":"Are collection accounts and non-mortgage charge-offs required to be paid off?","k":["collection accounts","pay off collections","charge off accounts","collections paid at closing"],"pin":["Fannie B3-6-07|collection","Fannie B3-5.3-09|collection","FHA 4000.1 p.245|Collection"]},
+{"q":"What is required for a student loan monthly debt obligation?","k":["student loan payment","deferred student loans","student loan dti","income driven student loan payment"],"pin":["Fannie B3-6-05|student","FHA 4000.1 p.242|Student"]},
+{"q":"When can debt paid by others be excluded from the DTI ratio?","k":["debt paid by others","debts paid by someone else","exclude debt paid by another"],"pin":["Fannie B3-6-05|paid by","FHA 4000.1 p.244|Contingent"]},
+{"q":"When can business debt be excluded from the DTI ratio?","k":["business debt dti","business debt in borrower name"],"pin":["Fannie B3-6-05|business debt"]},
+{"q":"What are property insurance coverage sufficiency requirements for one-to four-unit properties?","k":["property insurance coverage amount","hazard insurance coverage","homeowners insurance coverage required"],"pin":["Fannie B7-3-02|insurance"]},
+{"q":"What perils are required to be covered under a property insurance policy?","k":["perils covered by property insurance","insurance perils required"],"pin":["Fannie B7-3-02|perils"]},
+{"q":"What is required for a delayed financing exception?","k":["delayed financing","delayed financing exception","cash purchase then refinance"],"pin":["Fannie B2-1.3-03|delayed financing"]},
+{"q":"What is required for non-arm's length transactions?","k":["non arms length transaction","non arm s length transactions","non-arm length purchase"],"pin":["Fannie B2-1.3-01|arm","FHA 4000.1 p.205|Identit"]},
+{"q":"What are the FHA identity-of-interest rules?","k":["identity of interest","identity of interest transaction","identity-of-interest ltv"],"pin":["FHA 4000.1 p.205|Identit","Fannie B2-1.3-01|arm"]},
+{"q":"When purchasing a primary residence for a parent or disabled adult child, how is this submitted to DU?","k":["buying a home for my parents","home for disabled adult child","parent occupancy"],"pin":["Fannie B2-1.1-01|parent"]},
+{"q":"What are the FHA Minimum Decision Credit Score (MDCS) requirements?","k":["fha minimum credit score","fha credit score","minimum decision credit score","mdcs"],"pin":["FHA 4000.1 p.204|580","FHA 4000.1 p.176|Minimum Decision Credit Score","FHA 4000.1 p.237|MDCS"],"ag":"FHA"},
+{"q":"Where can I find the FHA guidelines regarding gift funds?","k":["fha gift funds","fha gift letter"],"pin":["FHA 4000.1 p.283|Gifts"],"ag":"FHA"},
+{"q":"What is the minimum credit score for a mortgage?","k":["minimum credit score","credit score minimum","lowest credit score allowed","what credit score do i need"],"pin":["Fannie B3-5.1-01|credit score","FHA 4000.1 p.204|580"]},
+{"q":"How much down payment do I need?","k":["minimum down payment","do i need 20 percent down","how much down","down payment requirements"],"pin":["Fannie B2-1.2-01|LTV","FHA 4000.1 p.279|Minimum Required Investment"]},
+{"q":"What is the minimum down payment for an FHA loan?","k":["fha down payment","fha minimum required investment","fha 3.5 percent down"],"pin":["FHA 4000.1 p.279|Minimum Required Investment","FHA 4000.1 p.207|Minimum Required Investment"],"ag":"FHA"},
+{"q":"What is the maximum debt-to-income ratio?","k":["maximum dti","dti limit","debt to income ratio limit","max debt to income"],"pin":["Fannie B3-6-02|debt-to-income","FHA 4000.1 p.382|Qualifying Ratios"]},
+{"q":"How do I remove mortgage insurance?","k":["remove pmi","cancel mortgage insurance","drop pmi","remove fha mip","mortgage insurance cancellation"],"pin":["FHA 4000.1 p.1198|Termination","Fannie B7-1-01|mortgage insurance"]},
+{"q":"How much is FHA mortgage insurance and how long does it last?","k":["fha mip","fha mortgage insurance premium","annual mip","upfront mip","ufmip"],"pin":["FHA 4000.1 p.1774|Annual","FHA 4000.1 p.1775|Annual MIP","FHA 4000.1 p.207|Upfront"],"ag":"FHA"},
+{"q":"How long after bankruptcy can I get a mortgage?","k":["bankruptcy waiting period","chapter 7 waiting period","chapter 13 bankruptcy mortgage","mortgage after bankruptcy"],"pin":["Fannie B3-5.3-07|bankruptcy","FHA 4000.1 p.233|Bankruptcy"]},
+{"q":"How long after foreclosure can I get a mortgage?","k":["foreclosure waiting period","mortgage after foreclosure"],"pin":["Fannie B3-5.3-07|foreclosure","FHA 4000.1 p.234|Foreclosure"]},
+{"q":"How long after a short sale can I buy a house?","k":["short sale waiting period","pre-foreclosure sale waiting period","buy after short sale"],"pin":["Fannie B3-5.3-07|preforeclosure","FHA 4000.1 p.234|Pre-Foreclosure"]},
+{"q":"What is the waiting period after a deed in lieu of foreclosure?","k":["deed in lieu waiting period","deed-in-lieu"],"pin":["Fannie B3-5.3-07|deed-in-lieu","FHA 4000.1 p.235|Deed-in-Lieu"]},
+{"q":"How many months of reserves do I need?","k":["reserves required","reserve requirements","months of reserves"],"pin":["Fannie B3-4.1-01|reserve","FHA 4000.1 p.278|Reserves"]},
+{"q":"How much can the seller pay toward closing costs?","k":["seller paid closing costs","seller contributions","seller paying closing costs"],"pin":["Fannie B3-4.1-02|interested party","FHA 4000.1 p.285|Interested Party"]},
+{"q":"How long do I need to be self-employed to qualify?","k":["self employed two years","self-employment history","self employed income requirements"],"pin":["Fannie B3-3.5-01|self-employed","FHA 4000.1 p.255|Self-Employment"]},
+{"q":"How are overtime and bonus income calculated?","k":["overtime income","bonus income","commission income","overtime bonus commission income"],"pin":["Fannie B3-3.3-02|overtime","FHA 4000.1 p.251|Overtime"]},
+{"q":"How is rental income calculated?","k":["rental income calculation","schedule e rental income"],"pin":["Fannie B3-3.8-01|rental","FHA 4000.1 p.265|Rental Income"]},
+{"q":"How do I document a large deposit?","k":["large deposits","large deposit sourcing","source of large deposit"],"pin":["Fannie B3-4.2-02|large deposit"]},
+{"q":"Can a non-occupant co-borrower be added to the loan?","k":["non occupant co borrower","non-occupying co-borrower","co-signer who will not live there"],"pin":["Fannie B2-2-04|non-occupant","FHA 4000.1 p.206|Non-Occupying"]},
+{"q":"How old can credit documents and pay stubs be?","k":["age of documents","document age","how old can paystubs be","credit documents age"],"pin":["Fannie B1-1-03|age","FHA 4000.1 p.151|Document Age"]},
+{"q":"How long is an appraisal good for?","k":["appraisal age","appraisal validity","appraisal expiration","age of appraisal"],"pin":["Fannie B4-1.2-04|appraisal","FHA 4000.1 p.152|Appraisal Validity"]},
+{"q":"What is the maximum LTV for a cash-out refinance?","k":["cash out refinance ltv","cash-out refinance","max ltv cash out"],"pin":["Fannie B2-1.3-03|cash-out","FHA 4000.1 p.461|Cash-Out"]},
+{"q":"How long do I have to own a home before a cash-out refinance?","k":["cash out seasoning","cash-out refinance seasoning","six months before cash out"],"pin":["Fannie B2-1.3-03|cash-out","FHA 4000.1 p.461|Cash-Out"]},
+{"q":"How is child support or alimony income used to qualify?","k":["child support income","alimony income","child support alimony income"],"pin":["Fannie B3-3.4-02|child support","FHA 4000.1 p.259|Child Support"]},
+{"q":"Can social security income be grossed up?","k":["social security income","social security gross up"],"pin":["Fannie B3-3.4-15|social security","FHA 4000.1 p.263|Social Security"]},
+{"q":"What is the difference between a second home and an investment property?","k":["occupancy types","second home requirements","second home vs investment property"],"pin":["Fannie B2-1.1-01|second home","FHA 4000.1 p.186|Secondary Residence"]},
+{"q":"What are the conforming loan limits?","k":["loan limits","conforming loan limit","high balance loan limits"],"pin":["Other FHFA Loan Limits|loan limit","Fannie B2-1.5-01|loan limit"]},
+{"q":"Can I get a mortgage on a manufactured home?","k":["manufactured home eligibility","mobile home mortgage","manufactured housing"],"pin":["Fannie B5-2-02|manufactured","Fannie B2-3-02|manufactured"]},
+{"q":"What is an FHA 203(k) rehabilitation loan?","k":["203k loan","fha 203k","fha rehab loan","limited 203k"],"pin":["FHA 4000.1 p.415|203(k)"]},
+{"q":"What is an FHA streamline refinance?","k":["fha streamline","streamline refinance"],"pin":["FHA 4000.1 p.470|Streamline"]},
+{"q":"Do I need a two-year employment history?","k":["two year employment history","2 year work history","employment history requirement"],"pin":["Fannie B3-3.2-02|history","FHA 4000.1 p.249|two years"]},
+{"q":"Can I get a mortgage after a recent job change?","k":["new job mortgage","changed jobs recently","job change during loan"],"pin":["Fannie B3-3.2-02|employment","Fannie B3-3.3-03|employment"]},
+{"q":"What are the requirements for an employment offer letter?","k":["offer letter","future employment income","employment offer or contract"],"pin":["Fannie B3-3.3-03|offer"]},
+{"q":"What is HomeReady?","k":["homeready income limits","homeready requirements","home ready"],"pin":["Fannie B5-6-01|HomeReady"]},
+{"q":"Are condos eligible for financing?","k":["condo approval","condo project eligibility","warrantable condo"],"pin":["Fannie B4-2.1-01|project","Fannie B4-2.2-01|project","FHA 4000.1 p.522|Condominium"]},
+{"q":"Is an appraisal waiver available?","k":["appraisal waiver","value acceptance","piw"],"pin":["Fannie B4-1.4-10|value acceptance"]},
+{"q":"Can I use a gift of equity?","k":["gift of equity","gifts of equity"],"pin":["Fannie B3-4.3-05|gift","FHA 4000.1 p.283|equity"]},
+{"q":"Can a DACA or non-permanent resident borrower get a mortgage?","k":["daca borrower eligibility","non permanent resident alien","non us citizen borrower"],"pin":["Fannie B2-2-02|citizen","FHA 4000.1 p.178|Citizenship"]},
+{"q":"Do co-signed debts count in my DTI?","k":["cosigned debt","co-signed loan dti","contingent liability"],"pin":["Fannie B3-6-05|contingent","FHA 4000.1 p.244|Contingent"]},
+{"q":"Can boarder or roommate rent be used as income?","k":["boarder income","roommate rent income"],"pin":["Fannie B3-3.4-04|boarder","FHA 4000.1 p.268|Boarders"]},
+{"q":"Is flood insurance required?","k":["flood insurance","flood zone insurance"],"pin":["Fannie B7-3-06|flood"]},
+{"q":"Can a power of attorney be used at closing?","k":["power of attorney","poa at closing"],"pin":["Fannie B8-5-05|power of attorney","FHA 4000.1 p.399|Power of Attorney"]},
+{"q":"What is a temporary interest rate buydown?","k":["temporary buydown","2-1 buydown","rate buydown"],"pin":["Fannie B2-1.4-04|buydown"]},
+{"q":"How are disputed accounts on the credit report handled?","k":["disputed accounts","disputed tradelines","disputed derogatory accounts"],"pin":["Fannie B3-5.3-09|disputed","FHA 4000.1 p.231|Disputed"]},
+{"q":"How many financed properties can a borrower have?","k":["multiple financed properties","number of financed properties","ten financed properties"],"pin":["Fannie B2-2-03|financed"]}];
+let FAQX=null, FAQ_AGSEL=null;
+function faqWords(s){ return tok(String(s).replace(/[-'’]/g,' ')); }
+function faqToks(ws){ return [...new Set(ws.filter(w=>!STOP.has(w)&&!AGWORDS[w]&&w.length>1).map(stem))]; }
+/* an FHA question keeps the word FHA in its short forms: "fha down payment" is not every down payment question */
+function faqKeyToks(f,s){ const ws=faqWords(s); return f.ag?faqToks(ws).concat(ws.some(w=>AGWORDS[w]===f.ag)?["@"+f.ag]:[]):faqToks(ws); }
+function faqPins(){ if(FAQX) return FAQX; const at=new Map(); D.forEach((d,i)=>{ const k=d.a+' '+(d.s||''); if(!at.has(k)) at.set(k,i); });
+  FAQX=FAQ.map(f=>({f, keys:[f.q].concat(f.k||[]).map(s=>faqKeyToks(f,s)), ids:f.pin.map(p=>{ const [ref,must]=p.split('|'); const i=at.get(ref.trim());
+    if(i==null) return -1; if(must&&!(D[i].t+' '+(D[i].x||'')).toLowerCase().includes(must.toLowerCase())) return -1; return i; }).filter(i=>i>=0)}));
+  return FAQX; }
+/* which most asked question a search is, without small words and agency names: all the words of one of its forms with
+   at most two more, or at least 60% of the words shared. The words are taken as typed and as spelling-corrected, so a
+   word the guides lack (DACA) still counts. A search that names an agency only gets questions that agency answers. */
+function faqMatch(P){ if(P.codeLike||P.phrases.length||P.not.length) return null;
+  const qa=faqToks(P.toks.flatMap(w=>faqWords(w))), qb=faqToks(faqWords(P.raw)); if(!qa.length&&!qb.length) return null;
+  const qm=[...new Set(qa.concat(qb))]; for(const a of P.ag){ const g="@"+a; qa.push(g); qb.push(g); qm.push(g); }   /* each word as typed or as corrected, whichever fits */
+  const sel=FAQ_AGSEL; let best=null, bs=0;
+  for(const x of faqPins()){ if(!x.ids.length) continue;
+    if(P.ag.size&&!x.ids.some(i=>P.ag.has(D[i].a))) continue;
+    if(x.f.ag&&P.ag.size&&!P.ag.has(x.f.ag)) continue;
+    const named=x.f.ag&&(P.ag.has(x.f.ag)||(sel&&sel.size===1&&sel.has(x.f.ag)));
+    for(const kt of x.keys) for(const q0 of [qa,qb,qm]){ const qt=kt.some(w=>w[0]==="@")?q0:q0.filter(w=>w[0]!=="@"); if(!kt.length||!qt.length) continue;
+      const inter=kt.filter(w=>qt.includes(w)).length; let s; const ql=q0===qm?Math.max(qa.length,qb.length)-(q0.length-qt.length):qt.length;
+      if(kt.length===1||ql===1){ s=(kt.length===1&&ql===1&&inter===1)?1:0; }
+      else { if(inter<2) continue; const j=inter/(kt.length+ql-inter); s=(inter===kt.length&&ql-kt.length<=(kt.length>=3?2:1))?Math.max(j,0.75):(j>=0.7?j:0); }
+      if(x.f.ag) s+=named?0.05:-0.1;   /* an FHA question wins when FHA is named, and gives way to the general one otherwise */
+      if(s>=0.6&&s>bs){ bs=s; best=x; } } }
+  return best; }
 const TOPICS=[["Income & jobs","employment income verification two year history"],["Self-employed","self-employed income tax returns"],["Gifts & assets","gift funds donor assets"],["Large deposits","large deposit sourcing bank statements"],["Bankruptcy & foreclosure","bankruptcy foreclosure waiting period"],["DTI & reserves","debt-to-income ratio reserves"],["Condos","condo project eligibility"],["Renovation","renovation 203k homestyle repairs"],["Manufactured","manufactured home"],["Co-borrowers","non-occupant co-borrower"],["VA entitlement","VA entitlement funding fee"],["Student loans","student loan payment calculation"]];
 const AGCOL={Fannie:"Fannie Mae",Freddie:"Freddie Mac",FHA:"FHA",VA:"VA",Other:"Other"};
 /* accents folded (é = e, ì = i), as Aperio's tokenizer normalizes Unicode */
@@ -269,7 +373,7 @@ function esre(s){return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}
 /* ============ index ============ */
 const D=GLD; const N=D.length; const post=new Map(); const dlen=new Float32Array(N); let avg=1; let vocab=[]; let ready=false; let stems=new Map();
 /* word forms: verify / verified / verifies / verification share a stem, so a search for one finds the others */
-function stem(w){ if(w.length<5||/d/.test(w)) return w; const s=w.replace(/(ational|tional|izations|ization|ations|ation|ements|ement|ments|ment|ingly|ings|ing|edly|ed|ies|ied|nesses|ness|ities|ity|ives|ive|ers|er|ors|or|ly|es|s)$/,''); return s.length>=4?s:w; }
+function stem(w){ if(w.length<5||/\d/.test(w)) return w; const s=w.replace(/(ational|tional|izations|ization|ations|ation|ements|ement|ments|ment|ingly|ings|ing|edly|ed|ies|ied|nesses|ness|ities|ity|ives|ive|ers|er|ors|or|ly|es|s)$/,''); return s.length>=4?s:w; }
 function build(){
   let tot=0;
   for(let i=0;i<N;i++){
@@ -386,7 +490,14 @@ function run(q,agSel,opts={}){
       res.sem=sem; res.lex=lex;
     }
   }
-  return {P,res,did:didMean.length?didMean:null,miss,sem};
+  /* a most asked question: the sections that answer it come first (the agency named in the search first) */
+  FAQ_AGSEL=agSel; const fq=opts.faq===false?null:faqMatch(P);
+  if(fq){ let pins=fq.ids.filter(i=>allowed(D[i],agSel,P)); if(P.ag.size) pins=pins.filter(i=>P.ag.has(D[i].a)).concat(pins.filter(i=>!P.ag.has(D[i].a)));
+    /* a section whose heading is exactly what was typed ("disputed derogatory credit accounts") stays first, the pinned ones after it */
+    /* (not an FHA Title I chapter, and not over a pinned section of the same guide) */
+    const t0=res.length?res[0][0]:null; if(pins.length&&t0!=null&&!(P.ag.size&&!P.ag.has(D[t0].a))&&!/Property Improvement Loan Program|Manufactured Home Loan Program|Title I /.test(D[t0].t)&&(pins.includes(t0)||!pins.some(i=>D[i].a===D[t0].a))){ const last=D[t0].t.split('>').pop().replace(/\([^)]*\)|^\s*[A-Za-z0-9]{1,4}\.\s/g,' '), tt=faqToks(faqWords(last)), qt=faqToks(P.toks.flatMap(w=>faqWords(w))); if(qt.length>=2&&qt.every(w=>tt.includes(w))&&tt.every(w=>qt.includes(w))){ pins=[t0].concat(pins.filter(i=>i!==t0)); res.faqHead=t0; } }
+    if(pins.length){ const top=res.length?res[0][1]:1, have=new Set(pins), rest=res.filter(([i])=>!have.has(i)); res.length=0; pins.forEach((i,k)=>res.push([i,top*(1.5-0.01*k)])); rest.forEach(x=>res.push(x)); res.faq=fq.f.q; } }
+  return {P,res,did:didMean.length?didMean:null,miss,sem,faq:res.faq||null};
 }
 /* a question (how / can / does ..., a question mark, or a long sentence) is matched by meaning as well as words; a few
    keywords or a section title is matched by its words, where meaning only adds noise */
@@ -506,9 +617,13 @@ function copy(t){ (navigator.clipboard?navigator.clipboard.writeText(t):Promise.
 
 /* ============ autocomplete ============ */
 let acItems=[], acIx=-1;
-function suggest(q){ const out=[]; const raw=q.trim(); if(raw.length<1){ const hs=hist.slice(0,6).map(t=>({g:'Recent',k:t,run:t})); return hs.concat(CANNED.slice(0,6).map(t=>({g:'Try',k:t,run:t}))); }
+/* the most asked questions shown first: on the start screen, and in the box before anything is typed */
+const FAQ_TOP=['How much down payment do I need?','What is the minimum credit score for a mortgage?','What is required to document gift funds?','What is the maximum debt-to-income ratio?','How long after bankruptcy can I get a mortgage?','How do I remove mortgage insurance?','How many months of reserves do I need?','How much can the seller pay toward closing costs?','What is required for a student loan monthly debt obligation?','How is rental income calculated?','How long do I need to be self-employed to qualify?','What are the FHA Minimum Decision Credit Score (MDCS) requirements?'];
+function faqFind(low,toks){ return FAQ.filter(f=>{ const all=[f.q].concat(f.k||[]).map(s=>s.toLowerCase()); return all.some(s=>s.includes(low))||(toks.length&&toks.every(t=>all.some(s=>s.split(/[^a-z0-9]+/).some(w=>w.startsWith(t))))); }); }
+function suggest(q){ const out=[]; const raw=q.trim(); if(raw.length<1){ const hs=hist.slice(0,5).map(t=>({g:'Recent',k:t,run:t})); return hs.concat(FAQ_TOP.slice(0,6).map(t=>({g:'Most asked',k:t,run:t}))); }
   const low=raw.toLowerCase(); const toks=tok(raw);
   const hs=hist.filter(h=>h.toLowerCase().includes(low)&&h.toLowerCase()!==low).slice(0,3).map(t=>({g:'Recent',k:t,run:t})); out.push(...hs);
+  if(raw.length>=2) out.push(...faqFind(low,toks).slice(0,4).map(f=>({g:'Most asked',k:f.q,run:f.q})));
   const cn=CANNED.filter(c=>c.toLowerCase().includes(low)||toks.every(t=>c.toLowerCase().includes(t))).slice(0,4).map(t=>({g:'Popular questions',k:t,run:t})); out.push(...cn);
   if(ready&&toks.length){ const last=toks[toks.length-1]; const ex=expandPrefix(last).filter(w=>w!==last).sort((a,b)=>post.get(b).length-post.get(a).length).slice(0,3);
     ex.forEach(w=>out.push({g:'Complete',k:toks.slice(0,-1).concat(w).join(' '),run:toks.slice(0,-1).concat(w).join(' ')})); }
@@ -552,6 +667,7 @@ $('#ac').addEventListener('mousedown',e=>{ const it=e.target.closest('.it'); if(
 document.addEventListener('click',e=>{ if(!e.target.closest('.sw')) hideAC(); });
 $('#clr').onclick=()=>{$('#q').value='';go();$('#q').focus();};
 document.addEventListener('keydown',e=>{ if(e.key==='/'&&!/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){e.preventDefault();$('#q').focus();} });
+$('#results').addEventListener('click',e=>{ const fb=e.target.closest('[data-faq]'); if(fb){ $('#q').value=fb.dataset.faq; go(); return; } });
 $('#results').addEventListener('click',e=>{ const o=e.target.closest('[data-open]'); if(o){openDoc(+o.dataset.open,curTerms());return;} const c=e.target.closest('[data-cite]'); if(c){copy(cite(D[+c.dataset.cite]));c.textContent='Copied';return;}
   if(e.target.closest('a')) return; const r=e.target.closest('.res'); if(r) openDoc(+r.dataset.i,curTerms()); });
 $$('.chip').forEach(b=>{ b.classList.toggle('on',agSel.has(b.dataset.ag)); b.onclick=()=>{ const a=b.dataset.ag; if(agSel.has(a)&&agSel.size>1) agSel.delete(a); else agSel.add(a); b.classList.toggle('on',agSel.has(a)); LS.set('gl-ag',[...agSel]); render($('#q').value); }; });
@@ -593,7 +709,11 @@ function cardHTML(i,tl,extra){ const d=D[i]; return `<div class="res" data-i="${
 function listHTML(title,ids,note){ return `<div class="lbl" style="margin-bottom:8px">${esc(title)}</div>`+(ids.length?ids.map(i=>cardHTML(i,[])).join(''):`<div class="empty">${note}</div>`); }
 function showSaved(){ const ids=saved.map(byKey).filter(i=>i!=null); $('#results').innerHTML=listHTML('Saved sections ('+ids.length+')',ids,'Nothing saved yet. Open a section and press &#9734; Save.'); }
 function homeHTML(){ const ids=seen.map(byKey).filter(i=>i!=null).slice(0,6);
-  return '<div class="empty">Type to search, or pick a topic above. Press <kbd>/</kbd> to search, <kbd>&darr;</kbd> to move through results.</div>'+(ids.length?listHTML('Recently read',ids,''):''); }
+  const b=(q)=>`<button class="faqb" data-faq="${esc(q)}">${esc(q)}</button>`, rest=FAQ.map(f=>f.q).filter(q=>!FAQ_TOP.includes(q));
+  return '<div class="empty">Type to search, or pick a topic above. Press <kbd>/</kbd> to search, <kbd>&darr;</kbd> to move through results.</div>'+(ids.length?listHTML('Recently read',ids,''):'')+
+    `<div class="lbl" style="margin:14px 0 8px">Most asked questions</div><div class="faql">${FAQ_TOP.map(b).join('')}</div>`+
+    `<details class="faqd"><summary>All ${FAQ.length} most asked questions</summary><div class="faql">${rest.map(b).join('')}</div></details>`+
+    '<p class="note">From Fannie Mae&rsquo;s top trending Selling Guide FAQs, HUD&rsquo;s FHA FAQs and the questions borrowers ask most. Each opens the sections that answer it first.</p>'; }
 // compare: the best match from each agency side by side
 function compareHTML(r,tl){ const ags=['Fannie','Freddie','FHA','VA'].filter(a=>agSel.has(a)); let h='<div class="cmp">';
   for(const a of ags){ const hit=r.res.find(([i])=>D[i].a===a); h+=`<div class="cmpc"><div class="lbl">${AGCOL[a]}</div>`;
@@ -604,6 +724,7 @@ const _render=render;
 render=function(q){ _render(q); const box=$('#results');
   if(!q.trim()){ box.innerHTML=homeHTML(); return; }
   box.querySelectorAll('.res').forEach(e=>e.tabIndex=0);
+  if(lastRun&&lastRun.faq) box.insertAdjacentHTML('afterbegin',`<p class="meta faqn">&#9733; Most asked question: <b>${esc(lastRun.faq)}</b> The sections that answer it are listed first.</p>`);
   if(view==='compare'&&lastRun&&lastRun.res.length){ const tl=terms(lastRun.P); box.insertAdjacentHTML('afterbegin',compareHTML(lastRun,tl)+'<div class="lbl" style="margin:14px 0 8px">All results</div>'); }
   const f=lastRun&&lastRun.P; if(f&&(f.phrases.length||f.not.length||f.only.size)) box.insertAdjacentHTML('afterbegin',`<p class="meta">Searching ${f.only.size?'only '+[...f.only].map(a=>AGCOL[a]).join(', '):'all selected guides'}${f.phrases.length?' for the exact words '+f.phrases.map(p=>'&ldquo;'+esc(p)+'&rdquo;').join(', '):''}${f.not.length?', leaving out '+f.not.map(esc).join(', '):''}.</p>`);
 };
