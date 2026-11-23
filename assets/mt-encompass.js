@@ -447,7 +447,7 @@
   /* switch views; a quick cross-fade where the browser has view transitions */
   function setView(v) {
     var run = function () { window.dispatchEvent(new CustomEvent('mt57:view', {detail: v})); apply(); };
-    if (document.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches) { try { document.startViewTransition(run); return; } catch (e) {} }
+    if (document.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches) { try { const vt = document.startViewTransition(run); [vt.ready, vt.finished, vt.updateCallbackDone].forEach((pr) => pr && pr.catch(() => {})); return; } catch (e) {} }   /* 57.37: a switch made while the last one is still animating (or in a hidden tab) is skipped quietly */
     run();
   }
   function openRenovationPage() {

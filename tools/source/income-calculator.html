@@ -4201,7 +4201,7 @@ function taxMoneyOn(line, from){
     if (/(\bline|\blines|\bform|forms?\)?|\bschedule|\bsection|\bbox|\bcode|\bpart|w-|\bstep|through|thru|\band)\s*[^\w\s$(]?\s*$/i.test(before)) continue;   /* "line 29", "Form 8829", "section 179", 57.34: "Add lines 5 through 19", "Form £562" as OCR read it */
     if (/^[A-Za-z]/.test(after) || /cat\.?\s*no\.?\s*$/i.test(before)) continue;   /* 57.23: "Cat. No. 11334P", "24b" */
     if (after === '-' && !/\d/.test(s.charAt(end + 1))) continue;   /* 57.34: a form number ("1125-A") or a line number ("20-") */
-    const tok = /^\(?-/.test(m[0]) && /\d\s*$/.test(s.slice(0, m.index)) ? m[0].replace('-', '') : m[0];   /* 57.34: "20- 89,286.": the dash belongs to the line number, not the amount */
+    const pre = s.slice(0, m.index), tok = /^\(?-/.test(m[0]) && (/\d$/.test(pre) || (/^\(?-\s/.test(m[0]) && /\d\s*$/.test(pre))) ? m[0].replace('-', '') : m[0];   /* 57.34: "20- 89,286.": the dash belongs to the line number; 57.37: "31 -18,088" is a loss */
     const strong = m[1].indexOf(',') >= 0 || !!m[2] || digits.length >= 3 || (m[0].charAt(0) === '(' && /\)\.?$/.test(m[0])) || (!!m[3] && digits.length >= 2 && !/^\s*[A-Z]/.test(s.slice(end, end + 3)));
     const year = /^(19|20)\d{2}$/.test(digits) && m[1].indexOf(',') < 0 && !m[2] && !/(?:^|\s)\d{1,2}[a-z]?\s*$/.test(before);   /* 57.34: "9 Insurance . . 9 1930" is $1,930 after the line number, not the year 1930 */
     if (strong && !year && after !== '%') { const v = toNum(tok.replace(/\.$/, '')); if (isFinite(v)) out.push(v); }
@@ -4624,7 +4624,14 @@ function extractFields(type, text){
     const eo = text.match(/employer'?s?\s*name[^\n]*\n?\s*([A-Za-z][A-Za-z0-9&.,'\- ]{4,58})/i);
     if (eo) F.push({slot:'employer', label:'Employer name', value:eo[1].trim(), src:eo[0].replace(/\s+/g,' ').trim(),
                     yearScoped:false, isText:true, apply:false});
-    const yr = (text.match(/\b(20\d{2})\b/g)||[]).map(Number).sort((a,b)=>b-a)[0];
+    /* 57.37: the year printed with the form's title; otherwise the latest plausible year that is not part of an SSN,
+       a street number or another figure ("XXX-XX-2091" and "2075 MAIN ST" are not tax years) */
+    const yr = (() => {
+      const now = new Date().getFullYear(), ok = (y) => y <= now && y >= now - 12;
+      const t = text.match(/(?:wage and tax statement|form\s*w-?2)\D{0,14}?(20\d{2})(?!\d)/i) || text.match(/(?<![\d-])(20\d{2})\s*(?:form\s*)?w-?2\b/i) || text.match(/(?<![\d-])(20\d{2})\D{0,8}wage and tax statement/i);
+      if (t && ok(+t[1])) return +t[1];
+      return (text.match(/(?<![\d\-\/.,$])20\d{2}(?![\d,.\-\/])(?!\s+[A-Z][A-Za-z]*\s+(?:st|street|ave|avenue|rd|road|dr|drive|blvd|ln|lane|way|ct|court|pl|place)\b)/gi)||[]).map(Number).filter(ok).sort((x,y)=>y-x)[0];
+    })();
     if (yr) F.push({slot:'_year', label:'Tax year on the form', value:yr, src:'Detected tax year',
                     yearScoped:false, apply:false, readonly:true});
   }
@@ -4694,7 +4701,14 @@ function extractFields(type, text){
     g('Line 8 — Other income from Schedule 1',      /\b8\b.*schedule 1|additional income/i);
     g('Line 9 — Total income',                      /\b9\b.*total income|total income/i);
     g('Line 11 — Adjusted gross income',            /\b11\b.*adjusted gross|adjusted gross income/i);
-    const yr = (text.match(/\b(20\d{2})\b/g)||[]).map(Number).sort((a,b)=>b-a)[0];
+    /* 57.37: the year printed with the form's title; otherwise the latest plausible year that is not part of an SSN,
+       a street number or another figure ("XXX-XX-2091" and "2075 MAIN ST" are not tax years) */
+    const yr = (() => {
+      const now = new Date().getFullYear(), ok = (y) => y <= now && y >= now - 12;
+      const t = text.match(/(?:wage and tax statement|form\s*w-?2)\D{0,14}?(20\d{2})(?!\d)/i) || text.match(/(?<![\d-])(20\d{2})\s*(?:form\s*)?w-?2\b/i) || text.match(/(?<![\d-])(20\d{2})\D{0,8}wage and tax statement/i);
+      if (t && ok(+t[1])) return +t[1];
+      return (text.match(/(?<![\d\-\/.,$])20\d{2}(?![\d,.\-\/])(?!\s+[A-Z][A-Za-z]*\s+(?:st|street|ave|avenue|rd|road|dr|drive|blvd|ln|lane|way|ct|court|pl|place)\b)/gi)||[]).map(Number).filter(ok).sort((x,y)=>y-x)[0];
+    })();
     if (yr) F.push({slot:'', label:'Tax year on the return', value:yr, src:'Detected', yearScoped:false, apply:false, readonly:true});
     F.push({slot:'', label:'The 1040 is a cross-check — enter the qualifying figures on the Schedule C, K-1 or Other Income worksheets',
             value:0, src:'Guidance', yearScoped:false, apply:false, readonly:true});

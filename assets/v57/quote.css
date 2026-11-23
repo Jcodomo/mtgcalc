@@ -41,6 +41,9 @@
 
 #quote57 .q-body { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; align-items: start; }
 #quote57.q-sumhidden .q-body { grid-template-columns: minmax(0, 1fr) 160px; }
+/* 57.37: the hidden summary keeps its size buttons inside its narrow column */
+#quote57.q-sumhidden .q-sumbar, #quote57.q-sumhidden .q-sumbar div { flex-wrap: wrap; min-width: 0; }
+#quote57.q-body > *, #quote57 .q-body > * { min-width: 0; }
 #quote57 .q-main { min-width: 0; }
 #quote57 .q-sec, #quote57 .q-assume { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-bottom: 12px; scroll-margin-top: 12px; }
 #quote57 .q-sec h2, #quote57 .q-assume h2 { margin: 0; font-size: 16px; }
