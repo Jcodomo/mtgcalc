@@ -462,7 +462,6 @@
 <script src="assets/income-enhancements.js?v=57.30"></script>
 <script src="assets/sync-bridge.js"></script>
 <script src="assets/loan-ux.js"></script>
-<script src="assets/loan-docs-ai.js"></script>
 <script src="assets/loan-cards.js"></script>
 <script src="assets/workflow-ui.js?v=57.31"></script>
 <script src="assets/loan-suite-embed.js"></script>
@@ -471,7 +470,7 @@
 <script src="assets/rapid-ocr.js?v=57.36"></script>
 <script src="assets/doc-center.js?v=57.36"></script>
 <script src="assets/income-rules.js?v=57.32"></script>
-<script src="assets/ghost-bridge.js?v=57.17"></script>
-<script src="assets/mt-quick-edit.js?v=57.32"></script>
+<script id="mt-late-load">/* 57.38: these run once the page has finished loading (tools/lazy-suite.py) */(function(){var u=["assets/loan-docs-ai.js","assets/ghost-bridge.js?v=57.17","assets/mt-quick-edit.js?v=57.32"];function go(){u.forEach(function(s){var e=document.createElement("script");e.src=s;e.async=false;document.body.appendChild(e);});}if(document.readyState==="complete")setTimeout(go,0);else window.addEventListener("load",function(){setTimeout(go,0);});})();</script>
+<script id="mt-suite-speed">/* 57.38: after the page has loaded, keep the suite files on the device (suite-sw.js; tools/lazy-suite.py) */(function(){function go(){try{if("serviceWorker" in navigator&&location.protocol!=="file:")navigator.serviceWorker.register("suite-sw.js").then(function(){return navigator.serviceWorker.ready;}).then(function(r){var u=performance.getEntriesByType("resource").map(function(e){return e.name;}).filter(function(n){return n.indexOf("/assets/")>-1&&n.indexOf("v=")>-1;});if(r.active&&u.length)r.active.postMessage({mtCache:u});}).catch(function(){});}catch(e){}}if(document.readyState==="complete")setTimeout(go,0);else window.addEventListener("load",function(){setTimeout(go,0);});})();</script>
 </body>
 </html>
