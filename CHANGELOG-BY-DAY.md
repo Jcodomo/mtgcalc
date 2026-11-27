@@ -4,6 +4,16 @@ Every change, by the day it was released (newest first), then by section of the 
 the full release notes are in [CHANGELOG.md](CHANGELOG.md). The same list is on the site: https://jcodomo.github.io/mtgcalc/changelog.html
 This file is built from CHANGELOG.md with `npm run changelog`.
 
+## 2026-11-27 - Release 57.39
+
+### Document Builder
+- (57.39) Loads with doc-builder.js?v=57.39 (mt-build-lazy.js?v=57.39 on the 23 pages that load it).
+- (57.39) Test: tests/doc-builder-signing.browser.js - every builder x every style with signature lines (43 looks, 100 lines): a block on every line, one code per document that changes with the wording, the same signing time on every dated line, every part removable or editable, Download PDF; 255 of 255 checks pass.
+
+### Signatures & Ghost
+- (57.39) **Signing block (new look for any signature line):** Signatures > Look > "Signing block (Signed by, name, code)". A rounded frame holds the label ("Signed by"), the signature, the printed name and a footer line with the signing code: the first 16 characters of the SHA-256 fingerprint of the document's text as written before any signature was put on it, so the code says which version of the document was signed (change the wording and the code changes). Every part can be changed or left out: type a different label or none, a different printed name, your own footer (or leave it blank for the signing code, or a space for no footer), and switch the printed name or the frame off. The block can be dragged like any placed signature, in Print and in the PDF.
+- (57.39) **One signing time:** every line with Date ticked shows the same date - the "Signing date" under Signatures, or else the date the first line was dated. Date shown as 11/27/2026, 11/27/2026 without leading zeros, or 11/27/2026 | 8:33 AM PST with a signing time and time zone.
+
 ## 2026-11-23 - Release 57.37
 
 ### Loan Suite & calculations

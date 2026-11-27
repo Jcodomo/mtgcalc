@@ -2531,18 +2531,65 @@
   var SIGCSS = '.esg{position:relative;overflow:visible}span.esg{display:inline-block;min-height:1em}.esg>img.esig{position:absolute;left:4px;bottom:-4px;max-width:96%;object-fit:contain;object-position:left bottom}' +
     '.esg>.esd{position:absolute;right:2px;bottom:3px;font:9.5pt/1 Arial,Helvetica,sans-serif;color:#111}.esg>.esfr{position:absolute;left:2px;bottom:3px;display:flex;flex-direction:column;align-items:flex-start;padding:2px 10px 2px 9px;border:1.3px solid #2a4fb5;border-right:0;border-radius:10px 0 0 10px;font:6.8pt/1.2 Arial,Helvetica,sans-serif;color:#2a4fb5;background:transparent;white-space:nowrap}' +
     '.esfr>img{display:block;max-width:3in;object-fit:contain;object-position:left center;margin:1px 0}.esfr>b{font-weight:400}.esfr>i{font-style:normal;letter-spacing:.02em}[data-esi]{cursor:move}@media print{[data-esi]{cursor:auto}}';
+  /* 57.39: the signing block - a frame with your label ("Signed by"), the signature, the printed name and a footer line
+     carrying the signing code: the start of the SHA-256 fingerprint of the document's text as written before any
+     signature was put on it, so the code says which version of the document was signed. Every part can be changed or
+     left out. */
+  var SBCSS = '.esb{position:absolute;left:2px;bottom:3px;display:flex;flex-direction:column;align-items:flex-start;padding:3px 12px 3px 9px;border:1.3px solid #5b3df5;border-radius:8px;font:600 6.8pt/1.25 Arial,Helvetica,sans-serif;color:#5b3df5;background:transparent;white-space:nowrap}' +
+    '.esb.nofr{border-color:transparent}.esb>img{display:block;max-width:3in;object-fit:contain;object-position:left center;margin:1px 0}.esb>.nm{font:400 8.5pt/1.2 Arial,Helvetica,sans-serif;color:#111}.esb>i{font:6pt/1.3 "Courier New",Courier,monospace;font-style:normal;color:#6b6b76}';
+  function sha256(str) {
+    var K = [0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da, 0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+      0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85, 0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070, 0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2];
+    var b = unescape(encodeURIComponent(str)), n = b.length, words = [], i;
+    for (i = 0; i < n; i++) words[i >> 2] |= b.charCodeAt(i) << (24 - (i % 4) * 8);
+    words[n >> 2] |= 0x80 << (24 - (n % 4) * 8); var L = ((n + 8) >> 6) * 16 + 15; for (i = words.length; i <= L; i++) words[i] = words[i] | 0; words[L] = n * 8;
+    var H = [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19], W = new Array(64), r = function (x, c) { return (x >>> c) | (x << (32 - c)); };
+    for (var j = 0; j < words.length; j += 16) {
+      var a = H[0], bb = H[1], c = H[2], d = H[3], e = H[4], f = H[5], g = H[6], h = H[7];
+      for (i = 0; i < 64; i++) {
+        if (i < 16) W[i] = words[j + i] | 0; else W[i] = (r(W[i - 2], 17) ^ r(W[i - 2], 19) ^ (W[i - 2] >>> 10)) + W[i - 7] + (r(W[i - 15], 7) ^ r(W[i - 15], 18) ^ (W[i - 15] >>> 3)) + W[i - 16] | 0;
+        var t1 = h + (r(e, 6) ^ r(e, 11) ^ r(e, 25)) + ((e & f) ^ (~e & g)) + K[i] + W[i] | 0, t2 = (r(a, 2) ^ r(a, 13) ^ r(a, 22)) + ((a & bb) ^ (a & c) ^ (bb & c)) | 0;
+        h = g; g = f; f = e; e = d + t1 | 0; d = c; c = bb; bb = a; a = t1 + t2 | 0;
+      }
+      H[0] = H[0] + a | 0; H[1] = H[1] + bb | 0; H[2] = H[2] + c | 0; H[3] = H[3] + d | 0; H[4] = H[4] + e | 0; H[5] = H[5] + f | 0; H[6] = H[6] + g | 0; H[7] = H[7] + h | 0;
+    }
+    return H.map(function (x) { return ('00000000' + (x >>> 0).toString(16)).slice(-8); }).join('').toUpperCase();
+  }
+  /* the document's text, as written before signatures: what the code fingerprints */
+  function docText(html) { return String(html || '').replace(/<style[^]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim(); }
+  /* one signing time for every dated line: the date (and, if chosen, the time and zone) set under Signatures, else the
+     date the first line was dated */
+  var TZS = ['PST', 'PDT', 'MST', 'MDT', 'CST', 'CDT', 'EST', 'EDT', 'AKST', 'HST', 'GMT', 'UTC'];
+  function localTz() { try { var m = new Date().toLocaleTimeString('en-US', {timeZoneName: 'short'}).match(/[A-Z]{2,5}$/); return (m && m[0]) || 'UTC'; } catch (e) { return 'UTC'; } }
+  function signDate(s) {
+    var L = s.esigs || [], first = ''; for (var i = 0; i < L.length; i++) if (L[i] && L[i].date) { first = L[i].date; break; }
+    var day = s.esigDay || first; if (!day) return '';
+    var d = parseDate(day); if (!d) return esc(day);
+    var mdY = ('0' + (d.getMonth() + 1)).slice(-2) + '/' + ('0' + d.getDate()).slice(-2) + '/' + d.getFullYear();
+    if (s.esigFmt !== 'stamp') return s.esigFmt === 'short' ? (d.getMonth() + 1) + '/' + d.getDate() + '/' + d.getFullYear() : mdY;
+    var tm = String(s.esigTime || '').trim().match(/^(\d{1,2})(?::(\d{2}))?\s*([ap])?/i), hh = tm ? +tm[1] : 9, mm = tm && tm[2] ? +tm[2] : 0;
+    if (tm && tm[3]) { var pm = /p/i.test(tm[3]); if (pm && hh < 12) hh += 12; if (!pm && hh === 12) hh = 0; }
+    var ap = hh >= 12 ? 'PM' : 'AM', h12 = hh % 12 || 12;
+    return mdY + ' | ' + h12 + ':' + ('0' + mm).slice(-2) + ' ' + ap + ' ' + (s.esigTz || localTz());
+  }
   function sigId(a) { var h1 = 0x811c9dc5, h2 = 0x1b873593, t = String(a); for (var i = 0; i < t.length; i++) { var c = t.charCodeAt(i); h1 = Math.imul(h1 ^ c, 16777619) >>> 0; h2 = Math.imul(h2 ^ c, 2246822519) >>> 0; } return (('00000000' + h1.toString(16)).slice(-8) + ('00000000' + h2.toString(16)).slice(-8)).toUpperCase(); }
   function applySigs(html, s, k) {
     var L = s && s.esigs; if (!L || !L.length || !window.MTSign || typeof html !== 'string') return html;
-    var i = -1, any = false, base = N(s.esigSize) || 44;
+    var i = -1, any = false, anyB = false, base = N(s.esigSize) || 44, when = signDate(s), code = null;
+    var codeOf = function () { return code || (code = sha256(docText(html))); };
     html = html.replace(SIGSPOT, function (m0, tag, cls, rest) { i++; var e = L[i], g = e && e.id && MTSign.get(e.id); if (!g) return m0; any = true;
       var h = N(e.size) || base, op = N(e.op) ? 'opacity:' + Math.min(1, N(e.op) / 100) + ';' : '', mv = e.dx || e.dy ? 'transform:translate(' + (+e.dx || 0) + 'px,' + (+e.dy || 0) + 'px);' : '';
-      if (e.style === 'frame') { var gap = 'margin-top:' + Math.round(h * 0.85 + 6) + 'px;'; rest = /style="/.test(rest) ? rest.replace('style="', 'style="' + gap) : rest + ' style="' + gap + '"'; }
-      var out = '<' + tag + ' class="' + cls + ' esg"' + rest + '>';
-      if (e.style === 'frame') out += '<span class="esfr" data-esi="' + i + '" style="' + op + mv + '"><b>Signed by:</b><img alt="Signature" style="height:' + Math.round(h * 0.85) + 'px" src="' + g.png + '"><i>' + sigId(g.id + '|' + (k || '') + '|' + i).slice(0, 15) + '…' + (e.date ? ' &nbsp; ' + esc(e.date) : '') + '</i></span>';
-      else out += '<img class="esig" data-esi="' + i + '" alt="Signature" style="height:' + h + 'px;' + op + mv + '" src="' + g.png + '">' + (e.date ? '<span class="esd">' + esc(e.date) + '</span>' : '');
+      if (e.style === 'frame' || e.style === 'block') { var gap = 'margin-top:' + Math.round(h * 0.85 + (e.style === 'block' ? 34 : 6)) + 'px;'; rest = /style="/.test(rest) ? rest.replace('style="', 'style="' + gap) : rest + ' style="' + gap + '"'; }
+      var out = '<' + tag + ' class="' + cls + ' esg"' + rest + '>', dt = e.date ? when || esc(e.date) : '';
+      if (e.style === 'block') { anyB = true;
+        var lab = e.label == null ? 'Signed by' : e.label, nm = e.name == null ? (g.label || '').replace(/\s*\((black|blue|navy|initials)\)\s*$/i, '') : e.name, ft = e.footer == null ? 'Ghost Calligrapher · ' + codeOf().slice(0, 16) + '…' : e.footer;
+        out += '<span class="esb' + (e.frame === 'off' ? ' nofr' : '') + '" data-esi="' + i + '" style="' + op + mv + '">' + (lab ? '<b>' + esc(lab) + '</b>' : '') + '<img alt="Signature" style="height:' + Math.round(h * 0.85) + 'px" src="' + g.png + '">' +
+          (e.pname === 'off' || !nm ? '' : '<span class="nm">' + esc(nm) + '</span>') + (ft ? '<i>' + esc(ft) + '</i>' : '') + '</span>' + (dt ? '<span class="esd">' + dt + '</span>' : '');
+        return out; }
+      if (e.style === 'frame') out += '<span class="esfr" data-esi="' + i + '" style="' + op + mv + '"><b>Signed by:</b><img alt="Signature" style="height:' + Math.round(h * 0.85) + 'px" src="' + g.png + '"><i>' + sigId(g.id + '|' + (k || '') + '|' + i).slice(0, 15) + '…' + (dt ? ' &nbsp; ' + dt : '') + '</i></span>';
+      else out += '<img class="esig" data-esi="' + i + '" alt="Signature" style="height:' + h + 'px;' + op + mv + '" src="' + g.png + '">' + (dt ? '<span class="esd">' + dt + '</span>' : '');
       return out; });
-    return any ? html.replace('</style>', SIGCSS + '</style>') : html;
+    return any ? html.replace('</style>', SIGCSS + (anyB ? SBCSS : '') + '</style>') : html;
   }
   ORDER.forEach(function (k) { var raw = B[k].doc; if (!raw || raw.__sig) return; B[k].rawDoc = raw; B[k].doc = function (st) { return applySigs(raw.apply(this, arguments), st, k); }; B[k].doc.__sig = true; });
   /* a placed signature can be dragged on the preview; the move is kept with the draft and used in Print and the PDF */
@@ -2575,9 +2622,13 @@
         return '<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(130px,190px) auto;gap:8px;align-items:center"><span style="font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + esc(lab) + '">' + (i + 1) + '. ' + esc(lab) + '</span>' +
           '<select data-a="esig" data-i="' + i + '" aria-label="Signature on line ' + (i + 1) + ', ' + esc(lab) + '"><option value="">Unsigned</option>' + opts(saved, e.id) + '</select>' +
           '<label class="ck" title="Print today\'s date on this line"><input type="checkbox" data-a="esigDate" data-i="' + i + '"' + (e.date ? ' checked' : '') + '><span>Date</span></label></div>' +
-          (e.id ? '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:-2px 0 4px 18px;font-size:12px">' + sel(i, 'style', 'Look', [['', 'Signature only'], ['frame', 'E-signature frame']], e.style) + sel(i, 'size', 'Size', [['', 'Size: as set below'], ['30', 'Small'], ['44', 'Normal'], ['56', 'Large'], ['70', 'Extra large']], e.size) +
-            sel(i, 'op', 'Opacity', [['', 'Opacity 100%'], ['85', '85%'], ['70', '70%'], ['55', '55%']], e.op) + (e.dx || e.dy ? '<button type="button" class="x" data-a="esigHome" data-i="' + i + '">Put back on the line</button>' : '<span class="note" style="margin:0">Drag it on the page to move it.</span>') + '</div>' : ''); }).join('') + '</div>';
-    return '<fieldset><legend>Signatures</legend>' + rows + '<div class="g" style="margin-top:8px">' + field(b, 'esigSize', 'Signature size', {type: 'select', options: [['', 'Normal'], ['34', 'Small'], ['56', 'Large'], ['68', 'Extra large']]}) + '</div>' +
+          (e.id ? '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:-2px 0 4px 18px;font-size:12px">' + sel(i, 'style', 'Look', [['', 'Signature only'], ['block', 'Signing block (Signed by, name, code)'], ['frame', 'E-signature frame']], e.style) + sel(i, 'size', 'Size', [['', 'Size: as set below'], ['30', 'Small'], ['44', 'Normal'], ['56', 'Large'], ['70', 'Extra large']], e.size) +
+            sel(i, 'op', 'Opacity', [['', 'Opacity 100%'], ['85', '85%'], ['70', '70%'], ['55', '55%']], e.op) +
+            (e.style === 'block' ? txt(i, 'label', 'Label', e.label == null ? 'Signed by' : e.label, '(no label)') + txt(i, 'name', 'Printed name', e.name == null ? (((window.MTSign && MTSign.get(e.id)) || {}).label || '').replace(/\s*\((black|blue|navy|initials)\)\s*$/i, '') : e.name, '(no name)') + txt(i, 'footer', 'Footer', e.footer == null ? '' : e.footer, 'Signing code (default) - or type your own, or a space for none') +
+              sel(i, 'pname', 'Printed name', [['', 'Printed name on'], ['off', 'Printed name off']], e.pname) + sel(i, 'frame', 'Frame', [['', 'Frame on'], ['off', 'Frame off']], e.frame) : '') + (e.dx || e.dy ? '<button type="button" class="x" data-a="esigHome" data-i="' + i + '">Put back on the line</button>' : '<span class="note" style="margin:0">Drag it on the page to move it.</span>') + '</div>' : ''); }).join('') + '</div>';
+    return '<fieldset><legend>Signatures</legend>' + rows + '<div class="g" style="margin-top:8px">' + field(b, 'esigSize', 'Signature size', {type: 'select', options: [['', 'Normal'], ['34', 'Small'], ['56', 'Large'], ['68', 'Extra large']]}) +
+      field(b, 'esigDay', 'Signing date (every dated line)', {type: 'date', ph: 'The date the first line was dated'}) + field(b, 'esigFmt', 'Date shown as', {type: 'select', options: [['', '11/27/2026'], ['short', '11/27/2026 without leading zeros'], ['stamp', '11/27/2026 | 8:33 AM PST']]}) +
+      (s.esigFmt === 'stamp' ? field(b, 'esigTime', 'Signing time', {ph: '8:33 AM'}) + field(b, 'esigTz', 'Time zone', {type: 'select', options: [['', 'This computer (' + localTz() + ')']].concat(TZS.map(function (z) { return [z, z]; }))}) : '') + '</div>' +
       '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"><button type="button" class="btn" data-a="esigMake">Signature maker…</button><button type="button" class="btn" data-a="esigUpload" title="Turn a PNG, SVG or photo into a signature with no background">Add a PNG / SVG signature…</button>' + (L.some(function (x) { return x && x.id; }) ? '<button type="button" class="btn" data-a="esigClear">Remove all signatures</button>' : '') + '</div>' +
       '<div class="note">Make a signature or initials once - typed in a handwriting style, drawn, or from a PNG, SVG or photo - and pick it for any line. ' + (saved.length ? saved.length + ' saved in this browser.' : 'None saved yet.') + ' Lines are numbered as they appear on the page.</div></fieldset>';
   }
@@ -2585,18 +2636,20 @@
     var grp = function (t, l) { return l.length ? '<optgroup label="' + t + '">' + l.map(function (g) { return '<option value="' + esc(g.id) + '"' + (id === g.id ? ' selected' : '') + '>' + esc(g.label) + '</option>'; }).join('') + '</optgroup>' : ''; };
     return grp('Signatures', saved.filter(function (g) { return g.type !== 'initials'; })) + grp('Initials', saved.filter(function (g) { return g.type === 'initials'; })) + (id && !saved.some(function (g) { return g.id === id; }) ? '<option value="' + esc(id) + '" selected>(deleted signature)</option>' : '');
   }
+  function txt(i, o, lab, v, ph) { return '<input type="text" data-a="esigTxt" data-o="' + o + '" data-i="' + i + '" aria-label="' + lab + ' of the signing block on line ' + (i + 1) + '" title="' + lab + '" value="' + esc(v) + '" placeholder="' + esc(ph || lab) + '" style="padding:3px 6px;font-size:12px;width:150px">'; }
   function sel(i, o, lab, list, v) { return '<select data-a="esigOpt" data-o="' + o + '" data-i="' + i + '" aria-label="' + lab + ' of the signature on line ' + (i + 1) + '" style="padding:3px 6px;font-size:12px">' + list.map(function (x) { return '<option value="' + x[0] + '"' + (String(v || '') === x[0] ? ' selected' : '') + '>' + x[1] + '</option>'; }).join('') + '</select>'; }
   function esigSet(t) {
     var s = drafts[cur], i = +t.getAttribute('data-i'); s.esigs = (s.esigs || []).slice(); var e = Object.assign({}, s.esigs[i] || {});
-    var a = t.getAttribute('data-a'); if (a === 'esig') e.id = t.value; else if (a === 'esigOpt') e[t.getAttribute('data-o')] = t.value; else if (a === 'esigHome') { e.dx = 0; e.dy = 0; } else e.date = t.checked ? today() : '';
+    var a = t.getAttribute('data-a'); if (a === 'esig') e.id = t.value; else if (a === 'esigOpt') e[t.getAttribute('data-o')] = t.value;
+    else if (a === 'esigTxt') { var o = t.getAttribute('data-o'); if (o === 'footer' && t.value === '') delete e.footer; else e[o] = t.value === ' ' ? '' : t.value; } else if (a === 'esigHome') { e.dx = 0; e.dy = 0; } else e.date = t.checked ? today() : '';
     s.esigs[i] = e; for (var k = 0; k < s.esigs.length; k++) if (!s.esigs[k]) s.esigs[k] = {};
-    persist(); scheduleVersion(cur); if (a !== 'esigDate') renderForm(); refresh(true);
+    persist(); scheduleVersion(cur); if (a !== 'esigDate' && a !== 'esigTxt') renderForm(); refresh(true);
   }
   function esigMake() {
     var s = drafts[cur], who = ''; try { var n = s.borrowers || s.buyers || s.clients || []; who = (typeof n[0] === 'object' ? n[0] && n[0].name : n[0]) || s.signer || s.lo || ''; } catch (e) {}
     needSign().then(function (ok) { if (!ok) { say('The signature maker could not load - check the connection and try again.'); return; } MTSign.open({name: who}); });
   }
-  var RERENDER = {fFont: 0, fWeight: 0, fItal: 0, listSet: 1, listFmt: 1, listGroup: 1, listDone: 1, showPay: 1, drawCustom: 1, style: 1, leaseType: 1, program: 1, concOnTop: 1, ttOn: 1, renoOn: 0, payType: 1, state: 1, locality: 1, ytdMode: 1, logoSize: 0, type: 1, oSource: 0, oPrice: 1};
+  var RERENDER = {esigFmt: 1, fFont: 0, fWeight: 0, fItal: 0, listSet: 1, listFmt: 1, listGroup: 1, listDone: 1, showPay: 1, drawCustom: 1, style: 1, leaseType: 1, program: 1, concOnTop: 1, ttOn: 1, renoOn: 0, payType: 1, state: 1, locality: 1, ytdMode: 1, logoSize: 0, type: 1, oSource: 0, oPrice: 1};
   function mount() {
     if ($('mtB')) return;
     if (!$('mtBcss')) { var st = document.createElement('style'); st.id = 'mtBcss'; st.textContent = CSS; document.head.appendChild(st); }
@@ -2844,7 +2897,7 @@
   }
   function wire(w) {
     w.addEventListener('paste', pasteRows);
-    w.addEventListener('input', function (e) { if (e.target.matches('input:not([type=checkbox]):not([type=file]):not(.pk):not(#mtBpreset),textarea')) setVal(e.target, e); });
+    w.addEventListener('input', function (e) { if (e.target.getAttribute('data-a') === 'esigTxt') return esigSet(e.target); if (e.target.matches('input:not([type=checkbox]):not([type=file]):not(.pk):not(#mtBpreset),textarea')) setVal(e.target, e); });
     w.addEventListener('change', function (e) {
       var t = e.target, a = t.getAttribute('data-a');
       if (t.type === 'file') { var fls = Array.prototype.slice.call(t.files || []), fl = fls[0]; t.value = ''; if (fl) { if (a === 'logo') loadLogo(t.getAttribute('data-b'), fl); else readInto(a, fls.length > 1 ? fls : fl); } return; }
